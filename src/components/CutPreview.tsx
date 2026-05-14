@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { cropImage } from "../lib/cropImage";
 import { warpPhotoStrip } from "../lib/warpPhotoStrip";
 import { detectPhotoCellsByProjection } from "../lib/detectPhotoCellsByProjection";
 import { createGif } from "../lib/createGif";
@@ -12,6 +11,13 @@ type CutPreviewProps = {
 
 type ExtractStatus = "loading" | "success" | "fallback" | "error";
 
+type CellRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 type Adjust = {
   x: number;
   y: number;
@@ -19,7 +25,9 @@ type Adjust = {
 };
 
 function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
-  const [cutImages, setCutImages] = useState<string[]>([]);
+  const [sourceUrl, setSourceUrl] = useState<string | null>(null);
+  const [sourceSize, setSourceSize] = useState({ width: 0, height: 0 });
+  const [cells, setCells] = useState<CellRect[]>([]);
   const [adjusts, setAdjusts] = useState<Adjust[]>([]);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
   const [isCreatingGif, setIsCreatingGif] = useState(false);
@@ -29,9 +37,11 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
   useEffect(() => {
     let isCancelled = false;
 
-    async function generateCuts() {
+    async function generateCells() {
       try {
-        setCutImages([]);
+        setSourceUrl(null);
+        setCells([]);
+        setAdjusts([]);
         setGifUrl(null);
         setStatus("loading");
         setMessage("사진 위치를 정리하는 중입니다.");
@@ -54,46 +64,32 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
             height,
           };
 
-          const cells = await detectPhotoCellsByProjection(warpedUrl, stripRect);
-          const results: string[] = [];
+          let nextCells = await detectPhotoCellsByProjection(warpedUrl, stripRect);
 
-          if (cells.length === 4) {
-            for (const cell of cells) {
-              const cropped = await cropImage(
-                warpedUrl,
-                cell.x,
-                cell.y,
-                cell.width,
-                cell.height,
-              );
-
-              results.push(cropped);
-            }
-
+          if (nextCells.length === 4) {
             setStatus("success");
-            setMessage("네 컷을 자동으로 정리했어요. 손가락으로 위치를 조정할 수 있어요.");
+            setMessage(
+              "네 컷을 자동으로 정리했어요. 손가락으로 위치를 조정할 수 있어요.",
+            );
           } else {
             const cutHeight = height / 4;
 
-            for (let i = 0; i < 4; i++) {
-              const cropped = await cropImage(
-                warpedUrl,
-                0,
-                cutHeight * i,
-                width,
-                cutHeight,
-              );
-
-              results.push(cropped);
-            }
+            nextCells = Array.from({ length: 4 }, (_, i) => ({
+              x: 0,
+              y: cutHeight * i,
+              width,
+              height: cutHeight,
+            }));
 
             setStatus("fallback");
             setMessage("4등분으로 정리했어요. 손가락으로 위치를 조정해주세요.");
           }
 
           if (!isCancelled) {
-            setCutImages(results);
-            setAdjusts(results.map(() => ({ x: 0, y: 0, scale: 1 })));
+            setSourceUrl(warpedUrl);
+            setSourceSize({ width, height });
+            setCells(nextCells);
+            setAdjusts(nextCells.map(() => ({ x: 0, y: 0, scale: 1 })));
           }
         };
 
@@ -112,7 +108,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       }
     }
 
-    generateCuts();
+    generateCells();
 
     return () => {
       isCancelled = true;
@@ -132,37 +128,53 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     );
   };
 
+  const resetAllAdjusts = () => {
+    setAdjusts(cells.map(() => ({ x: 0, y: 0, scale: 1 })));
+  };
+
   const renderAdjustedImages = async () => {
+    if (!sourceUrl) return [];
+
+    const sourceImage = await loadImage(sourceUrl);
     const rendered: string[] = [];
 
-    for (let i = 0; i < cutImages.length; i++) {
-      const image = await loadImage(cutImages[i]);
+    for (let i = 0; i < cells.length; i++) {
+      const cell = cells[i];
       const adjust = adjusts[i] ?? { x: 0, y: 0, scale: 1 };
 
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
-      if (!ctx) {
-        rendered.push(cutImages[i]);
-        continue;
-      }
+      if (!ctx) continue;
 
       const targetWidth = 480;
-      const targetHeight = Math.round((image.height / image.width) * targetWidth);
+      const targetHeight = Math.round((cell.height / cell.width) * targetWidth);
 
       canvas.width = targetWidth;
       canvas.height = targetHeight;
 
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, targetWidth, targetHeight);
 
-      const scaledWidth = targetWidth * adjust.scale;
-      const scaledHeight = targetHeight * adjust.scale;
+      const sourceCropWidth = cell.width / adjust.scale;
+      const sourceCropHeight = cell.height / adjust.scale;
 
-      const drawX = (targetWidth - scaledWidth) / 2 + adjust.x * 2;
-      const drawY = (targetHeight - scaledHeight) / 2 + adjust.y * 2;
+      const sourceX =
+        cell.x + (cell.width - sourceCropWidth) / 2 - adjust.x / adjust.scale;
+      const sourceY =
+        cell.y + (cell.height - sourceCropHeight) / 2 - adjust.y / adjust.scale;
 
-      ctx.drawImage(image, drawX, drawY, scaledWidth, scaledHeight);
+      ctx.drawImage(
+        sourceImage,
+        clamp(sourceX, 0, sourceImage.width - sourceCropWidth),
+        clamp(sourceY, 0, sourceImage.height - sourceCropHeight),
+        Math.min(sourceCropWidth, sourceImage.width),
+        Math.min(sourceCropHeight, sourceImage.height),
+        0,
+        0,
+        targetWidth,
+        targetHeight,
+      );
 
       rendered.push(canvas.toDataURL("image/png"));
     }
@@ -171,7 +183,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
   };
 
   const handleCreateGif = async () => {
-    if (cutImages.length !== 4) return;
+    if (cells.length !== 4 || !sourceUrl) return;
 
     setIsCreatingGif(true);
     setGifUrl(null);
@@ -277,7 +289,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
           {message}
         </div>
 
-        {cutImages.length > 0 && (
+        {sourceUrl && cells.length > 0 && (
           <>
             <div
               style={{
@@ -286,10 +298,12 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                 gap: "10px",
               }}
             >
-              {cutImages.map((cut, index) => (
+              {cells.map((cell, index) => (
                 <AdjustableCut
                   key={index}
-                  imageUrl={cut}
+                  sourceUrl={sourceUrl}
+                  sourceSize={sourceSize}
+                  cell={cell}
                   adjust={adjusts[index] ?? { x: 0, y: 0, scale: 1 }}
                   onChange={(next) => updateAdjust(index, next)}
                 />
@@ -321,7 +335,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
           <>
             <button
               onClick={handleCreateGif}
-              disabled={cutImages.length !== 4 || isCreatingGif}
+              disabled={cells.length !== 4 || isCreatingGif}
               style={{
                 marginTop: "18px",
                 width: "100%",
@@ -333,7 +347,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                 fontSize: "17px",
                 fontWeight: 800,
                 cursor: "pointer",
-                opacity: cutImages.length !== 4 || isCreatingGif ? 0.6 : 1,
+                opacity: cells.length !== 4 || isCreatingGif ? 0.6 : 1,
                 boxShadow: "0 8px 20px rgba(255,79,135,0.28)",
               }}
             >
@@ -349,7 +363,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                 flexWrap: "wrap",
               }}
             >
-              <button onClick={() => resetAllAdjusts()} style={smallButtonStyle}>
+              <button onClick={resetAllAdjusts} style={smallButtonStyle}>
                 위치 초기화
               </button>
             </div>
@@ -441,20 +455,30 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       </div>
     </div>
   );
-
-  function resetAllAdjusts() {
-    setAdjusts(cutImages.map(() => ({ x: 0, y: 0, scale: 1 })));
-  }
 }
 
 type AdjustableCutProps = {
-  imageUrl: string;
+  sourceUrl: string;
+  sourceSize: { width: number; height: number };
+  cell: CellRect;
   adjust: Adjust;
   onChange: (next: Partial<Adjust>) => void;
 };
 
-function AdjustableCut({ imageUrl, adjust, onChange }: AdjustableCutProps) {
+function AdjustableCut({
+  sourceUrl,
+  sourceSize,
+  cell,
+  adjust,
+  onChange,
+}: AdjustableCutProps) {
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+
+  const previewWidthPercent = (sourceSize.width / cell.width) * 100;
+  const previewHeightPercent = (sourceSize.height / cell.height) * 100;
+
+  const previewLeftPercent = -(cell.x / cell.width) * 100;
+  const previewTopPercent = -(cell.y / cell.height) * 100;
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -507,7 +531,7 @@ function AdjustableCut({ imageUrl, adjust, onChange }: AdjustableCutProps) {
         style={{
           position: "relative",
           width: "100%",
-          aspectRatio: "1.45 / 1",
+          aspectRatio: `${cell.width} / ${cell.height}`,
           borderRadius: "16px",
           overflow: "hidden",
           backgroundColor: "#f5f5f5",
@@ -517,17 +541,19 @@ function AdjustableCut({ imageUrl, adjust, onChange }: AdjustableCutProps) {
         }}
       >
         <img
-          src={imageUrl}
+          src={sourceUrl}
           alt="보정할 컷"
           draggable={false}
           style={{
             position: "absolute",
-            left: "50%",
-            top: "50%",
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            transform: `translate(calc(-50% + ${adjust.x}px), calc(-50% + ${adjust.y}px)) scale(${adjust.scale})`,
+            left: `${previewLeftPercent}%`,
+            top: `${previewTopPercent}%`,
+            width: `${previewWidthPercent}%`,
+            height: `${previewHeightPercent}%`,
+            transform: `translate(${adjust.x}px, ${adjust.y}px) scale(${adjust.scale})`,
+            transformOrigin: `${(cell.x + cell.width / 2) / sourceSize.width * 100}% ${
+              (cell.y + cell.height / 2) / sourceSize.height * 100
+            }%`,
             userSelect: "none",
             pointerEvents: "none",
           }}
@@ -558,6 +584,10 @@ function loadImage(imageUrl: string): Promise<HTMLImageElement> {
     image.src = imageUrl;
     image.onload = () => resolve(image);
   });
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
 }
 
 const secondaryButtonStyle: React.CSSProperties = {
