@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { warpPhotoStrip } from "../lib/warpPhotoStrip";
-import { detectPhotoCellsByProjection } from "../lib/detectPhotoCellsByProjection";
 import { createGif } from "../lib/createGif";
 import { alignImagesForGif } from "../lib/alignImagesForGif";
 import { detectFaceBasedCells } from "../lib/detectFaceBasedCells";
@@ -47,77 +45,49 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
         setStatus("loading");
         setMessage("사진 위치를 정리하는 중입니다.");
 
-        const faceCells = await detectFaceBasedCells(imageUrl);
+        const originalImage = new Image();
+        originalImage.src = imageUrl;
 
-        if (faceCells.length === 4) {
-          const originalImage = new Image();
-          originalImage.src = imageUrl;
+        originalImage.onload = async () => {
+          if (isCancelled) return;
 
-          originalImage.onload = () => {
-            if (isCancelled) return;
+          const width = originalImage.width;
+          const height = originalImage.height;
 
+          const faceCells = await detectFaceBasedCells(imageUrl);
+
+          if (faceCells.length === 4) {
             setSourceUrl(imageUrl);
-            setSourceSize({
-              width: originalImage.width,
-              height: originalImage.height,
-            });
+            setSourceSize({ width, height });
             setCells(faceCells);
             setAdjusts(faceCells.map(() => ({ x: 0, y: 0, scale: 1 })));
             setStatus("success");
             setMessage("얼굴 위치를 기준으로 네 컷을 정리했어요. 손가락으로 미세조정할 수 있어요.");
-          };
-
-          return;
-        }
-
-        const warpedUrl = await warpPhotoStrip(imageUrl);
-
-        const warpedImage = new Image();
-        warpedImage.src = warpedUrl;
-
-        warpedImage.onload = async () => {
-          if (isCancelled) return;
-
-          const width = warpedImage.width;
-          const height = warpedImage.height;
-
-          const stripRect = {
-            x: 0,
-            y: 0,
-            width,
-            height,
-          };
-
-          let nextCells = await detectPhotoCellsByProjection(warpedUrl, stripRect);
-
-          if (nextCells.length === 4) {
-            setStatus("success");
-            setMessage(
-              "네 컷을 자동으로 정리했어요. 손가락으로 위치를 조정할 수 있어요.",
-            );
-          } else {
-            const cutHeight = height / 4;
-
-            nextCells = Array.from({ length: 4 }, (_, i) => ({
-              x: 0,
-              y: cutHeight * i,
-              width,
-              height: cutHeight,
-            }));
-
-            setStatus("fallback");
-            setMessage("4등분으로 정리했어요. 손가락으로 위치를 조정해주세요.");
+            return;
           }
 
-          if (!isCancelled) {
-            setSourceUrl(warpedUrl);
-            setSourceSize({ width, height });
-            setCells(nextCells);
-            setAdjusts(nextCells.map(() => ({ x: 0, y: 0, scale: 1 })));
-          }
+          console.log("face based detection failed. use original fallback.");
+
+          const stripWidth = Math.min(width * 0.52, height / 3.2);
+          const stripX = (width - stripWidth) / 2;
+          const cellHeight = height / 4;
+
+          const fallbackCells = Array.from({ length: 4 }, (_, i) => ({
+            x: stripX,
+            y: cellHeight * i,
+            width: stripWidth,
+            height: cellHeight,
+          }));
+
+          setSourceUrl(imageUrl);
+          setSourceSize({ width, height });
+          setCells(fallbackCells);
+          setAdjusts(fallbackCells.map(() => ({ x: 0, y: 0, scale: 1 })));
+          setStatus("fallback");
+          setMessage("얼굴 자동 인식이 어려워 원본 기준으로 배치했어요. 손가락으로 맞춰주세요.");
         };
 
-        warpedImage.onerror = () => {
+        originalImage.onerror = () => {
           if (!isCancelled) {
             setStatus("error");
             setMessage("이미지를 불러오지 못했어요. 다른 사진으로 다시 시도해주세요.");
