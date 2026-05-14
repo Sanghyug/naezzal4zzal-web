@@ -153,11 +153,21 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       const sourceCropWidth = cell.width / adjust.scale;
       const sourceCropHeight = cell.height / adjust.scale;
 
-      const sourceX =
-        cell.x + (cell.width - sourceCropWidth) / 2 - adjust.x / adjust.scale;
-      const sourceY =
-        cell.y + (cell.height - sourceCropHeight) / 2 - adjust.y / adjust.scale;
+      const previewFrameWidth = 220;
+      const previewFrameHeight = previewFrameWidth * (cell.height / cell.width);
 
+      const moveScaleX = cell.width / previewFrameWidth;
+      const moveScaleY = cell.height / previewFrameHeight;
+
+      const sourceX =
+        cell.x +
+        (cell.width - sourceCropWidth) / 2 -
+        (adjust.x * moveScaleX) / adjust.scale;
+
+      const sourceY =
+        cell.y +
+        (cell.height - sourceCropHeight) / 2 -
+        (adjust.y * moveScaleY) / adjust.scale;
       ctx.drawImage(
         sourceImage,
         clamp(sourceX, 0, sourceImage.width - sourceCropWidth),
