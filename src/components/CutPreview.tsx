@@ -158,7 +158,6 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, targetWidth, targetHeight);
 
-      const beatScale = 1 + i * 0.015;
       const finalScale = adjust.scale * extraScale;
 
       const sourceCropWidth = cell.width / finalScale;
