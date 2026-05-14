@@ -52,7 +52,7 @@ function SplashScreen() {
             letterSpacing: "-0.2px",
           }}
         >
-          내 추억을 움직이는 짤로 ✨
+          친구들과의 추억을 움직이는 짤로 ✨
         </div>
       </div>
 

@@ -352,6 +352,19 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
           </div>
         )}
 
+        <div
+          style={{
+            marginTop: "18px",
+            textAlign: "center",
+            color: "#b8a5ac",
+            fontSize: "11px",
+            fontWeight: 700,
+            letterSpacing: "0.2px",
+          }}
+        >
+          Powered by AI extraction
+        </div>
+
         {status !== "error" && (
           <button onClick={onBack} style={secondaryButtonStyle}>
             다시 선택하기

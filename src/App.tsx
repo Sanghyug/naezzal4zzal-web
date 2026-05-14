@@ -20,7 +20,7 @@ function App() {
   useEffect(() => {
   const timer = window.setTimeout(() => {
     setMode("start");
-  }, 1600);
+  }, 2400);
 
   return () => {
     window.clearTimeout(timer);

@@ -1,9 +1,46 @@
+import { useEffect, useState } from "react";
+
 type StartScreenProps = {
   onCameraClick: () => void;
   onUploadClick: () => void;
 };
 
 function StartScreen({ onCameraClick, onUploadClick }: StartScreenProps) {
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone === true;
+
+    setIsStandalone(standalone);
+
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) {
+      alert(
+        "브라우저 메뉴에서 '홈 화면에 추가'를 선택해주세요.\nChrome 또는 삼성 인터넷에서 가장 잘 작동해요.",
+      );
+      return;
+    }
+
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+    setInstallPrompt(null);
+  };
+
   return (
     <div
       style={{
@@ -12,7 +49,7 @@ function StartScreen({ onCameraClick, onUploadClick }: StartScreenProps) {
         justifyContent: "center",
         alignItems: "center",
         background: "linear-gradient(to bottom, #fff1f5, #ffe4ec)",
-        padding: "18px",
+        padding: "32px 18px 48px",
         boxSizing: "border-box",
         fontFamily: "sans-serif",
       }}
@@ -139,6 +176,26 @@ function StartScreen({ onCameraClick, onUploadClick }: StartScreenProps) {
           사진을 깨끗한 배경에서 찍으면
           <br />더 멋진 내짤을 만들 수 있습니다.
         </p>
+
+        {!isStandalone && (
+          <button
+            onClick={handleInstallClick}
+            style={{
+              marginTop: "26px",
+              width: "100%",
+              padding: "15px",
+              borderRadius: "18px",
+              border: "1px solid #ffd1e0",
+              backgroundColor: "#fff6fa",
+              color: "#ff4f87",
+              fontSize: "15px",
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            📱 앱처럼 설치하기
+          </button>
+        )}
         <div
           style={{
             marginTop: "24px",
