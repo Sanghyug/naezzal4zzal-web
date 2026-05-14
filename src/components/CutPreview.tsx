@@ -21,6 +21,7 @@ type Adjust = {
   x: number;
   y: number;
   scale: number;
+  rotate: number;
 };
 
 function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
@@ -60,7 +61,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
             setSourceUrl(imageUrl);
             setSourceSize({ width, height });
             setCells(faceCells);
-            setAdjusts(faceCells.map(() => ({ x: 0, y: 0, scale: 1 })));
+            setAdjusts(faceCells.map(() => ({ x: 0, y: 0, scale: 1, rotate: 0 })));
             setStatus("success");
             setMessage("얼굴 위치를 기준으로 네 컷을 정리했어요. 손가락으로 미세조정할 수 있어요.");
             return;
@@ -150,8 +151,11 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, targetWidth, targetHeight);
 
-      const sourceCropWidth = cell.width / adjust.scale;
-      const sourceCropHeight = cell.height / adjust.scale;
+      const beatScale = 1 + i * 0.015;
+      const finalScale = adjust.scale * beatScale;
+
+      const sourceCropWidth = cell.width / finalScale;
+      const sourceCropHeight = cell.height / finalScale;
 
       const previewFrameWidth = 220;
       const previewFrameHeight = previewFrameWidth * (cell.height / cell.width);
@@ -168,10 +172,21 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
         cell.y +
         (cell.height - sourceCropHeight) / 2 -
         (adjust.y * moveScaleY) / adjust.scale;
-      ctx.drawImage(
+      const safeSourceX = clamp(sourceX, 0, sourceImage.width - sourceCropWidth);
+      const safeSourceY = clamp(sourceY, 0, sourceImage.height - sourceCropHeight);
+
+      const tempCanvas = document.createElement("canvas");
+      const tempCtx = tempCanvas.getContext("2d");
+
+      if (!tempCtx) continue;
+
+      tempCanvas.width = targetWidth;
+      tempCanvas.height = targetHeight;
+
+      tempCtx.drawImage(
         sourceImage,
-        clamp(sourceX, 0, sourceImage.width - sourceCropWidth),
-        clamp(sourceY, 0, sourceImage.height - sourceCropHeight),
+        safeSourceX,
+        safeSourceY,
         Math.min(sourceCropWidth, sourceImage.width),
         Math.min(sourceCropHeight, sourceImage.height),
         0,
@@ -179,6 +194,12 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
         targetWidth,
         targetHeight,
       );
+
+      ctx.save();
+      ctx.translate(targetWidth / 2, targetHeight / 2);
+      ctx.rotate((adjust.rotate * Math.PI) / 180);
+      ctx.drawImage(tempCanvas, -targetWidth / 2, -targetHeight / 2);
+      ctx.restore();
 
       rendered.push(canvas.toDataURL("image/png"));
     }
@@ -525,6 +546,18 @@ function AdjustableCut({
     });
   };
 
+  const rotateLeft = () => {
+    onChange({
+      rotate: adjust.rotate - 1,
+    });
+  };
+
+  const rotateRight = () => {
+    onChange({
+      rotate: adjust.rotate + 1,
+    });
+  };
+
   return (
     <div>
       <div
@@ -554,7 +587,7 @@ function AdjustableCut({
             top: `${previewTopPercent}%`,
             width: `${previewWidthPercent}%`,
             height: `${previewHeightPercent}%`,
-            transform: `translate(${adjust.x}px, ${adjust.y}px) scale(${adjust.scale})`,
+            transform: `translate(${adjust.x}px, ${adjust.y}px) scale(${adjust.scale}) rotate(${adjust.rotate}deg)`,
             transformOrigin: `${(cell.x + cell.width / 2) / sourceSize.width * 100}% ${(cell.y + cell.height / 2) / sourceSize.height * 100
               }%`,
             userSelect: "none",
@@ -576,7 +609,15 @@ function AdjustableCut({
         <button onClick={zoomIn} style={miniButtonStyle}>
           ＋
         </button>
+        <button onClick={rotateLeft} style={miniButtonStyle}>
+          ↺
+        </button>
+        <button onClick={rotateRight} style={miniButtonStyle}>
+          ↻
+        </button>
+
       </div>
+
     </div>
   );
 }
