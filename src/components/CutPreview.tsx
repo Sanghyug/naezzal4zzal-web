@@ -134,7 +134,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     );
   };
 
-  const renderAdjustedImages = async () => {
+  const renderAdjustedImages = async (extraScale = 1) => {
     if (!sourceUrl) return [];
 
     const sourceImage = await loadImage(sourceUrl);
@@ -159,7 +159,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       ctx.fillRect(0, 0, targetWidth, targetHeight);
 
       const beatScale = 1 + i * 0.015;
-      const finalScale = adjust.scale * beatScale;
+      const finalScale = adjust.scale * extraScale;
 
       const sourceCropWidth = cell.width / finalScale;
       const sourceCropHeight = cell.height / finalScale;
@@ -221,8 +221,15 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     setGifUrl(null);
 
     try {
-      const adjustedImages = await renderAdjustedImages();
-      const alignedImages = await alignImagesForGif(adjustedImages);
+      const normalImages = await renderAdjustedImages(1);
+      const beatImages = await renderAdjustedImages(1.08);
+
+      const heartBeatImages = normalImages.flatMap((image, index) => [
+        image,
+        beatImages[index],
+      ]);
+
+      const alignedImages = await alignImagesForGif(heartBeatImages);
       const gif = await createGif(alignedImages);
       setGifUrl(gif);
     } catch (error) {
