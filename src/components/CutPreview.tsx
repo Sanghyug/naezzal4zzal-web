@@ -3,6 +3,7 @@ import { warpPhotoStrip } from "../lib/warpPhotoStrip";
 import { detectPhotoCellsByProjection } from "../lib/detectPhotoCellsByProjection";
 import { createGif } from "../lib/createGif";
 import { alignImagesForGif } from "../lib/alignImagesForGif";
+import { detectFaceBasedCells } from "../lib/detectFaceBasedCells";
 
 type CutPreviewProps = {
   imageUrl: string;
@@ -45,6 +46,29 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
         setGifUrl(null);
         setStatus("loading");
         setMessage("사진 위치를 정리하는 중입니다.");
+
+        const faceCells = await detectFaceBasedCells(imageUrl);
+
+        if (faceCells.length === 4) {
+          const originalImage = new Image();
+          originalImage.src = imageUrl;
+
+          originalImage.onload = () => {
+            if (isCancelled) return;
+
+            setSourceUrl(imageUrl);
+            setSourceSize({
+              width: originalImage.width,
+              height: originalImage.height,
+            });
+            setCells(faceCells);
+            setAdjusts(faceCells.map(() => ({ x: 0, y: 0, scale: 1 })));
+            setStatus("success");
+            setMessage("얼굴 위치를 기준으로 네 컷을 정리했어요. 손가락으로 미세조정할 수 있어요.");
+          };
+
+          return;
+        }
 
         const warpedUrl = await warpPhotoStrip(imageUrl);
 
@@ -120,9 +144,9 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       prev.map((item, i) =>
         i === index
           ? {
-              ...item,
-              ...next,
-            }
+            ...item,
+            ...next,
+          }
           : item,
       ),
     );
@@ -551,9 +575,8 @@ function AdjustableCut({
             width: `${previewWidthPercent}%`,
             height: `${previewHeightPercent}%`,
             transform: `translate(${adjust.x}px, ${adjust.y}px) scale(${adjust.scale})`,
-            transformOrigin: `${(cell.x + cell.width / 2) / sourceSize.width * 100}% ${
-              (cell.y + cell.height / 2) / sourceSize.height * 100
-            }%`,
+            transformOrigin: `${(cell.x + cell.width / 2) / sourceSize.width * 100}% ${(cell.y + cell.height / 2) / sourceSize.height * 100
+              }%`,
             userSelect: "none",
             pointerEvents: "none",
           }}
