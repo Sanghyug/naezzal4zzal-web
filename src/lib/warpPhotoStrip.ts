@@ -91,6 +91,15 @@ function findStripByEdges(
 
     const centerX = rect.center.x / imageWidth;
     const centerY = rect.center.y / imageHeight;
+    console.log("edge candidate", {
+      area,
+      rectArea,
+      ratio,
+      longSide,
+      shortSide,
+      centerX,
+      centerY,
+    });
     const isReasonablyCentered =
       centerX > 0.12 && centerX < 0.88 && centerY > 0.12 && centerY < 0.88;
 
@@ -186,6 +195,13 @@ function findStripByColorDifference(
     const shortSide = Math.min(rect.size.width, rect.size.height);
     const ratio = longSide / shortSide;
     const rectArea = longSide * shortSide;
+    console.log("color candidate", {
+      area,
+      rectArea,
+      ratio,
+      longSide,
+      shortSide,
+    });
 
     const isLargeEnough = rectArea > imageArea * 0.06;
     const isNotWholeImage = rectArea < imageArea * 0.72;
