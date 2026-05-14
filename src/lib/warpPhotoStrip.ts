@@ -1,9 +1,11 @@
+import { detectFaces } from "./detectFaces";
+
 export async function warpPhotoStrip(imageUrl: string): Promise<string> {
   return new Promise((resolve) => {
     const image = new Image();
     image.src = imageUrl;
 
-    image.onload = () => {
+    image.onload = async () => {
       if (!window.cv) {
         resolve(imageUrl);
         return;
@@ -35,6 +37,13 @@ export async function warpPhotoStrip(imageUrl: string): Promise<string> {
       }
 
       const output = warpByRotatedRect(cv, src, bestRect);
+      const faces = await detectFaces(output);
+
+      if (faces.length === 0) {
+        src.delete();
+        resolve(imageUrl);
+        return;
+      }
       src.delete();
 
       resolve(output);
@@ -150,8 +159,8 @@ function findStripByColorDifference(
 
       const distance = Math.sqrt(
         Math.pow(r - bgColor.r, 2) +
-          Math.pow(g - bgColor.g, 2) +
-          Math.pow(b - bgColor.b, 2),
+        Math.pow(g - bgColor.g, 2) +
+        Math.pow(b - bgColor.b, 2),
       );
 
       mask.ucharPtr(y, x)[0] = distance > threshold ? 255 : 0;
