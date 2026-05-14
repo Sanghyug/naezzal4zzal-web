@@ -124,7 +124,14 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
   };
 
   const resetAllAdjusts = () => {
-    setAdjusts(cells.map(() => ({ x: 0, y: 0, scale: 1 })));
+    setAdjusts(
+      cells.map(() => ({
+        x: 0,
+        y: 0,
+        scale: 1,
+        rotate: 0,
+      })),
+    );
   };
 
   const renderAdjustedImages = async () => {
