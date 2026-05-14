@@ -9,6 +9,17 @@ function CameraGuide({ onCapture, onCancel }: CameraGuideProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showGuideMessage, setShowGuideMessage] = useState(true);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setShowGuideMessage(false);
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, []);
 
   useEffect(() => {
     async function startCamera() {
@@ -106,6 +117,47 @@ function CameraGuide({ onCapture, onCancel }: CameraGuideProps) {
         }}
       />
 
+      {showGuideMessage && (
+        <div
+          style={{
+            position: "absolute",
+            top: "72px",
+            left: "24px",
+            right: "24px",
+            zIndex: 5,
+            padding: "16px 18px",
+            borderRadius: "20px",
+            backgroundColor: "rgba(0,0,0,0.68)",
+            color: "white",
+            boxShadow: "0 8px 28px rgba(0,0,0,0.25)",
+            textAlign: "center",
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "17px",
+              fontWeight: 900,
+              marginBottom: "6px",
+            }}
+          >
+            세로 네컷 전체가 보이게 찍어주세요
+          </div>
+          <div
+            style={{
+              fontSize: "13px",
+              lineHeight: 1.5,
+              opacity: 0.9,
+              fontWeight: 600,
+            }}
+          >
+            사진 가장자리와 배경이 함께 보이면 더 정확하게 추출돼요.
+            <br />
+            이 안내는 3초 후 사라집니다.
+          </div>
+        </div>
+      )}
+
       <div
         style={{
           position: "absolute",
@@ -120,38 +172,7 @@ function CameraGuide({ onCapture, onCancel }: CameraGuideProps) {
           boxShadow: "0 0 0 9999px rgba(0,0,0,0.38)",
           pointerEvents: "none",
         }}
-      >
-        {[1, 2, 3].map((line) => (
-          <div
-            key={line}
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              top: `${line * 25}%`,
-              borderTop: "1.5px dashed rgba(255,255,255,0.75)",
-            }}
-          />
-        ))}
-
-        <div
-          style={{
-            position: "absolute",
-            top: "-34px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            padding: "6px 12px",
-            borderRadius: "999px",
-            backgroundColor: "rgba(255,79,135,0.92)",
-            color: "white",
-            fontSize: "13px",
-            fontWeight: 800,
-            whiteSpace: "nowrap",
-          }}
-        >
-          세로 네컷을 이 안에 맞춰주세요
-        </div>
-      </div>
+      />
 
       {errorMessage && (
         <div
