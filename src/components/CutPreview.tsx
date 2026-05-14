@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cropImage } from "../lib/cropImage";
 import { warpPhotoStrip } from "../lib/warpPhotoStrip";
 import { detectPhotoCellsByProjection } from "../lib/detectPhotoCellsByProjection";
@@ -12,12 +12,19 @@ type CutPreviewProps = {
 
 type ExtractStatus = "loading" | "success" | "fallback" | "error";
 
+type Adjust = {
+  x: number;
+  y: number;
+  scale: number;
+};
+
 function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
   const [cutImages, setCutImages] = useState<string[]>([]);
+  const [adjusts, setAdjusts] = useState<Adjust[]>([]);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
   const [isCreatingGif, setIsCreatingGif] = useState(false);
   const [status, setStatus] = useState<ExtractStatus>("loading");
-  const [message, setMessage] = useState("인생네컷을 분석하고 있어요 ✨");
+  const [message, setMessage] = useState("인생네컷을 분석하고 있어요 ❀");
 
   useEffect(() => {
     let isCancelled = false;
@@ -47,10 +54,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
             height,
           };
 
-          const cells = await detectPhotoCellsByProjection(
-            warpedUrl,
-            stripRect,
-          );
+          const cells = await detectPhotoCellsByProjection(warpedUrl, stripRect);
           const results: string[] = [];
 
           if (cells.length === 4) {
@@ -67,7 +71,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
             }
 
             setStatus("success");
-            setMessage("네 컷을 자동으로 정리했어요.");
+            setMessage("네 컷을 자동으로 정리했어요. 손가락으로 위치를 조정할 수 있어요.");
           } else {
             const cutHeight = height / 4;
 
@@ -84,29 +88,26 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
             }
 
             setStatus("fallback");
-            setMessage("정밀 추출이 어려워서 4등분 방식으로 정리했어요.");
+            setMessage("4등분으로 정리했어요. 손가락으로 위치를 조정해주세요.");
           }
 
           if (!isCancelled) {
             setCutImages(results);
+            setAdjusts(results.map(() => ({ x: 0, y: 0, scale: 1 })));
           }
         };
 
         warpedImage.onerror = () => {
           if (!isCancelled) {
             setStatus("error");
-            setMessage(
-              "이미지를 불러오지 못했어요. 다른 사진으로 다시 시도해주세요.",
-            );
+            setMessage("이미지를 불러오지 못했어요. 다른 사진으로 다시 시도해주세요.");
           }
         };
       } catch (error) {
         console.error(error);
         if (!isCancelled) {
           setStatus("error");
-          setMessage(
-            "사진을 분석하는 중 문제가 생겼어요. 다른 사진으로 다시 시도해주세요.",
-          );
+          setMessage("사진을 분석하는 중 문제가 생겼어요. 다른 사진으로 다시 시도해주세요.");
         }
       }
     }
@@ -118,6 +119,57 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     };
   }, [imageUrl]);
 
+  const updateAdjust = (index: number, next: Partial<Adjust>) => {
+    setAdjusts((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              ...next,
+            }
+          : item,
+      ),
+    );
+  };
+
+  const renderAdjustedImages = async () => {
+    const rendered: string[] = [];
+
+    for (let i = 0; i < cutImages.length; i++) {
+      const image = await loadImage(cutImages[i]);
+      const adjust = adjusts[i] ?? { x: 0, y: 0, scale: 1 };
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        rendered.push(cutImages[i]);
+        continue;
+      }
+
+      const targetWidth = 480;
+      const targetHeight = Math.round((image.height / image.width) * targetWidth);
+
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const scaledWidth = targetWidth * adjust.scale;
+      const scaledHeight = targetHeight * adjust.scale;
+
+      const drawX = (targetWidth - scaledWidth) / 2 + adjust.x * 2;
+      const drawY = (targetHeight - scaledHeight) / 2 + adjust.y * 2;
+
+      ctx.drawImage(image, drawX, drawY, scaledWidth, scaledHeight);
+
+      rendered.push(canvas.toDataURL("image/png"));
+    }
+
+    return rendered;
+  };
+
   const handleCreateGif = async () => {
     if (cutImages.length !== 4) return;
 
@@ -125,7 +177,8 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     setGifUrl(null);
 
     try {
-      const alignedImages = await alignImagesForGif(cutImages);
+      const adjustedImages = await renderAdjustedImages();
+      const alignedImages = await alignImagesForGif(adjustedImages);
       const gif = await createGif(alignedImages);
       setGifUrl(gif);
     } catch (error) {
@@ -156,9 +209,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
         return;
       }
 
-      alert(
-        "이 브라우저에서는 바로 공유가 어려워요. GIF 저장하기를 이용해주세요.",
-      );
+      alert("이 브라우저에서는 바로 공유가 어려워요. GIF 저장하기를 이용해주세요.");
     } catch (error) {
       console.error(error);
       alert("공유하는 중 문제가 생겼어요.");
@@ -227,34 +278,37 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
         </div>
 
         {cutImages.length > 0 && (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "10px",
-            }}
-          >
-            {cutImages.map((cut, index) => (
-              <div
-                key={index}
-                style={{
-                  borderRadius: "16px",
-                  overflow: "hidden",
-                  backgroundColor: "#f5f5f5",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
-                }}
-              >
-                <img
-                  src={cut}
-                  alt={`컷 ${index + 1}`}
-                  style={{
-                    width: "100%",
-                    display: "block",
-                  }}
+          <>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "10px",
+              }}
+            >
+              {cutImages.map((cut, index) => (
+                <AdjustableCut
+                  key={index}
+                  imageUrl={cut}
+                  adjust={adjusts[index] ?? { x: 0, y: 0, scale: 1 }}
+                  onChange={(next) => updateAdjust(index, next)}
                 />
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            <div
+              style={{
+                marginTop: "12px",
+                textAlign: "center",
+                color: "#aaa",
+                fontSize: "12px",
+                lineHeight: 1.5,
+                fontWeight: 600,
+              }}
+            >
+              각 컷을 손가락으로 밀어서 위치를 맞춰주세요.
+            </div>
+          </>
         )}
 
         {status === "error" && (
@@ -286,6 +340,20 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
               {isCreatingGif ? "움짤 만드는 중..." : "움짤 만들기"}
             </button>
 
+            <div
+              style={{
+                marginTop: "12px",
+                display: "flex",
+                justifyContent: "center",
+                gap: "8px",
+                flexWrap: "wrap",
+              }}
+            >
+              <button onClick={() => resetAllAdjusts()} style={smallButtonStyle}>
+                위치 초기화
+              </button>
+            </div>
+
             {isCreatingGif && (
               <div
                 style={{
@@ -296,7 +364,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                   lineHeight: 1.5,
                 }}
               >
-                네 컷을 자연스럽게 이어 붙이고 있어요.
+                보정된 네 컷을 자연스럽게 이어 붙이고 있어요.
               </div>
             )}
           </>
@@ -354,7 +422,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
 
         <div
           style={{
-            marginTop: "18px",
+            marginTop: "16px",
             textAlign: "center",
             color: "#b8a5ac",
             fontSize: "11px",
@@ -373,6 +441,123 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       </div>
     </div>
   );
+
+  function resetAllAdjusts() {
+    setAdjusts(cutImages.map(() => ({ x: 0, y: 0, scale: 1 })));
+  }
+}
+
+type AdjustableCutProps = {
+  imageUrl: string;
+  adjust: Adjust;
+  onChange: (next: Partial<Adjust>) => void;
+};
+
+function AdjustableCut({ imageUrl, adjust, onChange }: AdjustableCutProps) {
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    lastPointRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+    };
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!lastPointRef.current) return;
+
+    const dx = event.clientX - lastPointRef.current.x;
+    const dy = event.clientY - lastPointRef.current.y;
+
+    lastPointRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+    };
+
+    onChange({
+      x: adjust.x + dx,
+      y: adjust.y + dy,
+    });
+  };
+
+  const handlePointerUp = () => {
+    lastPointRef.current = null;
+  };
+
+  const zoomIn = () => {
+    onChange({
+      scale: Math.min(1.8, adjust.scale + 0.08),
+    });
+  };
+
+  const zoomOut = () => {
+    onChange({
+      scale: Math.max(0.75, adjust.scale - 0.08),
+    });
+  };
+
+  return (
+    <div>
+      <div
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        style={{
+          position: "relative",
+          width: "100%",
+          aspectRatio: "1.45 / 1",
+          borderRadius: "16px",
+          overflow: "hidden",
+          backgroundColor: "#f5f5f5",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+          touchAction: "none",
+          cursor: "grab",
+        }}
+      >
+        <img
+          src={imageUrl}
+          alt="보정할 컷"
+          draggable={false}
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            transform: `translate(calc(-50% + ${adjust.x}px), calc(-50% + ${adjust.y}px)) scale(${adjust.scale})`,
+            userSelect: "none",
+            pointerEvents: "none",
+          }}
+        />
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          gap: "6px",
+          marginTop: "6px",
+        }}
+      >
+        <button onClick={zoomOut} style={miniButtonStyle}>
+          －
+        </button>
+        <button onClick={zoomIn} style={miniButtonStyle}>
+          ＋
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function loadImage(imageUrl: string): Promise<HTMLImageElement> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.src = imageUrl;
+    image.onload = () => resolve(image);
+  });
 }
 
 const secondaryButtonStyle: React.CSSProperties = {
@@ -398,6 +583,29 @@ const primarySubButtonStyle: React.CSSProperties = {
   color: "white",
   fontSize: "16px",
   fontWeight: 800,
+  cursor: "pointer",
+};
+
+const smallButtonStyle: React.CSSProperties = {
+  padding: "9px 12px",
+  borderRadius: "999px",
+  border: "1px solid #ffd1e0",
+  backgroundColor: "#fff6fa",
+  color: "#ff4f87",
+  fontSize: "12px",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const miniButtonStyle: React.CSSProperties = {
+  flex: 1,
+  padding: "7px 0",
+  borderRadius: "10px",
+  border: "1px solid #ffd1e0",
+  backgroundColor: "#fff6fa",
+  color: "#ff4f87",
+  fontSize: "14px",
+  fontWeight: 900,
   cursor: "pointer",
 };
 
