@@ -35,9 +35,11 @@ export async function warpPhotoStrip(imageUrl: string): Promise<string> {
       }
 
       const output = warpByRotatedRect(cv, src, bestRect);
+      const trimmedOutput = await trimHorizontalDeskMargin(output);
+
       src.delete();
 
-      resolve(output);
+      resolve(trimmedOutput);
     };
   });
 }
@@ -376,4 +378,134 @@ function orderPoints(points: { x: number; y: number }[]) {
   );
 
   return [topLeft, topRight, bottomRight, bottomLeft];
+}
+
+async function trimHorizontalDeskMargin(imageUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.src = imageUrl;
+
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+      if (!ctx) {
+        resolve(imageUrl);
+        return;
+      }
+
+      canvas.width = image.width;
+      canvas.height = image.height;
+      ctx.drawImage(image, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      const bg = getAverageSideColor(data, canvas.width, canvas.height);
+      const columnScores: number[] = [];
+
+      for (let x = 0; x < canvas.width; x++) {
+        let score = 0;
+
+        for (let y = 0; y < canvas.height; y += 4) {
+          const index = (y * canvas.width + x) * 4;
+          const r = data[index];
+          const g = data[index + 1];
+          const b = data[index + 2];
+
+          const diff = Math.sqrt(
+            Math.pow(r - bg.r, 2) +
+            Math.pow(g - bg.g, 2) +
+            Math.pow(b - bg.b, 2),
+          );
+
+          if (diff > 28) score++;
+        }
+
+        columnScores.push(score);
+      }
+
+      const threshold = canvas.height / 4 / 8;
+      const activeColumns = columnScores
+        .map((score, x) => (score > threshold ? x : -1))
+        .filter((x) => x >= 0);
+
+      if (activeColumns.length === 0) {
+        resolve(imageUrl);
+        return;
+      }
+
+      let left = Math.min(...activeColumns);
+      let right = Math.max(...activeColumns);
+
+      const padding = Math.round(canvas.width * 0.025);
+      left = Math.max(0, left - padding);
+      right = Math.min(canvas.width, right + padding);
+
+      const trimWidth = right - left;
+      const widthRatio = trimWidth / canvas.width;
+
+      if (widthRatio < 0.22 || widthRatio > 0.82) {
+        resolve(imageUrl);
+        return;
+      }
+
+      const outputCanvas = document.createElement("canvas");
+      const outputCtx = outputCanvas.getContext("2d");
+
+      if (!outputCtx) {
+        resolve(imageUrl);
+        return;
+      }
+
+      outputCanvas.width = trimWidth;
+      outputCanvas.height = canvas.height;
+
+      outputCtx.drawImage(
+        canvas,
+        left,
+        0,
+        trimWidth,
+        canvas.height,
+        0,
+        0,
+        trimWidth,
+        canvas.height,
+      );
+
+      resolve(outputCanvas.toDataURL("image/png"));
+    };
+  });
+}
+
+function getAverageSideColor(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+) {
+  const sampleWidth = Math.max(8, Math.floor(width * 0.08));
+
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  let count = 0;
+
+  for (let y = 0; y < height; y += 4) {
+    for (let x = 0; x < sampleWidth; x++) {
+      const leftIndex = (y * width + x) * 4;
+      const rightIndex = (y * width + (width - 1 - x)) * 4;
+
+      r += data[leftIndex] + data[rightIndex];
+      g += data[leftIndex + 1] + data[rightIndex + 1];
+      b += data[leftIndex + 2] + data[rightIndex + 2];
+
+      count += 2;
+    }
+  }
+
+  return {
+    r: r / count,
+    g: g / count,
+    b: b / count,
+  };
 }

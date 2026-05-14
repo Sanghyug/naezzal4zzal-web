@@ -49,7 +49,7 @@ function StartScreen({ onCameraClick, onUploadClick }: StartScreenProps) {
         justifyContent: "center",
         alignItems: "center",
         background: "linear-gradient(to bottom, #fff1f5, #ffe4ec)",
-        padding: "32px 18px 48px",
+        padding: "32px 18px 56px",
         boxSizing: "border-box",
         fontFamily: "sans-serif",
       }}
