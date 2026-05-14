@@ -83,7 +83,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
           setSourceUrl(imageUrl);
           setSourceSize({ width, height });
           setCells(fallbackCells);
-          setAdjusts(fallbackCells.map(() => ({ x: 0, y: 0, scale: 1 })));
+          setAdjusts(fallbackCells.map(() => ({ x: 0, y: 0, scale: 1, rotate: 0 })));
           setStatus("fallback");
           setMessage("얼굴 자동 인식이 어려워 원본 기준으로 배치했어요. 손가락으로 맞춰주세요.");
         };
@@ -142,7 +142,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
 
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i];
-      const adjust = adjusts[i] ?? { x: 0, y: 0, scale: 1 };
+      const adjust = adjusts[i] ?? { x: 0, y: 0, scale: 1, rotate: 0 };
 
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
@@ -336,7 +336,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                   sourceUrl={sourceUrl}
                   sourceSize={sourceSize}
                   cell={cell}
-                  adjust={adjusts[index] ?? { x: 0, y: 0, scale: 1 }}
+                  adjust={adjusts[index] ?? { x: 0, y: 0, scale: 1, rotate: 0 }}
                   onChange={(next) => updateAdjust(index, next)}
                 />
               ))}
