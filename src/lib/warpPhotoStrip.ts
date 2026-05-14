@@ -3,7 +3,7 @@ export async function warpPhotoStrip(imageUrl: string): Promise<string> {
     const image = new Image();
     image.src = imageUrl;
 
-    image.onload = () => {
+    image.onload = async () => {
       if (!window.cv) {
         resolve(imageUrl);
         return;
@@ -385,7 +385,7 @@ async function trimHorizontalDeskMargin(imageUrl: string): Promise<string> {
     const image = new Image();
     image.src = imageUrl;
 
-    image.onload = () => {
+    image.onload = async () => {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
