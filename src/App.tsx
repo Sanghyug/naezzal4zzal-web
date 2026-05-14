@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import StartScreen from "./components/StartScreen";
 import CutPreview from "./components/CutPreview";
 import CameraGuide from "./components/CameraGuide";
+import SplashScreen from "./components/SplashScreen";
 
 declare global {
   interface Window {
@@ -9,12 +10,22 @@ declare global {
   }
 }
 
-type AppMode = "start" | "camera" | "preview";
+type AppMode = "splash" | "start" | "camera" | "preview";
 
 function App() {
-  const [mode, setMode] = useState<AppMode>("start");
+  const [mode, setMode] = useState<AppMode>("splash");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+  const timer = window.setTimeout(() => {
+    setMode("start");
+  }, 1600);
+
+  return () => {
+    window.clearTimeout(timer);
+  };
+}, []);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -74,6 +85,7 @@ function App() {
 
   return (
     <>
+    {mode === "splash" && <SplashScreen />}
       <input
         ref={fileInputRef}
         type="file"

@@ -139,6 +139,20 @@ function StartScreen({ onCameraClick, onUploadClick }: StartScreenProps) {
           사진을 깨끗한 배경에서 찍으면
           <br />더 멋진 내짤을 만들 수 있습니다.
         </p>
+        <div
+          style={{
+            marginTop: "24px",
+            textAlign: "center",
+            color: "#b8a5ac",
+            fontSize: "11px",
+            lineHeight: 1.8,
+            fontWeight: 600,
+            letterSpacing: "0.2px",
+          }}
+        >
+          <div>친구들과의 추억을 움직이는 짤로 ✿</div>
+          <div>© 2026 내짤4짤 · ver 1.0 beta</div>
+        </div>
       </div>
     </div>
   );
