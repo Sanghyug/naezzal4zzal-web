@@ -1,11 +1,9 @@
-import { detectFaces } from "./detectFaces";
-
 export async function warpPhotoStrip(imageUrl: string): Promise<string> {
   return new Promise((resolve) => {
     const image = new Image();
     image.src = imageUrl;
 
-    image.onload = async () => {
+    image.onload = () => {
       if (!window.cv) {
         resolve(imageUrl);
         return;
@@ -37,13 +35,6 @@ export async function warpPhotoStrip(imageUrl: string): Promise<string> {
       }
 
       const output = warpByRotatedRect(cv, src, bestRect);
-      const faces = await detectFaces(output);
-
-      if (faces.length === 0) {
-        src.delete();
-        resolve(imageUrl);
-        return;
-      }
       src.delete();
 
       resolve(output);
