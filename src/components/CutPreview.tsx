@@ -622,6 +622,42 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
 
         {status !== "error" && (
           <>
+
+            <textarea
+              value={memo}
+              onChange={(event) => setMemo(event.target.value)}
+              placeholder="예: 친구 지은이랑 2026.5.16"
+              maxLength={80}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                marginTop: "16px",
+                padding: "13px",
+                borderRadius: "16px",
+                border: "1px solid #ffd1e0",
+                backgroundColor: "#fffafd",
+                color: "#6f5961",
+                resize: "none",
+                minHeight: "74px",
+                fontSize: "14px",
+                lineHeight: 1.5,
+                fontFamily: "sans-serif",
+                fontWeight: 600,
+                outline: "none",
+              }}
+            />
+
+            <div
+              style={{
+                marginTop: "6px",
+                textAlign: "right",
+                color: "#c9aab5",
+                fontSize: "11px",
+                fontWeight: 700,
+              }}
+            >
+              {memo.length}/80
+            </div>
             <button
               onClick={() => setShowGifOptions(true)}
               disabled={cells.length !== 4 || isCreatingGif}
@@ -640,42 +676,6 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                 boxShadow: "0 8px 20px rgba(255,79,135,0.28)",
               }}
             >
-
-              <textarea
-                value={memo}
-                onChange={(event) => setMemo(event.target.value)}
-                placeholder="예: 친구 지은이랑 2026.5.16"
-                maxLength={80}
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  marginTop: "16px",
-                  padding: "13px",
-                  borderRadius: "16px",
-                  border: "1px solid #ffd1e0",
-                  backgroundColor: "#fffafd",
-                  color: "#6f5961",
-                  resize: "none",
-                  minHeight: "74px",
-                  fontSize: "14px",
-                  lineHeight: 1.5,
-                  fontFamily: "sans-serif",
-                  fontWeight: 600,
-                  outline: "none",
-                }}
-              />
-
-              <div
-                style={{
-                  marginTop: "6px",
-                  textAlign: "right",
-                  color: "#c9aab5",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                }}
-              >
-                {memo.length}/80
-              </div>
 
               {isCreatingGif ? "움짤 만드는 중..." : "움짤 만들기"}
             </button>
@@ -696,9 +696,11 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
 
             {showGifOptions && (
               <div
+                onClick={() => setShowGifOptions(false)}
                 style={{
                   position: "fixed",
                   inset: 0,
+                  pointerEvents: "auto",
                   zIndex: 20,
                   backgroundColor: "rgba(0,0,0,0.45)",
                   display: "flex",
@@ -708,6 +710,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                 }}
               >
                 <div
+                  onClick={(event) => event.stopPropagation()}
                   style={{
                     width: "100%",
                     maxWidth: "360px",
@@ -734,6 +737,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
 
                 </div>
               </div>
+
             )}
 
 

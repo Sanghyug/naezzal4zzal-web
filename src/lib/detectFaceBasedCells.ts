@@ -56,22 +56,37 @@ export async function detectFaceBasedCells(
   const cellHeight = clamp(averageGap * 0.82, image.height * 0.14, image.height * 0.28);
   const cellWidth = cellHeight * 1.45;
 
-  return rows.map((row) => {
-    const union = getUnionBox(row);
+  const unions = rows.map((row) => getUnionBox(row));
 
-    const centerX = union.x + union.width / 2;
-    const centerY = union.y + union.height / 2;
+  const centers = unions.map((union) => ({
+    x: union.x + union.width / 2,
+    y: union.y + union.height / 2,
+  }));
 
-    const width = Math.max(cellWidth, union.width * 2.6);
-    const height = Math.max(cellHeight, union.height * 3.2);
+  const averageCenterX =
+    centers.reduce((sum, center) => sum + center.x, 0) / centers.length;
 
-    return {
-      x: clamp(centerX - width / 2, 0, image.width - width),
-      y: clamp(centerY - height * 0.45, 0, image.height - height),
-      width: Math.min(width, image.width),
-      height: Math.min(height, image.height),
-    };
-  });
+  const maxUnionWidth = Math.max(...unions.map((union) => union.width));
+  const maxUnionHeight = Math.max(...unions.map((union) => union.height));
+
+  const equalCellWidth = clamp(
+    Math.max(cellWidth, maxUnionWidth * 2.7),
+    image.width * 0.28,
+    image.width * 0.92,
+  );
+
+  const equalCellHeight = clamp(
+    Math.max(cellHeight, maxUnionHeight * 3.4),
+    image.height * 0.14,
+    image.height * 0.28,
+  );
+
+  return centers.map((center) => ({
+    x: clamp(averageCenterX - equalCellWidth / 2, 0, image.width - equalCellWidth),
+    y: clamp(center.y - equalCellHeight * 0.45, 0, image.height - equalCellHeight),
+    width: equalCellWidth,
+    height: equalCellHeight,
+  }));
 }
 
 function groupFacesByRow(faces: FaceBox[], imageHeight: number): FaceBox[][] {
