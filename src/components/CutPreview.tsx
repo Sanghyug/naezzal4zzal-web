@@ -37,6 +37,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
   const [cells, setCells] = useState<CellRect[]>([]);
   const [adjusts, setAdjusts] = useState<Adjust[]>([]);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
+  const [memo, setMemo] = useState("");
   const [isCreatingGif, setIsCreatingGif] = useState(false);
   const [status, setStatus] = useState<ExtractStatus>("loading");
   const [message, setMessage] = useState("인생네컷을 분석하고 있어요 ❀");
@@ -315,6 +316,105 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     }
   };
 
+  const handleSaveCardImage = async () => {
+    if (!gifUrl) return;
+
+    try {
+      const gifImage = await loadImage(gifUrl);
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) return;
+
+      const cardWidth = 720;
+      const padding = 36;
+      const innerPadding = 20;
+      const imageWidth = cardWidth - padding * 2 - innerPadding * 2;
+      const imageHeight = Math.round((gifImage.height / gifImage.width) * imageWidth);
+
+      const memoText = memo.trim();
+      const memoLines = memoText ? wrapText(ctx, memoText, imageWidth - 32) : [];
+      const memoHeight = memoLines.length > 0 ? memoLines.length * 28 + 34 : 0;
+
+      const brandHeight = 46;
+      const cardHeight =
+        padding +
+        innerPadding +
+        imageHeight +
+        innerPadding +
+        memoHeight +
+        brandHeight +
+        padding;
+
+      canvas.width = cardWidth;
+      canvas.height = cardHeight;
+
+      const gradient = ctx.createLinearGradient(0, 0, cardWidth, cardHeight);
+      gradient.addColorStop(0, "#fff7fb");
+      gradient.addColorStop(1, "#ffe1ec");
+
+      roundRect(ctx, 0, 0, cardWidth, cardHeight, 42);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      ctx.strokeStyle = "#ffd1e0";
+      ctx.lineWidth = 4;
+      roundRect(ctx, 8, 8, cardWidth - 16, cardHeight - 16, 36);
+      ctx.stroke();
+
+      const whiteX = padding;
+      const whiteY = padding;
+      const whiteWidth = cardWidth - padding * 2;
+      const whiteHeight = imageHeight + innerPadding * 2;
+
+      ctx.fillStyle = "#ffffff";
+      roundRect(ctx, whiteX, whiteY, whiteWidth, whiteHeight, 30);
+      ctx.fill();
+
+      ctx.drawImage(
+        gifImage,
+        whiteX + innerPadding,
+        whiteY + innerPadding,
+        imageWidth,
+        imageHeight,
+      );
+
+      let currentY = whiteY + whiteHeight + 18;
+
+      if (memoLines.length > 0) {
+        ctx.fillStyle = "rgba(255,255,255,0.86)";
+        roundRect(ctx, padding, currentY, cardWidth - padding * 2, memoHeight, 24);
+        ctx.fill();
+
+        ctx.fillStyle = "#7a5d66";
+        ctx.font = "700 24px sans-serif";
+        ctx.textBaseline = "top";
+
+        memoLines.forEach((line, index) => {
+          ctx.fillText(line, padding + 24, currentY + 18 + index * 28);
+        });
+
+        currentY += memoHeight + 18;
+      }
+
+      ctx.fillStyle = "#c38a9d";
+      ctx.font = "800 20px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("내짤4짤 · 움직이는 네컷 추억", cardWidth / 2, currentY + 8);
+
+      const cardUrl = canvas.toDataURL("image/png");
+
+      const link = document.createElement("a");
+      link.href = cardUrl;
+      link.download = "naezzal4zzal-card.png";
+      link.click();
+    } catch (error) {
+      console.error(error);
+      alert("카드 이미지를 저장하는 중 문제가 생겼어요.");
+    }
+  };
+
   return (
     <div
       style={{
@@ -540,16 +640,102 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
               완성된 내짤
             </h3>
 
-            <img
-              src={gifUrl}
-              alt="완성된 움짤"
+            <div
+              style={{
+                padding: "12px",
+                borderRadius: "30px",
+                background: "linear-gradient(135deg, #fff7fb, #ffe1ec)",
+                border: "2px solid #ffd1e0",
+                boxShadow: "0 12px 32px rgba(255,79,135,0.20)",
+              }}
+            >
+              <div
+                style={{
+                  padding: "8px",
+                  borderRadius: "24px",
+                  backgroundColor: "white",
+                  boxShadow: "inset 0 0 0 1px rgba(255,209,224,0.9)",
+                }}
+              >
+                <img
+                  src={gifUrl}
+                  alt="완성된 움짤"
+                  style={{
+                    width: "100%",
+                    display: "block",
+                    borderRadius: "18px",
+                    backgroundColor: "#f5f5f5",
+                  }}
+                />
+              </div>
+
+              {memo.trim() && (
+                <div
+                  style={{
+                    marginTop: "10px",
+                    padding: "12px",
+                    borderRadius: "18px",
+                    backgroundColor: "rgba(255,255,255,0.82)",
+                    color: "#7a5d66",
+                    fontSize: "14px",
+                    lineHeight: 1.5,
+                    fontWeight: 700,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "keep-all",
+                  }}
+                >
+                  {memo}
+                </div>
+              )}
+
+              <div
+                style={{
+                  marginTop: "10px",
+                  color: "#c38a9d",
+                  fontSize: "11px",
+                  fontWeight: 800,
+                  letterSpacing: "0.2px",
+                }}
+              >
+                내짤4짤 · 움직이는 네컷 추억
+              </div>
+            </div>
+
+            <textarea
+              value={memo}
+              onChange={(event) => setMemo(event.target.value)}
+              placeholder="이날의 추억을 짧게 적어보세요."
+              maxLength={80}
               style={{
                 width: "100%",
-                borderRadius: "20px",
-                backgroundColor: "#f5f5f5",
-                boxShadow: "0 8px 22px rgba(0,0,0,0.10)",
+                boxSizing: "border-box",
+                marginTop: "12px",
+                padding: "13px",
+                borderRadius: "16px",
+                border: "1px solid #ffd1e0",
+                backgroundColor: "#fffafd",
+                color: "#6f5961",
+                resize: "none",
+                minHeight: "74px",
+                fontSize: "14px",
+                lineHeight: 1.5,
+                fontFamily: "sans-serif",
+                fontWeight: 600,
+                outline: "none",
               }}
             />
+
+            <div
+              style={{
+                marginTop: "6px",
+                textAlign: "right",
+                color: "#c9aab5",
+                fontSize: "11px",
+                fontWeight: 700,
+              }}
+            >
+              {memo.length}/80
+            </div>
 
             <a
               href={gifUrl}
@@ -570,6 +756,9 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
 
             <button onClick={handleShareGif} style={primarySubButtonStyle}>
               공유하기
+            </button>
+            <button onClick={handleSaveCardImage} style={primarySubButtonStyle}>
+              메모 카드 이미지 저장하기
             </button>
           </div>
         )}
@@ -768,6 +957,57 @@ function loadImage(imageUrl: string): Promise<HTMLImageElement> {
     image.src = imageUrl;
     image.onload = () => resolve(image);
   });
+}
+
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+) {
+  ctx.font = "700 24px sans-serif";
+
+  const words = text.split("");
+  const lines: string[] = [];
+  let line = "";
+
+  for (const word of words) {
+    const testLine = line + word;
+    const width = ctx.measureText(testLine).width;
+
+    if (width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = testLine;
+    }
+  }
+
+  if (line) {
+    lines.push(line);
+  }
+
+  return lines.slice(0, 3);
 }
 
 function clamp(value: number, min: number, max: number) {
