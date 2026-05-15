@@ -279,7 +279,8 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       }
 
       const alignedImages = await alignImagesForGif(images);
-      const gif = await createGif(alignedImages, speed);
+      const framedImages = await renderPolaroidGifFrames(alignedImages);
+      const gif = await createGif(framedImages, speed);
       setGifUrl(gif);
     } catch (error) {
       console.error(error);
@@ -287,6 +288,100 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     } finally {
       setIsCreatingGif(false);
     }
+  };
+
+  const renderPolaroidGifFrames = async (images: string[]) => {
+    const framedImages: string[] = [];
+
+    for (const imageUrl of images) {
+      const image = await loadImage(imageUrl);
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) continue;
+
+      const cardWidth = 720;
+      const padding = 36;
+      const framePadding = 22;
+      const imageWidth = cardWidth - padding * 2 - framePadding * 2;
+      const imageHeight = Math.round((image.height / image.width) * imageWidth);
+
+      const memoText = memo.trim() || "오늘의 움직이는 네컷 추억";
+      const brandText = "내짤4짤 · 움직이는 네컷 추억";
+
+      const memoBoxHeight = 58;
+      const brandHeight = 38;
+
+      const cardHeight =
+        padding +
+        framePadding +
+        imageHeight +
+        framePadding +
+        memoBoxHeight +
+        brandHeight +
+        padding;
+
+      canvas.width = cardWidth;
+      canvas.height = cardHeight;
+
+      const gradient = ctx.createLinearGradient(0, 0, cardWidth, cardHeight);
+      gradient.addColorStop(0, "#fff7fb");
+      gradient.addColorStop(1, "#ffe1ec");
+
+      ctx.fillStyle = gradient;
+      roundRect(ctx, 0, 0, cardWidth, cardHeight, 42);
+      ctx.fill();
+
+      ctx.strokeStyle = "#ffd1e0";
+      ctx.lineWidth = 4;
+      roundRect(ctx, 8, 8, cardWidth - 16, cardHeight - 16, 36);
+      ctx.stroke();
+
+      const photoFrameX = padding;
+      const photoFrameY = padding;
+      const photoFrameWidth = cardWidth - padding * 2;
+      const photoFrameHeight = imageHeight + framePadding * 2;
+
+      ctx.fillStyle = "#ffffff";
+      roundRect(
+        ctx,
+        photoFrameX,
+        photoFrameY,
+        photoFrameWidth,
+        photoFrameHeight,
+        30,
+      );
+      ctx.fill();
+
+      ctx.drawImage(
+        image,
+        photoFrameX + framePadding,
+        photoFrameY + framePadding,
+        imageWidth,
+        imageHeight,
+      );
+
+      const memoY = photoFrameY + photoFrameHeight + 16;
+
+      ctx.fillStyle = "rgba(255,255,255,0.86)";
+      roundRect(ctx, padding, memoY, cardWidth - padding * 2, memoBoxHeight, 24);
+      ctx.fill();
+
+      ctx.fillStyle = "#7a5d66";
+      ctx.font = "800 22px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(memoText, cardWidth / 2, memoY + memoBoxHeight / 2);
+
+      ctx.fillStyle = "#c38a9d";
+      ctx.font = "800 17px sans-serif";
+      ctx.fillText(brandText, cardWidth / 2, memoY + memoBoxHeight + 30);
+
+      framedImages.push(canvas.toDataURL("image/png"));
+    }
+
+    return framedImages;
   };
 
   const handleShareGif = async () => {
@@ -545,6 +640,43 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                 boxShadow: "0 8px 20px rgba(255,79,135,0.28)",
               }}
             >
+
+              <textarea
+                value={memo}
+                onChange={(event) => setMemo(event.target.value)}
+                placeholder="예: 친구 지은이랑 2026.5.16"
+                maxLength={80}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  marginTop: "16px",
+                  padding: "13px",
+                  borderRadius: "16px",
+                  border: "1px solid #ffd1e0",
+                  backgroundColor: "#fffafd",
+                  color: "#6f5961",
+                  resize: "none",
+                  minHeight: "74px",
+                  fontSize: "14px",
+                  lineHeight: 1.5,
+                  fontFamily: "sans-serif",
+                  fontWeight: 600,
+                  outline: "none",
+                }}
+              />
+
+              <div
+                style={{
+                  marginTop: "6px",
+                  textAlign: "right",
+                  color: "#c9aab5",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                }}
+              >
+                {memo.length}/80
+              </div>
+
               {isCreatingGif ? "움짤 만드는 중..." : "움짤 만들기"}
             </button>
 
@@ -600,9 +732,6 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                     두근두근 GIF 💗
                   </button>
 
-                  <button onClick={() => setShowGifOptions(false)} style={cancelButtonStyle}>
-                    취소
-                  </button>
                 </div>
               </div>
             )}
@@ -759,6 +888,12 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
             </button>
             <button onClick={handleSaveCardImage} style={primarySubButtonStyle}>
               메모 카드 이미지 저장하기
+            </button>
+            <button
+              onClick={() => setShowGifOptions(true)}
+              style={smallButtonStyle}
+            >
+              다른 스타일로 다시 만들기
             </button>
           </div>
         )}
@@ -1040,18 +1175,6 @@ const optionButtonStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const cancelButtonStyle: React.CSSProperties = {
-  width: "100%",
-  marginTop: "10px",
-  padding: "13px",
-  borderRadius: "16px",
-  border: "none",
-  backgroundColor: "#eee",
-  color: "#777",
-  fontSize: "15px",
-  fontWeight: 800,
-  cursor: "pointer",
-};
 
 const primarySubButtonStyle: React.CSSProperties = {
   marginTop: "12px",
