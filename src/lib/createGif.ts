@@ -1,12 +1,21 @@
 import gifshot from "gifshot";
 
-export async function createGif(images: string[]): Promise<string> {
+export type GifSpeed = "fast" | "normal" | "slow";
+
+export async function createGif(
+  images: string[],
+  speed: GifSpeed = "normal",
+): Promise<string> {
   const firstImage = await loadImage(images[0]);
 
   const gifWidth = 480;
-  const gifHeight = Math.round(
-    (firstImage.height / firstImage.width) * gifWidth,
-  );
+  const gifHeight = Math.round((firstImage.height / firstImage.width) * gifWidth);
+
+  const intervalMap: Record<GifSpeed, number> = {
+    fast: 0.32,
+    normal: 0.5,
+    slow: 0.75,
+  };
 
   return new Promise((resolve, reject) => {
     gifshot.createGIF(
@@ -14,7 +23,7 @@ export async function createGif(images: string[]): Promise<string> {
         images,
         gifWidth,
         gifHeight,
-        interval: 0.5,
+        interval: intervalMap[speed],
         numFrames: images.length,
         frameDuration: 1,
         sampleInterval: 8,

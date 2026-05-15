@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { createGif } from "../lib/createGif";
+import { createGif, type GifSpeed } from "../lib/createGif";
 import { alignImagesForGif } from "../lib/alignImagesForGif";
 import { detectFaceBasedCells } from "../lib/detectFaceBasedCells";
 
 type CutPreviewProps = {
   imageUrl: string;
   onBack: () => void;
+};
+
+type GifMode = "fast" | "slow" | "heartbeat";
+
+type PreviewSize = {
+  width: number;
+  height: number;
 };
 
 type ExtractStatus = "loading" | "success" | "fallback" | "error";
@@ -34,6 +41,10 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
   const [status, setStatus] = useState<ExtractStatus>("loading");
   const [message, setMessage] = useState("인생네컷을 분석하고 있어요 ❀");
 
+  const [showGifOptions, setShowGifOptions] = useState(false);
+  const [previewSizes, setPreviewSizes] = useState<PreviewSize[]>([]);
+  const adjustsRef = useRef<Adjust[]>([]);
+
   useEffect(() => {
     let isCancelled = false;
 
@@ -61,8 +72,15 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
             setSourceUrl(imageUrl);
             setSourceSize({ width, height });
             setCells(faceCells);
-            setAdjusts(faceCells.map(() => ({ x: 0, y: 0, scale: 1, rotate: 0 })));
-            setStatus("success");
+            const initialAdjusts = faceCells.map(() => ({
+              x: 0,
+              y: 0,
+              scale: 1,
+              rotate: 0,
+            }));
+
+            adjustsRef.current = initialAdjusts;
+            setAdjusts(initialAdjusts); setStatus("success");
             setMessage("얼굴 위치를 기준으로 네 컷을 정리했어요. 손가락으로 미세조정할 수 있어요.");
             return;
           }
@@ -83,8 +101,15 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
           setSourceUrl(imageUrl);
           setSourceSize({ width, height });
           setCells(fallbackCells);
-          setAdjusts(fallbackCells.map(() => ({ x: 0, y: 0, scale: 1, rotate: 0 })));
-          setStatus("fallback");
+          const initialAdjusts = fallbackCells.map(() => ({
+            x: 0,
+            y: 0,
+            scale: 1,
+            rotate: 0,
+          }));
+
+          adjustsRef.current = initialAdjusts;
+          setAdjusts(initialAdjusts); setStatus("fallback");
           setMessage("얼굴 자동 인식이 어려워 원본 기준으로 배치했어요. 손가락으로 맞춰주세요.");
         };
 
@@ -111,27 +136,31 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
   }, [imageUrl]);
 
   const updateAdjust = (index: number, next: Partial<Adjust>) => {
-    setAdjusts((prev) =>
-      prev.map((item, i) =>
+    setAdjusts((prev) => {
+      const updated = prev.map((item, i) =>
         i === index
           ? {
             ...item,
             ...next,
           }
           : item,
-      ),
-    );
+      );
+
+      adjustsRef.current = updated;
+      return updated;
+    });
   };
 
   const resetAllAdjusts = () => {
-    setAdjusts(
-      cells.map(() => ({
-        x: 0,
-        y: 0,
-        scale: 1,
-        rotate: 0,
-      })),
-    );
+    const reset = cells.map(() => ({
+      x: 0,
+      y: 0,
+      scale: 1,
+      rotate: 0,
+    }));
+
+    adjustsRef.current = reset;
+    setAdjusts(reset);
   };
 
   const renderAdjustedImages = async (extraScale = 1) => {
@@ -142,7 +171,8 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
 
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i];
-      const adjust = adjusts[i] ?? { x: 0, y: 0, scale: 1, rotate: 0 };
+      const currentAdjusts = adjustsRef.current.length ? adjustsRef.current : adjusts;
+      const adjust = currentAdjusts[i] ?? { x: 0, y: 0, scale: 1, rotate: 0 };
 
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
@@ -163,8 +193,9 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       const sourceCropWidth = cell.width / finalScale;
       const sourceCropHeight = cell.height / finalScale;
 
-      const previewFrameWidth = 220;
-      const previewFrameHeight = previewFrameWidth * (cell.height / cell.width);
+      const previewFrameWidth = previewSizes[i]?.width || 220;
+      const previewFrameHeight =
+        previewSizes[i]?.height || previewFrameWidth * (cell.height / cell.width);
 
       const moveScaleX = cell.width / previewFrameWidth;
       const moveScaleY = cell.height / previewFrameHeight;
@@ -213,23 +244,41 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     return rendered;
   };
 
-  const handleCreateGif = async () => {
+  const handleCreateGif = async (mode: GifMode) => {
     if (cells.length !== 4 || !sourceUrl) return;
 
+    setShowGifOptions(false);
     setIsCreatingGif(true);
     setGifUrl(null);
 
     try {
-      const normalImages = await renderAdjustedImages(1);
-      const beatImages = await renderAdjustedImages(1.08);
+      let images: string[] = [];
+      let speed: GifSpeed = "normal";
 
-      const heartBeatImages = normalImages.flatMap((image, index) => [
-        image,
-        beatImages[index],
-      ]);
+      if (mode === "heartbeat") {
+        const normalImages = await renderAdjustedImages(1);
+        const beatImages = await renderAdjustedImages(1.08);
 
-      const alignedImages = await alignImagesForGif(heartBeatImages);
-      const gif = await createGif(alignedImages);
+        images = normalImages.flatMap((image, index) => [
+          image,
+          beatImages[index],
+        ]);
+
+        speed = "fast";
+      }
+
+      if (mode === "fast") {
+        images = await renderAdjustedImages(1);
+        speed = "fast";
+      }
+
+      if (mode === "slow") {
+        images = await renderAdjustedImages(1);
+        speed = "slow";
+      }
+
+      const alignedImages = await alignImagesForGif(images);
+      const gif = await createGif(alignedImages, speed);
       setGifUrl(gif);
     } catch (error) {
       console.error(error);
@@ -344,6 +393,13 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                   cell={cell}
                   adjust={adjusts[index] ?? { x: 0, y: 0, scale: 1, rotate: 0 }}
                   onChange={(next) => updateAdjust(index, next)}
+                  onSizeChange={(size) => {
+                    setPreviewSizes((prev) => {
+                      const next = [...prev];
+                      next[index] = size;
+                      return next;
+                    });
+                  }}
                 />
               ))}
             </div>
@@ -372,7 +428,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
         {status !== "error" && (
           <>
             <button
-              onClick={handleCreateGif}
+              onClick={() => setShowGifOptions(true)}
               disabled={cells.length !== 4 || isCreatingGif}
               style={{
                 marginTop: "18px",
@@ -405,6 +461,52 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                 위치 초기화
               </button>
             </div>
+
+            {showGifOptions && (
+              <div
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  zIndex: 20,
+                  backgroundColor: "rgba(0,0,0,0.45)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "20px",
+                }}
+              >
+                <div
+                  style={{
+                    width: "100%",
+                    maxWidth: "360px",
+                    backgroundColor: "white",
+                    borderRadius: "26px",
+                    padding: "20px",
+                    boxShadow: "0 18px 50px rgba(0,0,0,0.25)",
+                    textAlign: "center",
+                  }}
+                >
+                  <h3 style={{ color: "#ff4f87", marginTop: 0 }}>움짤 스타일 선택</h3>
+
+                  <button onClick={() => handleCreateGif("fast")} style={optionButtonStyle}>
+                    빠른 GIF
+                  </button>
+
+                  <button onClick={() => handleCreateGif("slow")} style={optionButtonStyle}>
+                    느린 GIF
+                  </button>
+
+                  <button onClick={() => handleCreateGif("heartbeat")} style={optionButtonStyle}>
+                    두근두근 GIF 💗
+                  </button>
+
+                  <button onClick={() => setShowGifOptions(false)} style={cancelButtonStyle}>
+                    취소
+                  </button>
+                </div>
+              </div>
+            )}
+
 
             {isCreatingGif && (
               <div
@@ -501,6 +603,7 @@ type AdjustableCutProps = {
   cell: CellRect;
   adjust: Adjust;
   onChange: (next: Partial<Adjust>) => void;
+  onSizeChange: (size: PreviewSize) => void;
 };
 
 function AdjustableCut({
@@ -509,8 +612,31 @@ function AdjustableCut({
   cell,
   adjust,
   onChange,
+  onSizeChange,
 }: AdjustableCutProps) {
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const frameRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const element = frameRef.current;
+    if (!element) return;
+
+    const updateSize = () => {
+      const rect = element.getBoundingClientRect();
+
+      onSizeChange({
+        width: rect.width,
+        height: rect.height,
+      });
+    };
+
+    updateSize();
+
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [onSizeChange]);
 
   const previewWidthPercent = (sourceSize.width / cell.width) * 100;
   const previewHeightPercent = (sourceSize.height / cell.height) * 100;
@@ -574,6 +700,7 @@ function AdjustableCut({
   return (
     <div>
       <div
+        ref={frameRef}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -656,6 +783,32 @@ const secondaryButtonStyle: React.CSSProperties = {
   backgroundColor: "#999",
   color: "white",
   fontSize: "16px",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const optionButtonStyle: React.CSSProperties = {
+  width: "100%",
+  marginTop: "10px",
+  padding: "15px",
+  borderRadius: "16px",
+  border: "none",
+  backgroundColor: "#ff4f87",
+  color: "white",
+  fontSize: "16px",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const cancelButtonStyle: React.CSSProperties = {
+  width: "100%",
+  marginTop: "10px",
+  padding: "13px",
+  borderRadius: "16px",
+  border: "none",
+  backgroundColor: "#eee",
+  color: "#777",
+  fontSize: "15px",
   fontWeight: 800,
   cursor: "pointer",
 };
