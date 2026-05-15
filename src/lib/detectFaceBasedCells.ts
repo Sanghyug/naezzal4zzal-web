@@ -53,9 +53,6 @@ export async function detectFaceBasedCells(
   const averageGap =
     gaps.reduce((sum, gap) => sum + gap, 0) / Math.max(1, gaps.length);
 
-  const cellHeight = clamp(averageGap * 0.82, image.height * 0.14, image.height * 0.28);
-  const cellWidth = cellHeight * 1.45;
-
   const unions = rows.map((row) => getUnionBox(row));
 
   const centers = unions.map((union) => ({
@@ -66,24 +63,35 @@ export async function detectFaceBasedCells(
   const averageCenterX =
     centers.reduce((sum, center) => sum + center.x, 0) / centers.length;
 
-  const maxUnionWidth = Math.max(...unions.map((union) => union.width));
-  const maxUnionHeight = Math.max(...unions.map((union) => union.height));
-
-  const equalCellWidth = clamp(
-    Math.max(cellWidth, maxUnionWidth * 2.7),
-    image.width * 0.28,
-    image.width * 0.92,
-  );
+  // 네컷 프레임 비율 고정
+  // 숫자를 키우면 더 가로로 길어지고,
+  // 숫자를 줄이면 더 세로로 길어짐.
+  // 지금은 인생네컷 단일 컷 느낌에 맞춰 1.35로 고정.
+  const fixedAspectRatio = 1.35;
 
   const equalCellHeight = clamp(
-    Math.max(cellHeight, maxUnionHeight * 3.4),
-    image.height * 0.14,
-    image.height * 0.28,
+    averageGap * 0.9,
+    image.height * 0.16,
+    image.height * 0.3,
+  );
+
+  const equalCellWidth = clamp(
+    equalCellHeight * fixedAspectRatio,
+    image.width * 0.28,
+    image.width * 0.86,
   );
 
   return centers.map((center) => ({
-    x: clamp(averageCenterX - equalCellWidth / 2, 0, image.width - equalCellWidth),
-    y: clamp(center.y - equalCellHeight * 0.45, 0, image.height - equalCellHeight),
+    x: clamp(
+      averageCenterX - equalCellWidth / 2,
+      0,
+      image.width - equalCellWidth,
+    ),
+    y: clamp(
+      center.y - equalCellHeight * 0.48,
+      0,
+      image.height - equalCellHeight,
+    ),
     width: equalCellWidth,
     height: equalCellHeight,
   }));
