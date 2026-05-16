@@ -17,6 +17,12 @@
   }
 }
 
+.memo-textarea::placeholder {
+  color: #d9c9d0 !important;
+  opacity: 0.45 !important;
+  font-weight: 600;
+}
+
 .hero {
   position: relative;
 

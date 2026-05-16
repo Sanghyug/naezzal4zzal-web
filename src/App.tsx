@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import StartScreen from "./components/StartScreen";
 import CutPreview from "./components/CutPreview";
 import SplashScreen from "./components/SplashScreen";
+import GalleryScreen from "./components/GalleryScreen";
 
 declare global {
   interface Window {
@@ -9,7 +10,7 @@ declare global {
   }
 }
 
-type AppMode = "splash" | "start" | "preview";
+type AppMode = "splash" | "start" | "preview" | "gallery";
 
 function App() {
   const [mode, setMode] = useState<AppMode>("splash");
@@ -49,6 +50,29 @@ function App() {
     setMode("preview");
   };
 
+  const handleShareApp = async () => {
+    const appUrl = "https://naezzal4zzal-web.vercel.app";
+
+    const shareText = "친구들이랑 찍은 네컷 사진을 움직이는 짤로 만들어봐 ✨";
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "내짤4짤",
+          text: shareText,
+          url: appUrl,
+        });
+        return;
+      }
+
+      await navigator.clipboard.writeText(`${shareText}\n${appUrl}`);
+      alert("앱 링크를 복사했어요. 친구에게 붙여넣어 보내보세요 💌");
+    } catch (error) {
+      console.error(error);
+      alert("공유를 취소했거나 사용할 수 없는 브라우저예요.");
+    }
+  };
+
   const handleReset = () => {
     if (imageUrl && imageUrl.startsWith("blob:")) {
       URL.revokeObjectURL(imageUrl);
@@ -78,6 +102,8 @@ function App() {
         style={{ display: "none" }}
       />
 
+      {mode === "gallery" && <GalleryScreen onBack={() => setMode("start")} />}
+
       <input
         ref={galleryInputRef}
         type="file"
@@ -94,6 +120,8 @@ function App() {
         <StartScreen
           onCameraClick={handleCameraClick}
           onUploadClick={handleUploadClick}
+          onGalleryClick={() => setMode("gallery")}
+          onShareAppClick={handleShareApp}
         />
       )}
     </>

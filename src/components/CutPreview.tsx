@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createGif, type GifSpeed } from "../lib/createGif";
 import { alignImagesForGif } from "../lib/alignImagesForGif";
 import { detectFaceBasedCells } from "../lib/detectFaceBasedCells";
+import { hasSameGalleryItem, saveGalleryItem } from "../lib/galleryStore";
 
 type CutPreviewProps = {
   imageUrl: string;
@@ -37,6 +38,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
   const [cells, setCells] = useState<CellRect[]>([]);
   const [adjusts, setAdjusts] = useState<Adjust[]>([]);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
+  const [currentGifStyleName, setCurrentGifStyleName] = useState("");
   const [memo, setMemo] = useState("");
   const [isCreatingGif, setIsCreatingGif] = useState(false);
   const [status, setStatus] = useState<ExtractStatus>("loading");
@@ -81,8 +83,11 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
             }));
 
             adjustsRef.current = initialAdjusts;
-            setAdjusts(initialAdjusts); setStatus("success");
-            setMessage("얼굴 위치를 기준으로 네 컷을 정리했어요. 손가락으로 미세조정할 수 있어요.");
+            setAdjusts(initialAdjusts);
+            setStatus("success");
+            setMessage(
+              "얼굴 위치를 기준으로 네 컷을 정리했어요. 손가락으로 미세조정할 수 있어요.",
+            );
             return;
           }
 
@@ -110,21 +115,28 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
           }));
 
           adjustsRef.current = initialAdjusts;
-          setAdjusts(initialAdjusts); setStatus("fallback");
-          setMessage("얼굴 자동 인식이 어려워 원본 기준으로 배치했어요. 손가락으로 맞춰주세요.");
+          setAdjusts(initialAdjusts);
+          setStatus("fallback");
+          setMessage(
+            "얼굴 자동 인식이 어려워 원본 기준으로 배치했어요. 손가락으로 맞춰주세요.",
+          );
         };
 
         originalImage.onerror = () => {
           if (!isCancelled) {
             setStatus("error");
-            setMessage("이미지를 불러오지 못했어요. 다른 사진으로 다시 시도해주세요.");
+            setMessage(
+              "이미지를 불러오지 못했어요. 다른 사진으로 다시 시도해주세요.",
+            );
           }
         };
       } catch (error) {
         console.error(error);
         if (!isCancelled) {
           setStatus("error");
-          setMessage("사진을 분석하는 중 문제가 생겼어요. 다른 사진으로 다시 시도해주세요.");
+          setMessage(
+            "사진을 분석하는 중 문제가 생겼어요. 다른 사진으로 다시 시도해주세요.",
+          );
         }
       }
     }
@@ -141,9 +153,9 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       const updated = prev.map((item, i) =>
         i === index
           ? {
-            ...item,
-            ...next,
-          }
+              ...item,
+              ...next,
+            }
           : item,
       );
 
@@ -172,7 +184,9 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
 
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i];
-      const currentAdjusts = adjustsRef.current.length ? adjustsRef.current : adjusts;
+      const currentAdjusts = adjustsRef.current.length
+        ? adjustsRef.current
+        : adjusts;
       const adjust = currentAdjusts[i] ?? { x: 0, y: 0, scale: 1, rotate: 0 };
 
       const canvas = document.createElement("canvas");
@@ -181,7 +195,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       if (!ctx) continue;
 
       const targetWidth = 480;
-      const targetHeight = Math.round((cell.height / cell.width) * targetWidth);
+      const targetHeight = Math.round(targetWidth * (3.4 / 4.3));
 
       canvas.width = targetWidth;
       canvas.height = targetHeight;
@@ -196,7 +210,8 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
 
       const previewFrameWidth = previewSizes[i]?.width || 220;
       const previewFrameHeight =
-        previewSizes[i]?.height || previewFrameWidth * (cell.height / cell.width);
+        previewSizes[i]?.height ||
+        previewFrameWidth * (cell.height / cell.width);
 
       const moveScaleX = cell.width / previewFrameWidth;
       const moveScaleY = cell.height / previewFrameHeight;
@@ -210,8 +225,16 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
         cell.y +
         (cell.height - sourceCropHeight) / 2 -
         (adjust.y * moveScaleY) / adjust.scale;
-      const safeSourceX = clamp(sourceX, 0, sourceImage.width - sourceCropWidth);
-      const safeSourceY = clamp(sourceY, 0, sourceImage.height - sourceCropHeight);
+      const safeSourceX = clamp(
+        sourceX,
+        0,
+        sourceImage.width - sourceCropWidth,
+      );
+      const safeSourceY = clamp(
+        sourceY,
+        0,
+        sourceImage.height - sourceCropHeight,
+      );
 
       const tempCanvas = document.createElement("canvas");
       const tempCtx = tempCanvas.getContext("2d");
@@ -245,12 +268,20 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     return rendered;
   };
 
+  const getGifStyleName = (mode: GifMode) => {
+    if (mode === "fast") return "헐레벌떡 GIF";
+    if (mode === "slow") return "살랑살랑 GIF";
+    if (mode === "heartbeat") return "두근두근 GIF";
+    return "기본 GIF";
+  };
+
   const handleCreateGif = async (mode: GifMode) => {
     if (cells.length !== 4 || !sourceUrl) return;
 
     setShowGifOptions(false);
     setIsCreatingGif(true);
     setGifUrl(null);
+    setCurrentGifStyleName(getGifStyleName(mode));
 
     try {
       let images: string[] = [];
@@ -365,7 +396,14 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       const memoY = photoFrameY + photoFrameHeight + 16;
 
       ctx.fillStyle = "rgba(255,255,255,0.86)";
-      roundRect(ctx, padding, memoY, cardWidth - padding * 2, memoBoxHeight, 24);
+      roundRect(
+        ctx,
+        padding,
+        memoY,
+        cardWidth - padding * 2,
+        memoBoxHeight,
+        24,
+      );
       ctx.fill();
 
       ctx.fillStyle = "#7a5d66";
@@ -387,6 +425,20 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
   const handleShareGif = async () => {
     if (!gifUrl) return;
 
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    if (!isMobile) {
+      alert(
+        "PC 브라우저에서는 GIF 파일 공유가 불안정해요.\n스마트폰에서 공유하거나, 보관함의 다운로드 기능을 이용해주세요.",
+      );
+      return;
+    }
+
+    const appUrl = "https://naezzal4zzal-web.vercel.app";
+    const shareText = `${memo || "내짤4짤에서 만든 움직이는 네컷 추억 ✨"}
+
+너도 만들어봐 👉 ${appUrl}`;
+
     try {
       const response = await fetch(gifUrl);
       const blob = await response.blob();
@@ -397,21 +449,54 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
-          title: "내짤4짤",
-          text: "내 인생네컷 움짤이에요!",
           files: [file],
+          title: "내짤4짤",
+          text: shareText,
         });
         return;
       }
 
-      alert("이 브라우저에서는 바로 공유가 어려워요. GIF 저장하기를 이용해주세요.");
+      if (navigator.share) {
+        await navigator.share({
+          title: "내짤4짤",
+          text: shareText,
+          url: appUrl,
+        });
+        return;
+      }
+
+      await navigator.clipboard.writeText(shareText);
+      alert("앱 링크와 문구를 복사했어요 💌");
     } catch (error) {
       console.error(error);
-      alert("공유하는 중 문제가 생겼어요.");
+      alert("공유를 취소했거나 사용할 수 없는 브라우저예요.");
     }
   };
 
-  
+  const handleSaveToGallery = async () => {
+    if (!gifUrl) {
+      alert("아직 저장할 GIF가 없어요.");
+      return;
+    }
+
+    const currentStyleName = currentGifStyleName || "기본 GIF";
+
+    try {
+      const alreadySaved = await hasSameGalleryItem(memo, currentStyleName);
+
+      if (alreadySaved) {
+        alert("이 스타일은 이미 보관함에 저장되어 있어요 💗");
+        return;
+      }
+
+      await saveGalleryItem(gifUrl, memo, currentStyleName);
+      alert("내 보관함에 저장했어요 💗");
+    } catch (error) {
+      console.error(error);
+      alert("보관함에 저장하지 못했어요.");
+    }
+  };
+
   return (
     <div
       style={{
@@ -524,11 +609,11 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
 
         {status !== "error" && (
           <>
-
             <textarea
+              className="memo-textarea"
               value={memo}
               onChange={(event) => setMemo(event.target.value)}
-              placeholder="예: 친구 지은이랑 2026.5.16"
+              placeholder="예) 지은이랑 찍은 봄날의 네컷"
               maxLength={80}
               style={{
                 width: "100%",
@@ -544,7 +629,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                 fontSize: "14px",
                 lineHeight: 1.5,
                 fontFamily: "sans-serif",
-                fontWeight: 600,
+                fontWeight: 300,
                 outline: "none",
               }}
             />
@@ -578,7 +663,6 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                 boxShadow: "0 8px 20px rgba(255,79,135,0.28)",
               }}
             >
-
               {isCreatingGif ? "움짤 만드는 중..." : "움짤 만들기"}
             </button>
 
@@ -623,25 +707,33 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                     textAlign: "center",
                   }}
                 >
-                  <h3 style={{ color: "#ff4f87", marginTop: 0 }}>움짤 스타일 선택</h3>
+                  <h3 style={{ color: "#ff4f87", marginTop: 0 }}>
+                    움짤 스타일 선택
+                  </h3>
 
-                  <button onClick={() => handleCreateGif("fast")} style={optionButtonStyle}>
-                    빠른 GIF
+                  <button
+                    onClick={() => handleCreateGif("fast")}
+                    style={fastGifButtonStyle}
+                  >
+                    헐레벌떡 GIF
                   </button>
 
-                  <button onClick={() => handleCreateGif("slow")} style={optionButtonStyle}>
-                    느린 GIF
+                  <button
+                    onClick={() => handleCreateGif("slow")}
+                    style={slowGifButtonStyle}
+                  >
+                    살랑살랑 GIF
                   </button>
 
-                  <button onClick={() => handleCreateGif("heartbeat")} style={optionButtonStyle}>
-                    두근두근 GIF 💗
+                  <button
+                    onClick={() => handleCreateGif("heartbeat")}
+                    style={heartbeatGifButtonStyle}
+                  >
+                    두근두근 GIF
                   </button>
-
                 </div>
               </div>
-
             )}
-
 
             {isCreatingGif && (
               <div
@@ -687,24 +779,11 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
               }}
             />
 
-            <a
-              href={gifUrl}
-              download="naezzal4zzal.gif"
-              style={{
-                display: "block",
-                marginTop: "14px",
-                padding: "14px",
-                borderRadius: "14px",
-                backgroundColor: "#333",
-                color: "white",
-                textDecoration: "none",
-                fontWeight: 800,
-              }}
-            >
-              GIF 저장하기
-            </a>
+            <button onClick={handleSaveToGallery} style={saveButtonStyle}>
+              저장하기
+            </button>
 
-            <button onClick={handleShareGif} style={primarySubButtonStyle}>
+            <button onClick={handleShareGif} style={shareButtonStyle}>
               공유하기
             </button>
 
@@ -851,7 +930,7 @@ function AdjustableCut({
         style={{
           position: "relative",
           width: "100%",
-          aspectRatio: `${cell.width} / ${cell.height}`,
+          aspectRatio: "4.3 / 3.4",
           borderRadius: "16px",
           overflow: "hidden",
           backgroundColor: "#f5f5f5",
@@ -871,8 +950,9 @@ function AdjustableCut({
             width: `${previewWidthPercent}%`,
             height: `${previewHeightPercent}%`,
             transform: `translate(${adjust.x}px, ${adjust.y}px) scale(${adjust.scale}) rotate(${adjust.rotate}deg)`,
-            transformOrigin: `${(cell.x + cell.width / 2) / sourceSize.width * 100}% ${(cell.y + cell.height / 2) / sourceSize.height * 100
-              }%`,
+            transformOrigin: `${((cell.x + cell.width / 2) / sourceSize.width) * 100}% ${
+              ((cell.y + cell.height / 2) / sourceSize.height) * 100
+            }%`,
             userSelect: "none",
             pointerEvents: "none",
           }}
@@ -898,9 +978,7 @@ function AdjustableCut({
         <button onClick={rotateRight} style={miniButtonStyle}>
           ↻
         </button>
-
       </div>
-
     </div>
   );
 }
@@ -951,19 +1029,74 @@ const secondaryButtonStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const optionButtonStyle: React.CSSProperties = {
+const saveButtonStyle: React.CSSProperties = {
   width: "100%",
-  marginTop: "10px",
-  padding: "15px",
-  borderRadius: "16px",
+  marginTop: "14px",
+  padding: "14px",
+  borderRadius: "14px",
   border: "none",
-  backgroundColor: "#ff4f87",
+  backgroundColor: "#333333",
   color: "white",
   fontSize: "16px",
-  fontWeight: 800,
+  fontWeight: 900,
   cursor: "pointer",
+  boxShadow: "0 8px 18px rgba(51,51,51,0.18)",
 };
 
+const shareButtonStyle: React.CSSProperties = {
+  marginTop: "12px",
+  width: "100%",
+  padding: "14px",
+  borderRadius: "14px",
+  border: "none",
+  backgroundColor: "#ff8f86",
+  color: "white",
+  fontSize: "16px",
+  fontWeight: 900,
+  cursor: "pointer",
+  boxShadow: "0 8px 18px rgba(255,143,134,0.18)",
+};
+
+const fastGifButtonStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "14px",
+  borderRadius: "14px",
+  border: "1px solid #ffd1c4",
+  backgroundColor: "#fff0eb",
+  color: "#ff7a5c",
+  fontSize: "16px",
+  fontWeight: 900,
+  cursor: "pointer",
+  boxShadow: "0 6px 14px rgba(255,122,92,0.10)",
+};
+
+const slowGifButtonStyle: React.CSSProperties = {
+  width: "100%",
+  marginTop: "10px",
+  padding: "14px",
+  borderRadius: "14px",
+  border: "1px solid #d9ceff",
+  backgroundColor: "#f4f0ff",
+  color: "#8f78e8",
+  fontSize: "16px",
+  fontWeight: 900,
+  cursor: "pointer",
+  boxShadow: "0 6px 14px rgba(143,120,232,0.10)",
+};
+
+const heartbeatGifButtonStyle: React.CSSProperties = {
+  width: "100%",
+  marginTop: "10px",
+  padding: "14px",
+  borderRadius: "14px",
+  border: "1px solid #ffc6dc",
+  backgroundColor: "#fff0f6",
+  color: "#ff4f87",
+  fontSize: "16px",
+  fontWeight: 900,
+  cursor: "pointer",
+  boxShadow: "0 6px 14px rgba(255,79,135,0.10)",
+};
 
 const primarySubButtonStyle: React.CSSProperties = {
   marginTop: "12px",
@@ -974,8 +1107,9 @@ const primarySubButtonStyle: React.CSSProperties = {
   backgroundColor: "#ff4f87",
   color: "white",
   fontSize: "16px",
-  fontWeight: 800,
+  fontWeight: 900,
   cursor: "pointer",
+  boxShadow: "0 8px 18px rgba(255,79,135,0.18)",
 };
 
 const smallButtonStyle: React.CSSProperties = {

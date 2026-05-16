@@ -3,9 +3,16 @@ import { useEffect, useState } from "react";
 type StartScreenProps = {
   onCameraClick: () => void;
   onUploadClick: () => void;
+  onGalleryClick: () => void;
+  onShareAppClick: () => void;
 };
 
-function StartScreen({ onCameraClick, onUploadClick }: StartScreenProps) {
+function StartScreen({
+  onCameraClick,
+  onUploadClick,
+  onGalleryClick,
+  onShareAppClick,
+}: StartScreenProps) {
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [isStandalone, setIsStandalone] = useState(false);
 
@@ -24,7 +31,10 @@ function StartScreen({ onCameraClick, onUploadClick }: StartScreenProps) {
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
     return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt,
+      );
     };
   }, []);
 
@@ -161,6 +171,42 @@ function StartScreen({ onCameraClick, onUploadClick }: StartScreenProps) {
             }}
           >
             🖼️ 불러오기
+          </button>
+
+          <button
+            onClick={onGalleryClick}
+            style={{
+              width: "100%",
+              padding: "16px",
+              borderRadius: "18px",
+              border: "2px solid #d9b8ff",
+              backgroundColor: "#fbf7ff",
+              color: "#a26be8",
+              fontSize: "18px",
+              fontWeight: 800,
+              cursor: "pointer",
+              boxShadow: "0 6px 18px rgba(162,107,232,0.12)",
+            }}
+          >
+            💗 내 보관함
+          </button>
+
+          <button
+            onClick={onShareAppClick}
+            style={{
+              width: "100%",
+              padding: "16px",
+              borderRadius: "18px",
+              border: "2px solid #ffc1b8",
+              backgroundColor: "#fff7f5",
+              color: "#ff6f61",
+              fontSize: "18px",
+              fontWeight: 800,
+              cursor: "pointer",
+              boxShadow: "0 6px 18px rgba(255,111,97,0.12)",
+            }}
+          >
+            💌 친구에게 보내기
           </button>
         </div>
 
