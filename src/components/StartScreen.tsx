@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
 
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+};
+
 type StartScreenProps = {
   onCameraClick: () => void;
   onUploadClick: () => void;
@@ -13,7 +18,8 @@ function StartScreen({
   onGalleryClick,
   onShareAppClick,
 }: StartScreenProps) {
-  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [installPrompt, setInstallPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
@@ -25,7 +31,7 @@ function StartScreen({
 
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
-      setInstallPrompt(event);
+      setInstallPrompt(event as BeforeInstallPromptEvent);
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
@@ -39,16 +45,53 @@ function StartScreen({
   }, []);
 
   const handleInstallClick = async () => {
-    if (!installPrompt) {
+    const userAgent = window.navigator.userAgent.toLowerCase();
+
+    const isIOS =
+      /iphone|ipad|ipod/.test(userAgent) ||
+      ((window.navigator as any).platform === "MacIntel" &&
+        (window.navigator as any).maxTouchPoints > 1);
+
+    const isAndroid = /android/.test(userAgent);
+
+    const isStandaloneNow =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone === true;
+
+    if (isStandaloneNow) {
+      alert("이미 앱처럼 실행 중이에요 💗");
+      return;
+    }
+
+    if (isIOS) {
       alert(
-        "브라우저 메뉴에서 '홈 화면에 추가'를 선택해주세요.\nChrome 또는 삼성 인터넷에서 가장 잘 작동해요.",
+        "아이폰에서는 Safari 아래쪽 공유 버튼을 눌러주세요.\n\n" +
+          "그다음 ‘홈 화면에 추가’를 선택하면\n" +
+          "내짤4짤을 앱처럼 사용할 수 있어요 💗",
       );
       return;
     }
 
-    installPrompt.prompt();
-    await installPrompt.userChoice;
-    setInstallPrompt(null);
+    if (isAndroid && installPrompt) {
+      await installPrompt.prompt();
+      await installPrompt.userChoice;
+      setInstallPrompt(null);
+      return;
+    }
+
+    if (isAndroid) {
+      alert(
+        "안드로이드에서는 Chrome 메뉴에서\n" +
+          "‘앱 설치’ 또는 ‘홈 화면에 추가’를 선택해주세요 💗",
+      );
+      return;
+    }
+
+    alert(
+      "브라우저의 공유 또는 메뉴 버튼에서\n" +
+        "‘홈 화면에 추가’를 선택하면\n" +
+        "내짤4짤을 앱처럼 사용할 수 있어요 💗",
+    );
   };
 
   return (
