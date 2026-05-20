@@ -1,9 +1,4 @@
-import { useEffect, useState } from "react";
-
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
-};
+import { useEffect } from "react";
 
 type StartScreenProps = {
   onCameraClick: () => void;
@@ -18,32 +13,15 @@ function StartScreen({
   onGalleryClick,
   onShareAppClick,
 }: StartScreenProps) {
-  const [installPrompt, setInstallPrompt] =
-    useState<BeforeInstallPromptEvent | null>(null);
-  const [isStandalone, setIsStandalone] = useState(false);
+  // const [installPrompt, setInstallPrompt] =
+  //  useState<BeforeInstallPromptEvent | null>(null);
+  // const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone === true;
-
-    setIsStandalone(standalone);
-
-    const handleBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPrompt(event as BeforeInstallPromptEvent);
-    };
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-
-    return () => {
-      window.removeEventListener(
-        "beforeinstallprompt",
-        handleBeforeInstallPrompt,
-      );
-    };
+    // 앱인토스 출시용: PWA 설치 안내 비활성화
   }, []);
 
+  /*
   const handleInstallClick = async () => {
     const userAgent = window.navigator.userAgent.toLowerCase();
 
@@ -93,6 +71,7 @@ function StartScreen({
         "내짤4짤을 앱처럼 사용할 수 있어요 💗",
     );
   };
+  */
 
   return (
     <div
@@ -266,25 +245,27 @@ function StartScreen({
           <br />더 멋진 내짤을 만들 수 있습니다.
         </p>
 
-        {!isStandalone && (
-          <button
-            onClick={handleInstallClick}
-            style={{
-              marginTop: "26px",
-              width: "100%",
-              padding: "15px",
-              borderRadius: "18px",
-              border: "1px solid #ffd1e0",
-              backgroundColor: "#fff6fa",
-              color: "#ff4f87",
-              fontSize: "15px",
-              fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
-            📱 앱처럼 설치하기
-          </button>
-        )}
+        {/*
+{!isStandalone && (
+  <button
+    onClick={handleInstallClick}
+    style={{
+      marginTop: "26px",
+      width: "100%",
+      padding: "15px",
+      borderRadius: "18px",
+      border: "1px solid #ffd1e0",
+      backgroundColor: "#fff6fa",
+      color: "#ff4f87",
+      fontSize: "15px",
+      fontWeight: 800,
+      cursor: "pointer",
+    }}
+  >
+    📱 앱처럼 설치하기
+  </button>
+)}
+*/}
         <div
           style={{
             marginTop: "24px",
@@ -297,7 +278,7 @@ function StartScreen({
           }}
         >
           <div>친구들과의 추억을 움직이는 짤로 ✿</div>
-          <div>© 2026 내짤4짤 · ver 1.0 beta</div>
+          <div>© 2026 내짤4짤 · ver 1.0</div>
         </div>
       </div>
     </div>
