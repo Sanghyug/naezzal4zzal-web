@@ -51,7 +51,7 @@ function App() {
   };
 
   const handleShareApp = async () => {
-    const appUrl = "https://naezzal4zzal-web.vercel.app";
+    const appUrl = window.location.origin;
 
     const shareText = "친구들이랑 찍은 네컷 사진을 움직이는 짤로 만들어봐 ✨";
 
