@@ -434,7 +434,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       return;
     }
 
-    const appUrl = "https://naezzal4zzal-web.vercel.app";
+    const appUrl = window.location.origin;
     const shareText = `${memo || "내짤4짤에서 만든 움직이는 네컷 추억 ✨"}
 
 너도 만들어봐 👉 ${appUrl}`;
