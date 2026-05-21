@@ -13,65 +13,9 @@ function StartScreen({
   onGalleryClick,
   onShareAppClick,
 }: StartScreenProps) {
-  // const [installPrompt, setInstallPrompt] =
-  //  useState<BeforeInstallPromptEvent | null>(null);
-  // const [isStandalone, setIsStandalone] = useState(false);
-
   useEffect(() => {
     // 앱인토스 출시용: PWA 설치 안내 비활성화
   }, []);
-
-  /*
-  const handleInstallClick = async () => {
-    const userAgent = window.navigator.userAgent.toLowerCase();
-
-    const isIOS =
-      /iphone|ipad|ipod/.test(userAgent) ||
-      ((window.navigator as any).platform === "MacIntel" &&
-        (window.navigator as any).maxTouchPoints > 1);
-
-    const isAndroid = /android/.test(userAgent);
-
-    const isStandaloneNow =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone === true;
-
-    if (isStandaloneNow) {
-      alert("이미 앱처럼 실행 중이에요 💗");
-      return;
-    }
-
-    if (isIOS) {
-      alert(
-        "아이폰에서는 Safari 아래쪽 공유 버튼을 눌러주세요.\n\n" +
-          "그다음 ‘홈 화면에 추가’를 선택하면\n" +
-          "내짤4짤을 앱처럼 사용할 수 있어요 💗",
-      );
-      return;
-    }
-
-    if (isAndroid && installPrompt) {
-      await installPrompt.prompt();
-      await installPrompt.userChoice;
-      setInstallPrompt(null);
-      return;
-    }
-
-    if (isAndroid) {
-      alert(
-        "안드로이드에서는 Chrome 메뉴에서\n" +
-          "‘앱 설치’ 또는 ‘홈 화면에 추가’를 선택해주세요 💗",
-      );
-      return;
-    }
-
-    alert(
-      "브라우저의 공유 또는 메뉴 버튼에서\n" +
-        "‘홈 화면에 추가’를 선택하면\n" +
-        "내짤4짤을 앱처럼 사용할 수 있어요 💗",
-    );
-  };
-  */
 
   return (
     <div
@@ -245,27 +189,6 @@ function StartScreen({
           <br />더 멋진 내짤을 만들 수 있습니다.
         </p>
 
-        {/*
-{!isStandalone && (
-  <button
-    onClick={handleInstallClick}
-    style={{
-      marginTop: "26px",
-      width: "100%",
-      padding: "15px",
-      borderRadius: "18px",
-      border: "1px solid #ffd1e0",
-      backgroundColor: "#fff6fa",
-      color: "#ff4f87",
-      fontSize: "15px",
-      fontWeight: 800,
-      cursor: "pointer",
-    }}
-  >
-    📱 앱처럼 설치하기
-  </button>
-)}
-*/}
         <div
           style={{
             marginTop: "24px",
