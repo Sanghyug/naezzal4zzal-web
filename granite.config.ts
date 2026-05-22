@@ -1,11 +1,11 @@
 import { defineConfig } from '@apps-in-toss/web-framework/config';
 
 export default defineConfig({
-  appName: 'naezzal-4-zzal',
+  appName: 'naezzal4zzal',
   brand: {
     displayName: '내짤4짤',
     primaryColor: '#ff4f87',
-    icon: './public/favicon-192.png',
+    icon: '콘솔에서 앱 로고 아이콘 우클릭 후 복사한 이미지 URL',
   },
   web: {
     host: 'localhost',
@@ -17,4 +17,7 @@ export default defineConfig({
   },
   permissions: [],
   outdir: 'dist',
+  webViewProps: {
+    type: 'partner',
+  },
 });
