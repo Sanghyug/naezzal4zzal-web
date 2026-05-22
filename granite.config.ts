@@ -3,10 +3,10 @@ import { defineConfig } from '@apps-in-toss/web-framework/config';
 export default defineConfig({
   appName: 'naezzal4zzal',
   brand: {
-    displayName: '내짤4짤',
-    primaryColor: '#ff4f87',
-    icon: '콘솔에서 앱 로고 아이콘 우클릭 후 복사한 이미지 URL',
-  },
+  displayName: '내짤4짤',
+  primaryColor: '#ff4f87',
+  icon: 'https://static.toss.im/appsintoss/43365/1c051083-4cce-4796-9bff-f606057b7fba.png',
+},
   web: {
     host: 'localhost',
     port: 5173,
