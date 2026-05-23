@@ -68,7 +68,7 @@ function SplashScreen() {
         }}
       >
         <div>© 2026 내짤4짤</div>
-        <div>ver 1.1-cache-test</div>
+        <div>ver 1.2</div>
       </div>
 
       <style>

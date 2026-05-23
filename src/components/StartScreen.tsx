@@ -201,7 +201,7 @@ function StartScreen({
           }}
         >
           <div>친구들과의 추억을 움직이는 짤로 ✿</div>
-          <div>© 2026 내짤4짤 · ver 1.1-cache-test</div>
+          <div>© 2026 내짤4짤 · ver 1.2</div>
         </div>
       </div>
     </div>

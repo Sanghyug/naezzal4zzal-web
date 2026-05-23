@@ -17,8 +17,23 @@ type FaceBox = {
 export async function detectFaceBasedCells(
   imageUrl: string,
 ): Promise<FaceCellRect[]> {
-  const image = await loadImage(imageUrl);
-  const detections = await detectFaces(imageUrl);
+  let image: HTMLImageElement;
+
+  try {
+    image = await loadImage(imageUrl);
+  } catch (error) {
+    console.warn("이미지 로드 실패 → 기계적 4분할로 전환", error);
+    return [];
+  }
+
+  let detections: Awaited<ReturnType<typeof detectFaces>>;
+
+  try {
+    detections = await detectFaces(imageUrl);
+  } catch (error) {
+    console.warn("얼굴 인식 실패 → 기계적 4분할로 전환", error);
+    return [];
+  }
 
   const faces: FaceBox[] = detections.map((detection: any) => {
     const box = detection.box;
@@ -145,10 +160,24 @@ function getUnionBox(boxes: FaceBox[]): FaceBox {
 }
 
 function loadImage(imageUrl: string): Promise<HTMLImageElement> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const image = new Image();
+
+    const timer = window.setTimeout(() => {
+      reject(new Error("이미지 로드 시간 초과"));
+    }, 3000);
+
+    image.onload = () => {
+      window.clearTimeout(timer);
+      resolve(image);
+    };
+
+    image.onerror = () => {
+      window.clearTimeout(timer);
+      reject(new Error("이미지 로드 실패"));
+    };
+
     image.src = imageUrl;
-    image.onload = () => resolve(image);
   });
 }
 
