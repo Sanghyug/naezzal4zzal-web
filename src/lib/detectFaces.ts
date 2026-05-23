@@ -4,7 +4,13 @@ let isLoaded = false;
 
 export async function loadFaceModel() {
   if (isLoaded) return;
-  await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
+
+  const baseUrl = import.meta.env.BASE_URL.endsWith("/")
+    ? import.meta.env.BASE_URL
+    : `${import.meta.env.BASE_URL}/`;
+
+  await faceapi.nets.tinyFaceDetector.loadFromUri(`${baseUrl}models`);
+
   isLoaded = true;
 }
 

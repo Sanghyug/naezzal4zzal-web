@@ -69,7 +69,12 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
           const width = originalImage.width;
           const height = originalImage.height;
 
-          const faceCells = await detectFaceBasedCells(imageUrl);
+          const faceCells = await Promise.race([
+            detectFaceBasedCells(imageUrl),
+            new Promise<CellRect[]>((resolve) => {
+              window.setTimeout(() => resolve([]), 5000);
+            }),
+          ]);
 
           if (faceCells.length === 4) {
             setSourceUrl(imageUrl);
