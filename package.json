@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
   "dev": "vite",
-  "build": "ait build",
+  "build": "tsc -b && vite build",
+  "vercel-build": "tsc -b && vite build",
   "web:build": "tsc -b && vite build",
   "lint": "eslint .",
   "preview": "vite preview"
-  
-  },
+},
+
   "dependencies": {
     "@apps-in-toss/web-framework": "^2.6.0",
     "@mediapipe/tasks-vision": "^0.10.35",

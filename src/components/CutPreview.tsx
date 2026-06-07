@@ -9,12 +9,37 @@ type CutPreviewProps = {
   onBack: () => void;
 };
 
-type GifMode = "fast" | "slow" | "heartbeat";
+type GifMode = "fast" | "slow" | "heartbeat" | "shake" | "shabang" | "longing";
+function getUnlockedFrames(shareCount: number): FrameType[] {
+  const frames: FrameType[] = ["basic"];
+
+  if (shareCount >= 4) frames.push("film");
+  if (shareCount >= 5) frames.push("memory");
+  if (shareCount >= 6) frames.push("spring");
+
+  return frames;
+}
 
 type PreviewSize = {
   width: number;
   height: number;
 };
+
+type PhotoLayout = "1x4" | "2x2" | "unknown";
+
+type StripRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type LayoutResult = {
+  layout: PhotoLayout;
+  strip?: StripRect;
+};
+
+export type FrameType = "basic" | "film" | "memory" | "spring";
 
 type ExtractStatus = "loading" | "success" | "fallback" | "error";
 
@@ -48,6 +73,13 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
   const [previewSizes, setPreviewSizes] = useState<PreviewSize[]>([]);
   const adjustsRef = useRef<Adjust[]>([]);
 
+  const [shareCount, setShareCount] = useState(() => {
+    return Number(localStorage.getItem("naezzal4zzal-share-count") || "0");
+  });
+  const unlockedFrames = getUnlockedFrames(shareCount);
+
+  const [selectedFrame, setSelectedFrame] = useState<FrameType>("basic");
+
   useEffect(() => {
     let isCancelled = false;
 
@@ -58,10 +90,14 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
         setAdjusts([]);
         setGifUrl(null);
         setStatus("loading");
-        setMessage("사진 위치를 정리하는 중입니다.");
+        setMessage("사진을 보기 좋게 자동 보정하는 중입니다.");
+
+        const enhancedImageUrl = await enhanceImage(imageUrl);
+
+        setMessage("AI가 네 컷 사진의 위치를 찾는 중입니다.");
 
         const originalImage = new Image();
-        originalImage.src = imageUrl;
+        originalImage.src = enhancedImageUrl;
 
         originalImage.onload = async () => {
           if (isCancelled) return;
@@ -69,34 +105,86 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
           const width = originalImage.width;
           const height = originalImage.height;
 
+          const initialAdjust = {
+            x: 0,
+            y: 0,
+            scale: 1,
+            rotate: 0,
+          };
+
+          function applyCells(
+            detectedCells: CellRect[],
+            nextStatus: "success" | "fallback",
+            nextMessage: string,
+          ) {
+            setSourceUrl(enhancedImageUrl);
+            setSourceSize({ width, height });
+            setCells(detectedCells);
+
+            const initialAdjusts = detectedCells.map(() => ({
+              ...initialAdjust,
+            }));
+            adjustsRef.current = initialAdjusts;
+            setAdjusts(initialAdjusts);
+
+            setStatus(nextStatus);
+            setMessage(nextMessage);
+          }
+
+          const layoutResult = await Promise.race([
+            detectLayoutWithGpt(enhancedImageUrl),
+            new Promise<LayoutResult>((resolve) => {
+              window.setTimeout(() => resolve({ layout: "unknown" }), 10000);
+            }),
+          ]);
+
+          if (isCancelled) return;
+
+          if (
+            (layoutResult.layout === "1x4" || layoutResult.layout === "2x2") &&
+            layoutResult.strip &&
+            isReasonableStrip(layoutResult.strip, width, height)
+          ) {
+            const layoutCells = createLayoutCells(
+              layoutResult.layout,
+              layoutResult.strip,
+            );
+
+            applyCells(
+              layoutCells,
+              "success",
+              layoutResult.layout === "1x4"
+                ? "AI가 세로형 네컷으로 판단해 네 컷을 정리했어요. 손가락으로 미세조정할 수 있어요."
+                : "AI가 2x2 네컷으로 판단해 네 컷을 정리했어요. 손가락으로 미세조정할 수 있어요.",
+            );
+            return;
+          }
+
+          setMessage(
+            "정밀 AI 추출이 어려워 얼굴 기준으로 다시 정리하는 중입니다.",
+          );
+
           const faceCells = await Promise.race([
-            detectFaceBasedCells(imageUrl),
+            detectFaceBasedCells(enhancedImageUrl),
             new Promise<CellRect[]>((resolve) => {
               window.setTimeout(() => resolve([]), 5000);
             }),
           ]);
 
-          if (faceCells.length === 4) {
-            setSourceUrl(imageUrl);
-            setSourceSize({ width, height });
-            setCells(faceCells);
-            const initialAdjusts = faceCells.map(() => ({
-              x: 0,
-              y: 0,
-              scale: 1,
-              rotate: 0,
-            }));
+          if (isCancelled) return;
 
-            adjustsRef.current = initialAdjusts;
-            setAdjusts(initialAdjusts);
-            setStatus("success");
-            setMessage(
+          if (faceCells.length === 4) {
+            applyCells(
+              faceCells,
+              "success",
               "얼굴 위치를 기준으로 네 컷을 정리했어요. 손가락으로 미세조정할 수 있어요.",
             );
             return;
           }
 
-          console.log("face based detection failed. use original fallback.");
+          console.log(
+            "AI and face based detection failed. use original fallback.",
+          );
 
           const stripWidth = Math.min(width * 0.52, height / 3.2);
           const stripX = (width - stripWidth) / 2;
@@ -109,21 +197,10 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
             height: cellHeight,
           }));
 
-          setSourceUrl(imageUrl);
-          setSourceSize({ width, height });
-          setCells(fallbackCells);
-          const initialAdjusts = fallbackCells.map(() => ({
-            x: 0,
-            y: 0,
-            scale: 1,
-            rotate: 0,
-          }));
-
-          adjustsRef.current = initialAdjusts;
-          setAdjusts(initialAdjusts);
-          setStatus("fallback");
-          setMessage(
-            "얼굴 자동 인식이 어려워 원본 기준으로 배치했어요. 손가락으로 맞춰주세요.",
+          applyCells(
+            fallbackCells,
+            "fallback",
+            "자동 인식이 어려워 원본 기준으로 배치했어요. 손가락으로 맞춰주세요.",
           );
         };
 
@@ -144,6 +221,125 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
           );
         }
       }
+    }
+
+    async function imageUrlToDataUrl(imageUrl: string): Promise<string> {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onloadend = () => {
+          if (typeof reader.result === "string") {
+            resolve(reader.result);
+          } else {
+            reject(new Error("이미지를 data URL로 변환하지 못했습니다."));
+          }
+        };
+
+        reader.onerror = () => {
+          reject(new Error("이미지를 읽지 못했습니다."));
+        };
+
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function detectLayoutWithGpt(
+      imageUrl: string,
+    ): Promise<LayoutResult> {
+      const imageDataUrl = await imageUrlToDataUrl(imageUrl);
+
+      const response = await fetch("/api/extract-cells", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          image: imageDataUrl,
+        }),
+      });
+
+      if (!response.ok) {
+        const detail = await response.json().catch(() => null);
+        console.error("GPT layout detection failed:", detail);
+        return { layout: "unknown" };
+      }
+
+      const data = await response.json();
+      console.log("GPT layout response:", data);
+
+      if (data.layout === "1x4" || data.layout === "2x2") {
+        return {
+          layout: data.layout,
+          strip: data.strip,
+        };
+      }
+
+      return { layout: "unknown" };
+    }
+
+    function isReasonableStrip(
+      strip: StripRect,
+      width: number,
+      height: number,
+    ) {
+      if (strip.width < width * 0.22) return false;
+      if (strip.width > width * 0.85) return false;
+      if (strip.height < height * 0.45) return false;
+      if (strip.height > height * 1.05) return false;
+      if (strip.x < 0 || strip.y < 0) return false;
+      if (strip.x + strip.width > width) return false;
+      if (strip.y + strip.height > height) return false;
+
+      return true;
+    }
+
+    function createLayoutCells(
+      layout: PhotoLayout,
+      strip: StripRect,
+    ): CellRect[] {
+      if (layout === "2x2") {
+        const cellWidth = strip.width / 2;
+        const cellHeight = strip.height / 2;
+
+        return [
+          { x: strip.x, y: strip.y, width: cellWidth, height: cellHeight },
+          {
+            x: strip.x + cellWidth,
+            y: strip.y,
+            width: cellWidth,
+            height: cellHeight,
+          },
+          {
+            x: strip.x,
+            y: strip.y + cellHeight,
+            width: cellWidth,
+            height: cellHeight,
+          },
+          {
+            x: strip.x + cellWidth,
+            y: strip.y + cellHeight,
+            width: cellWidth,
+            height: cellHeight,
+          },
+        ];
+      }
+
+      const paddingTop = strip.height * 0.03;
+      const paddingBottom = strip.height * 0.03;
+
+      const usableHeight = strip.height - paddingTop - paddingBottom;
+
+      const cellHeight = usableHeight / 4;
+
+      return Array.from({ length: 4 }, (_, i) => ({
+        x: strip.x,
+        y: strip.y + paddingTop + cellHeight * i,
+        width: strip.width,
+        height: cellHeight,
+      }));
     }
 
     generateCells();
@@ -181,7 +377,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     setAdjusts(reset);
   };
 
-  const renderAdjustedImages = async (extraScale = 1) => {
+  const renderAdjustedImages = async (extraScale = 1, extraRotate = 0) => {
     if (!sourceUrl) return [];
 
     const sourceImage = await loadImage(sourceUrl);
@@ -263,9 +459,11 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
 
       ctx.save();
       ctx.translate(targetWidth / 2, targetHeight / 2);
-      ctx.rotate((adjust.rotate * Math.PI) / 180);
+      ctx.rotate(((adjust.rotate + extraRotate) * Math.PI) / 180);
       ctx.drawImage(tempCanvas, -targetWidth / 2, -targetHeight / 2);
       ctx.restore();
+
+      enhanceRenderedCut(canvas);
 
       rendered.push(canvas.toDataURL("image/png"));
     }
@@ -277,6 +475,9 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     if (mode === "fast") return "헐레벌떡 GIF";
     if (mode === "slow") return "살랑살랑 GIF";
     if (mode === "heartbeat") return "두근두근 GIF";
+    if (mode === "shake") return "흔들흔들 GIF";
+    if (mode === "shabang") return "샤방샤방 GIF";
+    if (mode === "longing") return "아련아련 GIF";
     return "기본 GIF";
   };
 
@@ -314,6 +515,33 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
         speed = "slow";
       }
 
+      if (mode === "shake") {
+        const normalImages = await renderAdjustedImages(1);
+        const leftImages = await renderAdjustedImages(1, -2);
+        const rightImages = await renderAdjustedImages(1, 2);
+
+        images = normalImages.flatMap((image, index) => [
+          leftImages[index],
+          image,
+          rightImages[index],
+          image,
+        ]);
+
+        speed = "fast";
+      }
+
+      if (mode === "shabang") {
+        const normalImages = await renderAdjustedImages(1);
+        images = await renderShabangImages(normalImages);
+        speed = "normal";
+      }
+
+      if (mode === "longing") {
+        const normalImages = await renderAdjustedImages(1);
+        images = await renderLongingImages(normalImages);
+        speed = "slow";
+      }
+
       const alignedImages = await alignImagesForGif(images);
       const framedImages = await renderPolaroidGifFrames(alignedImages);
       const gif = await createGif(framedImages, speed);
@@ -326,8 +554,80 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     }
   };
 
+  async function renderShabangImages(images: string[]) {
+    const result: string[] = [];
+
+    for (let i = 0; i < images.length; i++) {
+      const image = await loadImage(images[i]);
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) continue;
+
+      canvas.width = image.width;
+      canvas.height = image.height;
+
+      ctx.drawImage(image, 0, 0);
+
+      const decorations = ["✿", "♡", "✦", "❀"];
+
+      for (let j = 0; j < 8; j++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        const size = 22 + Math.random() * 22;
+        const alpha = 0.35 + Math.random() * 0.45;
+        const deco =
+          decorations[Math.floor(Math.random() * decorations.length)];
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.font = `900 ${size}px sans-serif`;
+        ctx.fillStyle = j % 2 === 0 ? "#ff8fb3" : "#ffffff";
+        ctx.shadowColor = "rgba(255, 79, 135, 0.45)";
+        ctx.shadowBlur = 8;
+        ctx.fillText(deco, x, y);
+        ctx.restore();
+      }
+
+      result.push(canvas.toDataURL("image/png"));
+    }
+
+    return result;
+  }
+
+  async function renderLongingImages(images: string[]) {
+    const result: string[] = [];
+
+    for (const imageUrl of images) {
+      const image = await loadImage(imageUrl);
+
+      for (const alpha of [1, 0.78, 0.55, 0.78]) {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        if (!ctx) continue;
+
+        canvas.width = image.width;
+        canvas.height = image.height;
+
+        ctx.fillStyle = "#fff7fb";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(image, 0, 0);
+        ctx.globalAlpha = 1;
+
+        result.push(canvas.toDataURL("image/png"));
+      }
+    }
+
+    return result;
+  }
+
   const renderPolaroidGifFrames = async (images: string[]) => {
     const framedImages: string[] = [];
+    const theme = getFrameTheme(selectedFrame);
 
     for (const imageUrl of images) {
       const image = await loadImage(imageUrl);
@@ -344,7 +644,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       const imageHeight = Math.round((image.height / image.width) * imageWidth);
 
       const memoText = memo.trim() || "오늘의 움직이는 네컷 추억";
-      const brandText = "내짤4짤 · 움직이는 네컷 추억";
+      const brandText = theme.brand;
 
       const memoBoxHeight = 58;
       const brandHeight = 38;
@@ -362,14 +662,14 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       canvas.height = cardHeight;
 
       const gradient = ctx.createLinearGradient(0, 0, cardWidth, cardHeight);
-      gradient.addColorStop(0, "#fff7fb");
-      gradient.addColorStop(1, "#ffe1ec");
+      gradient.addColorStop(0, theme.gradientStart);
+      gradient.addColorStop(1, theme.gradientEnd);
 
       ctx.fillStyle = gradient;
       roundRect(ctx, 0, 0, cardWidth, cardHeight, 42);
       ctx.fill();
 
-      ctx.strokeStyle = "#ffd1e0";
+      ctx.strokeStyle = theme.border;
       ctx.lineWidth = 4;
       roundRect(ctx, 8, 8, cardWidth - 16, cardHeight - 16, 36);
       ctx.stroke();
@@ -379,7 +679,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       const photoFrameWidth = cardWidth - padding * 2;
       const photoFrameHeight = imageHeight + framePadding * 2;
 
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = theme.photoBg;
       roundRect(
         ctx,
         photoFrameX,
@@ -400,7 +700,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
 
       const memoY = photoFrameY + photoFrameHeight + 16;
 
-      ctx.fillStyle = "rgba(255,255,255,0.86)";
+      ctx.fillStyle = theme.memoBg;
       roundRect(
         ctx,
         padding,
@@ -411,13 +711,13 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       );
       ctx.fill();
 
-      ctx.fillStyle = "#7a5d66";
+      ctx.fillStyle = theme.memoText;
       ctx.font = "800 22px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(memoText, cardWidth / 2, memoY + memoBoxHeight / 2);
 
-      ctx.fillStyle = "#c38a9d";
+      ctx.fillStyle = theme.brandText;
       ctx.font = "800 17px sans-serif";
       ctx.fillText(brandText, cardWidth / 2, memoY + memoBoxHeight + 30);
 
@@ -425,6 +725,12 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     }
 
     return framedImages;
+  };
+
+  const increaseShareCount = () => {
+    const nextCount = shareCount + 1;
+    localStorage.setItem("naezzal4zzal-share-count", String(nextCount));
+    setShareCount(nextCount);
   };
 
   const handleShareGif = async () => {
@@ -458,6 +764,8 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
           title: "내짤4짤",
           text: shareText,
         });
+
+        increaseShareCount();
         return;
       }
 
@@ -467,6 +775,8 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
           text: shareText,
           url: appUrl,
         });
+
+        increaseShareCount();
         return;
       }
 
@@ -736,6 +1046,69 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                   >
                     두근두근 GIF
                   </button>
+
+                  <LockedGifButton
+                    label="흔들흔들 GIF"
+                    requiredShareCount={1}
+                    shareCount={shareCount}
+                    onClick={() => handleCreateGif("shake")}
+                  />
+
+                  <LockedGifButton
+                    label="샤방샤방 GIF"
+                    requiredShareCount={2}
+                    shareCount={shareCount}
+                    onClick={() => handleCreateGif("shabang")}
+                  />
+
+                  <LockedGifButton
+                    label="아련아련 GIF"
+                    requiredShareCount={3}
+                    shareCount={shareCount}
+                    onClick={() => handleCreateGif("longing")}
+                  />
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "18px",
+                    paddingTop: "16px",
+                    borderTop: "1px solid #f1d6df",
+                  }}
+                >
+                  <h3>프레임 선택</h3>
+
+                  <FrameButton
+                    label="기본 핑크 프레임"
+                    frame="basic"
+                    selectedFrame={selectedFrame}
+                    unlockedFrames={unlockedFrames}
+                    onSelect={setSelectedFrame}
+                  />
+
+                  <FrameButton
+                    label="필름 프레임"
+                    frame="film"
+                    selectedFrame={selectedFrame}
+                    unlockedFrames={unlockedFrames}
+                    onSelect={setSelectedFrame}
+                  />
+
+                  <FrameButton
+                    label="메모리 프레임"
+                    frame="memory"
+                    selectedFrame={selectedFrame}
+                    unlockedFrames={unlockedFrames}
+                    onSelect={setSelectedFrame}
+                  />
+
+                  <FrameButton
+                    label="봄날 프레임"
+                    frame="spring"
+                    selectedFrame={selectedFrame}
+                    unlockedFrames={unlockedFrames}
+                    onSelect={setSelectedFrame}
+                  />
                 </div>
               </div>
             )}
@@ -988,6 +1361,115 @@ function AdjustableCut({
   );
 }
 
+async function enhanceImage(imageUrl: string): Promise<string> {
+  const image = await loadImage(imageUrl);
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) return imageUrl;
+
+  const maxWidth = 1600;
+  const scale = image.width > maxWidth ? maxWidth / image.width : 1;
+
+  canvas.width = Math.round(image.width * scale);
+  canvas.height = Math.round(image.height * scale);
+
+  ctx.filter = "brightness(1.08) contrast(1.14) saturate(1.08)";
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  ctx.filter = "none";
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const sharpened = sharpenImageData(imageData, 0.18);
+
+  ctx.putImageData(sharpened, 0, 0);
+
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
+
+function enhanceRenderedCut(canvas: HTMLCanvasElement) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  const contrast = 1.08;
+  const brightness = 4;
+  const saturation = 1.06;
+
+  for (let i = 0; i < data.length; i += 4) {
+    let r = data[i];
+    let g = data[i + 1];
+    let b = data[i + 2];
+
+    r = (r - 128) * contrast + 128 + brightness;
+    g = (g - 128) * contrast + 128 + brightness;
+    b = (b - 128) * contrast + 128 + brightness;
+
+    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+    r = gray + (r - gray) * saturation;
+    g = gray + (g - gray) * saturation;
+    b = gray + (b - gray) * saturation;
+
+    data[i] = clamp(r, 0, 255);
+    data[i + 1] = clamp(g, 0, 255);
+    data[i + 2] = clamp(b, 0, 255);
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+
+  const sharpened = sharpenImageData(
+    ctx.getImageData(0, 0, canvas.width, canvas.height),
+    0.12,
+  );
+
+  ctx.putImageData(sharpened, 0, 0);
+}
+
+function sharpenImageData(imageData: ImageData, amount = 0.18): ImageData {
+  const { width, height, data } = imageData;
+  const output = new ImageData(width, height);
+  const src = data;
+  const dst = output.data;
+
+  const center = 1 + amount * 4;
+  const side = -amount;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const index = (y * width + x) * 4;
+
+      if (x === 0 || y === 0 || x === width - 1 || y === height - 1) {
+        dst[index] = src[index];
+        dst[index + 1] = src[index + 1];
+        dst[index + 2] = src[index + 2];
+        dst[index + 3] = src[index + 3];
+        continue;
+      }
+
+      for (let channel = 0; channel < 3; channel++) {
+        const current = src[index + channel] * center;
+        const left = src[index - 4 + channel] * side;
+        const right = src[index + 4 + channel] * side;
+        const top = src[index - width * 4 + channel] * side;
+        const bottom = src[index + width * 4 + channel] * side;
+
+        dst[index + channel] = clamp(
+          current + left + right + top + bottom,
+          0,
+          255,
+        );
+      }
+
+      dst[index + 3] = src[index + 3];
+    }
+  }
+
+  return output;
+}
+
 function loadImage(imageUrl: string): Promise<HTMLImageElement> {
   return new Promise((resolve) => {
     const image = new Image();
@@ -1139,6 +1621,146 @@ const miniButtonStyle: React.CSSProperties = {
   fontWeight: 900,
   cursor: "pointer",
 };
+
+function getFrameTheme(frame: FrameType) {
+  if (frame === "film") {
+    return {
+      gradientStart: "#1f1f1f",
+      gradientEnd: "#3a3a3a",
+      border: "#111111",
+      photoBg: "#ffffff",
+      memoBg: "rgba(255,255,255,0.9)",
+      memoText: "#222222",
+      brandText: "#eeeeee",
+      brand: "내짤4짤 · film memory",
+    };
+  }
+
+  if (frame === "memory") {
+    return {
+      gradientStart: "#fff8df",
+      gradientEnd: "#f5dfb8",
+      border: "#d7ad72",
+      photoBg: "#fffdf7",
+      memoBg: "rgba(255,255,255,0.82)",
+      memoText: "#7a5735",
+      brandText: "#9b7146",
+      brand: "내짤4짤 · taped memory",
+    };
+  }
+
+  if (frame === "spring") {
+    return {
+      gradientStart: "#f0fff4",
+      gradientEnd: "#ffe4ef",
+      border: "#ffc1d8",
+      photoBg: "#ffffff",
+      memoBg: "rgba(255,255,255,0.86)",
+      memoText: "#6f5961",
+      brandText: "#d77fa2",
+      brand: "내짤4짤 · spring day",
+    };
+  }
+
+  return {
+    gradientStart: "#fff7fb",
+    gradientEnd: "#ffe1ec",
+    border: "#ffd1e0",
+    photoBg: "#ffffff",
+    memoBg: "rgba(255,255,255,0.86)",
+    memoText: "#7a5d66",
+    brandText: "#c38a9d",
+    brand: "내짤4짤 · 움직이는 네컷 추억",
+  };
+}
+
+function FrameButton({
+  label,
+  frame,
+  selectedFrame,
+  unlockedFrames,
+  onSelect,
+}: {
+  label: string;
+  frame: FrameType;
+  selectedFrame: FrameType;
+  unlockedFrames: FrameType[];
+  onSelect: (frame: FrameType) => void;
+}) {
+  const unlocked = unlockedFrames.includes(frame);
+  const selected = selectedFrame === frame;
+
+  return (
+    <button
+      onClick={() => {
+        if (!unlocked) {
+          alert("친구에게 공유하면 열려요 ✨");
+          return;
+        }
+
+        onSelect(frame);
+      }}
+      style={{
+        width: "100%",
+        marginTop: "8px",
+        padding: "12px",
+        borderRadius: "14px",
+        border: selected ? "2px solid #ff4f87" : "1px solid #ddd",
+        backgroundColor: unlocked ? "#fff7fb" : "#eeeeee",
+        color: unlocked ? "#ff4f87" : "#999",
+        fontSize: "14px",
+        fontWeight: 900,
+        cursor: "pointer",
+        opacity: unlocked ? 1 : 0.55,
+        filter: unlocked ? "none" : "grayscale(1)",
+      }}
+    >
+      {unlocked ? (selected ? `✓ ${label}` : label) : `🔒 ${label} · 공유 +1`}
+    </button>
+  );
+}
+
+function LockedGifButton({
+  label,
+  requiredShareCount,
+  shareCount,
+  onClick,
+}: {
+  label: string;
+  requiredShareCount: number;
+  shareCount: number;
+  onClick: () => void;
+}) {
+  const unlocked = shareCount >= requiredShareCount;
+
+  return (
+    <button
+      onClick={() => {
+        if (!unlocked) {
+          alert(`${requiredShareCount}번 공유하면 ${label}가 열려요 💌`);
+          return;
+        }
+        onClick();
+      }}
+      style={{
+        width: "100%",
+        marginTop: "10px",
+        padding: "14px",
+        borderRadius: "14px",
+        border: "1px solid #ddd",
+        backgroundColor: unlocked ? "#fff7fb" : "#eeeeee",
+        color: unlocked ? "#ff4f87" : "#999",
+        fontSize: "16px",
+        fontWeight: 900,
+        cursor: "pointer",
+        opacity: unlocked ? 1 : 0.55,
+        filter: unlocked ? "none" : "grayscale(1)",
+      }}
+    >
+      {unlocked ? label : `🔒 ${label} · 공유 ${requiredShareCount}회`}
+    </button>
+  );
+}
 
 function LoadingDots() {
   return (

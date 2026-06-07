@@ -137,6 +137,27 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
           💗 내 보관함
         </h2>
 
+        <div
+          style={{
+            marginTop: 12,
+            marginBottom: 20,
+            padding: 12,
+            borderRadius: 12,
+            background: "#f5f5f5",
+            fontSize: 13,
+            lineHeight: 1.6,
+            color: "#555",
+          }}
+        >
+          💡 내짤4짤은 서버 없이 동작하는 웹앱입니다.
+          <br />
+          저장된 내짤은 이 기기의 브라우저 안에만 보관됩니다.
+          <br />
+          브라우저 데이터를 삭제하거나 기기를 변경하면 사라질 수 있으니, 소중한
+          추억은 반드시 <strong>기기에 저장하기</strong>를 이용해 사진첩 또는
+          다운로드 폴더에 보관해주세요.
+        </div>
+
         <p
           style={{
             marginTop: "10px",
