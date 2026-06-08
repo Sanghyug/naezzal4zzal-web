@@ -53,23 +53,21 @@ function App() {
   const handleShareApp = async () => {
     const appUrl = window.location.origin;
 
-    const shareText = "친구들이랑 찍은 네컷 사진을 움직이는 짤로 만들어봐 ✨";
-
     try {
       if (navigator.share) {
         await navigator.share({
           title: "내짤4짤",
-          text: shareText,
+          text: "친구들과 찍은 네컷 사진을 움직이는 짤로 만들어봐 ✨",
           url: appUrl,
         });
         return;
       }
 
-      await navigator.clipboard.writeText(`${shareText}\n${appUrl}`);
-      alert("앱 링크를 복사했어요. 친구에게 붙여넣어 보내보세요 💌");
+      await navigator.clipboard.writeText(appUrl);
+
+      alert("앱 링크를 복사했어요 💌");
     } catch (error) {
       console.error(error);
-      alert("공유를 취소했거나 사용할 수 없는 브라우저예요.");
     }
   };
 

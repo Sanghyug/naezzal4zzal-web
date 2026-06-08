@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 type StartScreenProps = {
   onCameraClick: () => void;
@@ -13,9 +13,39 @@ function StartScreen({
   onGalleryClick,
   onShareAppClick,
 }: StartScreenProps) {
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [canInstall, setCanInstall] = useState(false);
+
   useEffect(() => {
-    // 앱인토스 출시용: PWA 설치 안내 비활성화
+    const handler = (event: any) => {
+      event.preventDefault();
+      setInstallPrompt(event);
+      setCanInstall(true);
+    };
+
+    window.addEventListener("beforeinstallprompt", handler);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+    };
   }, []);
+
+  const handleInstallApp = async () => {
+    if (!installPrompt) {
+      alert(
+        "현재 브라우저에서는 설치 버튼을 사용할 수 없어요.\nChrome 또는 삼성 인터넷에서 다시 시도해주세요.",
+      );
+      return;
+    }
+
+    installPrompt.prompt();
+    const result = await installPrompt.userChoice;
+
+    if (result.outcome === "accepted") {
+      setCanInstall(false);
+      setInstallPrompt(null);
+    }
+  };
 
   return (
     <div
@@ -157,23 +187,54 @@ function StartScreen({
             💗 내 보관함
           </button>
 
-          <button
-            onClick={onShareAppClick}
+          <div
             style={{
-              width: "100%",
-              padding: "16px",
-              borderRadius: "18px",
-              border: "2px solid #ffc1b8",
-              backgroundColor: "#fff7f5",
-              color: "#ff6f61",
-              fontSize: "18px",
-              fontWeight: 800,
-              cursor: "pointer",
-              boxShadow: "0 6px 18px rgba(255,111,97,0.12)",
+              marginTop: "18px",
+              paddingTop: "20px",
+              borderTop: "1px dashed #ffd1e0",
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
             }}
           >
-            💌 친구에게 보내기
-          </button>
+            <button
+              onClick={onShareAppClick}
+              style={{
+                width: "100%",
+                padding: "16px",
+                borderRadius: "18px",
+                border: "2px solid #ffc1b8",
+                backgroundColor: "#fff7f5",
+                color: "#ff6f61",
+                fontSize: "18px",
+                fontWeight: 800,
+                cursor: "pointer",
+                boxShadow: "0 6px 18px rgba(255,111,97,0.12)",
+              }}
+            >
+              💌 친구와 앱 공유하기
+            </button>
+
+            {canInstall && (
+              <button
+                onClick={handleInstallApp}
+                style={{
+                  width: "100%",
+                  padding: "16px",
+                  borderRadius: "18px",
+                  border: "2px solid #ffd1e0",
+                  backgroundColor: "#fff8fb",
+                  color: "#ff4f87",
+                  fontSize: "18px",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  boxShadow: "0 6px 18px rgba(255,79,135,0.10)",
+                }}
+              >
+                📱 홈화면에 설치하기
+              </button>
+            )}
+          </div>
         </div>
 
         <p

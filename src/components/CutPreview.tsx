@@ -12,11 +12,9 @@ type CutPreviewProps = {
 type GifMode = "fast" | "slow" | "heartbeat" | "shake" | "shabang" | "longing";
 function getUnlockedFrames(shareCount: number): FrameType[] {
   const frames: FrameType[] = ["basic"];
-
-  if (shareCount >= 4) frames.push("film");
-  if (shareCount >= 5) frames.push("memory");
-  if (shareCount >= 6) frames.push("spring");
-
+  if (shareCount >= 4) frames.push("spring");
+  if (shareCount >= 5) frames.push("autumn");
+  if (shareCount >= 6) frames.push("film");
   return frames;
 }
 
@@ -39,7 +37,7 @@ type LayoutResult = {
   strip?: StripRect;
 };
 
-export type FrameType = "basic" | "film" | "memory" | "spring";
+export type FrameType = "basic" | "spring" | "autumn" | "film";
 
 type ExtractStatus = "loading" | "success" | "fallback" | "error";
 
@@ -69,7 +67,9 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
   const [status, setStatus] = useState<ExtractStatus>("loading");
   const [message, setMessage] = useState("인생네컷을 분석하고 있어요 ❀");
 
-  const [showGifOptions, setShowGifOptions] = useState(false);
+  const [showGifStyleModal, setShowGifStyleModal] = useState(false);
+  const [showFrameModal, setShowFrameModal] = useState(false);
+  const [pendingGifMode, setPendingGifMode] = useState<GifMode | null>(null);
   const [previewSizes, setPreviewSizes] = useState<PreviewSize[]>([]);
   const adjustsRef = useRef<Adjust[]>([]);
 
@@ -77,7 +77,6 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     return Number(localStorage.getItem("naezzal4zzal-share-count") || "0");
   });
   const unlockedFrames = getUnlockedFrames(shareCount);
-
   const [selectedFrame, setSelectedFrame] = useState<FrameType>("basic");
 
   useEffect(() => {
@@ -481,10 +480,27 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     return "기본 GIF";
   };
 
-  const handleCreateGif = async (mode: GifMode) => {
+  const handleSelectGifStyle = (mode: GifMode) => {
+    setPendingGifMode(mode);
+    setShowGifStyleModal(false);
+    setShowFrameModal(true);
+  };
+
+  const handleSelectFrameAndCreate = async (frame: FrameType) => {
+    if (!pendingGifMode) return;
+
+    setSelectedFrame(frame);
+    setShowFrameModal(false);
+
+    await handleCreateGif(pendingGifMode, frame);
+  };
+
+  const handleCreateGif = async (
+    mode: GifMode,
+    frameForGif: FrameType = selectedFrame,
+  ) => {
     if (cells.length !== 4 || !sourceUrl) return;
 
-    setShowGifOptions(false);
     setIsCreatingGif(true);
     setGifUrl(null);
     setCurrentGifStyleName(getGifStyleName(mode));
@@ -543,7 +559,10 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       }
 
       const alignedImages = await alignImagesForGif(images);
-      const framedImages = await renderPolaroidGifFrames(alignedImages);
+      const framedImages = await renderPolaroidGifFrames(
+        alignedImages,
+        frameForGif,
+      );
       const gif = await createGif(framedImages, speed);
       setGifUrl(gif);
     } catch (error) {
@@ -625,9 +644,15 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     return result;
   }
 
-  const renderPolaroidGifFrames = async (images: string[]) => {
+  const renderPolaroidGifFrames = async (
+    images: string[],
+    frameForGif: FrameType = selectedFrame,
+  ) => {
     const framedImages: string[] = [];
-    const theme = getFrameTheme(selectedFrame);
+    const theme = getFrameTheme(frameForGif);
+    if (frameForGif === "film") {
+      return await renderFilmGifFrames(images);
+    }
 
     for (const imageUrl of images) {
       const image = await loadImage(imageUrl);
@@ -720,6 +745,52 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       ctx.fillStyle = theme.brandText;
       ctx.font = "800 17px sans-serif";
       ctx.fillText(brandText, cardWidth / 2, memoY + memoBoxHeight + 30);
+
+      framedImages.push(canvas.toDataURL("image/png"));
+    }
+
+    return framedImages;
+  };
+
+  const renderFilmGifFrames = async (images: string[]) => {
+    const framedImages: string[] = [];
+    const frameImage = await loadImage("/frames/film_frame.png");
+
+    for (const imageUrl of images) {
+      const image = await loadImage(imageUrl);
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) continue;
+
+      canvas.width = frameImage.width;
+      canvas.height = frameImage.height;
+
+      const photoX = Math.round(frameImage.width * 0.057);
+      const photoY = Math.round(frameImage.height * 0.116);
+      const photoWidth = Math.round(frameImage.width * 0.886);
+      const photoHeight = Math.round(frameImage.height * 0.601);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(photoX, photoY, photoWidth, photoHeight);
+
+      ctx.drawImage(image, photoX, photoY, photoWidth, photoHeight);
+
+      ctx.drawImage(frameImage, 0, 0, frameImage.width, frameImage.height);
+
+      const memoText = memo.trim() || "오늘의 움직이는 네컷 추억";
+
+      ctx.fillStyle = "#222222";
+      ctx.font = "700 34px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      ctx.fillText(
+        memoText,
+        frameImage.width / 2,
+        Math.round(frameImage.height * 0.835),
+        Math.round(frameImage.width * 0.68),
+      );
 
       framedImages.push(canvas.toDataURL("image/png"));
     }
@@ -961,7 +1032,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
               {memo.length}/80
             </div>
             <button
-              onClick={() => setShowGifOptions(true)}
+              onClick={() => setShowGifStyleModal(true)}
               disabled={cells.length !== 4 || isCreatingGif}
               style={{
                 marginTop: "18px",
@@ -995,53 +1066,35 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
               </button>
             </div>
 
-            {showGifOptions && (
+            {showGifStyleModal && (
               <div
-                onClick={() => setShowGifOptions(false)}
-                style={{
-                  position: "fixed",
-                  inset: 0,
-                  pointerEvents: "auto",
-                  zIndex: 20,
-                  backgroundColor: "rgba(0,0,0,0.45)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "20px",
-                }}
+                onClick={() => setShowGifStyleModal(false)}
+                style={modalOverlayStyle}
               >
                 <div
                   onClick={(event) => event.stopPropagation()}
-                  style={{
-                    width: "100%",
-                    maxWidth: "360px",
-                    backgroundColor: "white",
-                    borderRadius: "26px",
-                    padding: "20px",
-                    boxShadow: "0 18px 50px rgba(0,0,0,0.25)",
-                    textAlign: "center",
-                  }}
+                  style={modalBoxStyle}
                 >
                   <h3 style={{ color: "#ff4f87", marginTop: 0 }}>
                     움짤 스타일 선택
                   </h3>
 
                   <button
-                    onClick={() => handleCreateGif("fast")}
+                    onClick={() => handleSelectGifStyle("fast")}
                     style={fastGifButtonStyle}
                   >
                     헐레벌떡 GIF
                   </button>
 
                   <button
-                    onClick={() => handleCreateGif("slow")}
+                    onClick={() => handleSelectGifStyle("slow")}
                     style={slowGifButtonStyle}
                   >
                     살랑살랑 GIF
                   </button>
 
                   <button
-                    onClick={() => handleCreateGif("heartbeat")}
+                    onClick={() => handleSelectGifStyle("heartbeat")}
                     style={heartbeatGifButtonStyle}
                   >
                     두근두근 GIF
@@ -1051,63 +1104,76 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                     label="흔들흔들 GIF"
                     requiredShareCount={1}
                     shareCount={shareCount}
-                    onClick={() => handleCreateGif("shake")}
+                    variant="shake"
+                    onClick={() => handleSelectGifStyle("shake")}
                   />
 
                   <LockedGifButton
                     label="샤방샤방 GIF"
                     requiredShareCount={2}
                     shareCount={shareCount}
-                    onClick={() => handleCreateGif("shabang")}
+                    variant="shabang"
+                    onClick={() => handleSelectGifStyle("shabang")}
                   />
 
                   <LockedGifButton
                     label="아련아련 GIF"
                     requiredShareCount={3}
                     shareCount={shareCount}
-                    onClick={() => handleCreateGif("longing")}
+                    variant="longing"
+                    onClick={() => handleSelectGifStyle("longing")}
                   />
                 </div>
+              </div>
+            )}
 
+            {showFrameModal && (
+              <div
+                onClick={() => setShowFrameModal(false)}
+                style={modalOverlayStyle}
+              >
                 <div
-                  style={{
-                    marginTop: "18px",
-                    paddingTop: "16px",
-                    borderTop: "1px solid #f1d6df",
-                  }}
+                  onClick={(event) => event.stopPropagation()}
+                  style={modalBoxStyle}
                 >
-                  <h3>프레임 선택</h3>
+                  <h3 style={{ color: "#ff4f87", marginTop: 0 }}>
+                    프레임 선택
+                  </h3>
 
                   <FrameButton
                     label="기본 핑크 프레임"
                     frame="basic"
+                    requiredShareCount={0}
                     selectedFrame={selectedFrame}
                     unlockedFrames={unlockedFrames}
-                    onSelect={setSelectedFrame}
-                  />
-
-                  <FrameButton
-                    label="필름 프레임"
-                    frame="film"
-                    selectedFrame={selectedFrame}
-                    unlockedFrames={unlockedFrames}
-                    onSelect={setSelectedFrame}
-                  />
-
-                  <FrameButton
-                    label="메모리 프레임"
-                    frame="memory"
-                    selectedFrame={selectedFrame}
-                    unlockedFrames={unlockedFrames}
-                    onSelect={setSelectedFrame}
+                    onSelect={handleSelectFrameAndCreate}
                   />
 
                   <FrameButton
                     label="봄날 프레임"
                     frame="spring"
+                    requiredShareCount={4}
                     selectedFrame={selectedFrame}
                     unlockedFrames={unlockedFrames}
-                    onSelect={setSelectedFrame}
+                    onSelect={handleSelectFrameAndCreate}
+                  />
+
+                  <FrameButton
+                    label="가을 프레임"
+                    frame="autumn"
+                    requiredShareCount={5}
+                    selectedFrame={selectedFrame}
+                    unlockedFrames={unlockedFrames}
+                    onSelect={handleSelectFrameAndCreate}
+                  />
+
+                  <FrameButton
+                    label="필름 프레임"
+                    frame="film"
+                    requiredShareCount={6}
+                    selectedFrame={selectedFrame}
+                    unlockedFrames={unlockedFrames}
+                    onSelect={handleSelectFrameAndCreate}
                   />
                 </div>
               </div>
@@ -1166,7 +1232,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
             </button>
 
             <button
-              onClick={() => setShowGifOptions(true)}
+              onClick={() => setShowGifStyleModal(true)}
               style={primarySubButtonStyle}
             >
               다른 스타일로 다시 만들기
@@ -1189,7 +1255,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
 
         {status !== "error" && (
           <button onClick={onBack} style={secondaryButtonStyle}>
-            다시 선택하기
+            돌아가기
           </button>
         )}
       </div>
@@ -1516,6 +1582,28 @@ const secondaryButtonStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
+const modalOverlayStyle: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  pointerEvents: "auto",
+  zIndex: 20,
+  backgroundColor: "rgba(0,0,0,0.45)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "20px",
+};
+
+const modalBoxStyle: React.CSSProperties = {
+  width: "100%",
+  maxWidth: "360px",
+  backgroundColor: "white",
+  borderRadius: "26px",
+  padding: "20px",
+  boxShadow: "0 18px 50px rgba(0,0,0,0.25)",
+  textAlign: "center",
+};
+
 const saveButtonStyle: React.CSSProperties = {
   width: "100%",
   marginTop: "14px",
@@ -1632,33 +1720,33 @@ function getFrameTheme(frame: FrameType) {
       memoBg: "rgba(255,255,255,0.9)",
       memoText: "#222222",
       brandText: "#eeeeee",
-      brand: "내짤4짤 · film memory",
+      brand: "내짤4짤 · film style",
     };
   }
 
-  if (frame === "memory") {
+  if (frame === "autumn") {
     return {
-      gradientStart: "#fff8df",
-      gradientEnd: "#f5dfb8",
-      border: "#d7ad72",
-      photoBg: "#fffdf7",
-      memoBg: "rgba(255,255,255,0.82)",
-      memoText: "#7a5735",
-      brandText: "#9b7146",
-      brand: "내짤4짤 · taped memory",
+      gradientStart: "#5b3a29",
+      gradientEnd: "#8b5e3c",
+      border: "#3d2417",
+      photoBg: "#fdf7f1",
+      memoBg: "rgba(255,245,235,0.95)",
+      memoText: "#4a2d1f",
+      brandText: "#f3d2b1",
+      brand: "내짤4짤 · autumn style",
     };
   }
 
   if (frame === "spring") {
     return {
-      gradientStart: "#f0fff4",
-      gradientEnd: "#ffe4ef",
-      border: "#ffc1d8",
-      photoBg: "#ffffff",
-      memoBg: "rgba(255,255,255,0.86)",
-      memoText: "#6f5961",
-      brandText: "#d77fa2",
-      brand: "내짤4짤 · spring day",
+      gradientStart: "#fffdf2",
+      gradientEnd: "#fff1b8",
+      border: "#e7c85f",
+      photoBg: "#fffef8",
+      memoBg: "rgba(255,255,255,0.90)",
+      memoText: "#7b6422",
+      brandText: "#c49a1d",
+      brand: "내짤4짤 · spring style",
     };
   }
 
@@ -1677,18 +1765,45 @@ function getFrameTheme(frame: FrameType) {
 function FrameButton({
   label,
   frame,
+  requiredShareCount,
   selectedFrame,
   unlockedFrames,
   onSelect,
 }: {
   label: string;
   frame: FrameType;
+  requiredShareCount: number;
   selectedFrame: FrameType;
   unlockedFrames: FrameType[];
   onSelect: (frame: FrameType) => void;
 }) {
   const unlocked = unlockedFrames.includes(frame);
   const selected = selectedFrame === frame;
+
+  const styleMap = {
+    basic: {
+      border: "#ff9fc1",
+      bg: "#fff1f7",
+      color: "#ff4f87",
+    },
+    film: {
+      border: "#555555",
+      bg: "#f1f1f1",
+      color: "#333333",
+    },
+    autumn: {
+      border: "#6f452f",
+      bg: "#f2e3d4",
+      color: "#5b3a29",
+    },
+    spring: {
+      border: "#e7c85f",
+      bg: "#fff8cf",
+      color: "#c49a1d",
+    },
+  };
+
+  const theme = styleMap[frame];
 
   return (
     <button
@@ -1697,25 +1812,31 @@ function FrameButton({
           alert("친구에게 공유하면 열려요 ✨");
           return;
         }
-
         onSelect(frame);
       }}
       style={{
         width: "100%",
-        marginTop: "8px",
-        padding: "12px",
+        marginTop: "10px",
+        padding: "13px",
         borderRadius: "14px",
-        border: selected ? "2px solid #ff4f87" : "1px solid #ddd",
-        backgroundColor: unlocked ? "#fff7fb" : "#eeeeee",
-        color: unlocked ? "#ff4f87" : "#999",
+        border: selected
+          ? `2px solid ${theme.color}`
+          : `1px solid ${theme.border}`,
+        backgroundColor: unlocked ? theme.bg : "#eeeeee",
+        color: unlocked ? theme.color : "#999",
         fontSize: "14px",
         fontWeight: 900,
         cursor: "pointer",
         opacity: unlocked ? 1 : 0.55,
         filter: unlocked ? "none" : "grayscale(1)",
+        boxShadow: selected ? `0 6px 14px ${theme.color}22` : "none",
       }}
     >
-      {unlocked ? (selected ? `✓ ${label}` : label) : `🔒 ${label} · 공유 +1`}
+      {unlocked
+        ? selected
+          ? `✓ ${label}`
+          : label
+        : `🔒 ${label} · 공유 ${requiredShareCount}회`}
     </button>
   );
 }
@@ -1724,14 +1845,36 @@ function LockedGifButton({
   label,
   requiredShareCount,
   shareCount,
+  variant,
   onClick,
 }: {
   label: string;
   requiredShareCount: number;
   shareCount: number;
+  variant: "shake" | "shabang" | "longing";
   onClick: () => void;
 }) {
   const unlocked = shareCount >= requiredShareCount;
+
+  const styleMap = {
+    shake: {
+      border: "#ffc6dc",
+      bg: "#fff0f6",
+      color: "#ff4f87",
+    },
+    shabang: {
+      border: "#ffd7a8",
+      bg: "#fff7e8",
+      color: "#ff9a3d",
+    },
+    longing: {
+      border: "#d6d2ff",
+      bg: "#f4f2ff",
+      color: "#8f78e8",
+    },
+  };
+
+  const theme = styleMap[variant];
 
   return (
     <button
@@ -1747,14 +1890,15 @@ function LockedGifButton({
         marginTop: "10px",
         padding: "14px",
         borderRadius: "14px",
-        border: "1px solid #ddd",
-        backgroundColor: unlocked ? "#fff7fb" : "#eeeeee",
-        color: unlocked ? "#ff4f87" : "#999",
+        border: `1px solid ${theme.border}`,
+        backgroundColor: unlocked ? theme.bg : "#eeeeee",
+        color: unlocked ? theme.color : "#999",
         fontSize: "16px",
         fontWeight: 900,
         cursor: "pointer",
         opacity: unlocked ? 1 : 0.55,
         filter: unlocked ? "none" : "grayscale(1)",
+        boxShadow: unlocked ? `0 6px 14px ${theme.color}22` : "none",
       }}
     >
       {unlocked ? label : `🔒 ${label} · 공유 ${requiredShareCount}회`}
