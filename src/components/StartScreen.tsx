@@ -14,13 +14,11 @@ function StartScreen({
   onShareAppClick,
 }: StartScreenProps) {
   const [installPrompt, setInstallPrompt] = useState<any>(null);
-  const [canInstall, setCanInstall] = useState(false);
 
   useEffect(() => {
     const handler = (event: any) => {
       event.preventDefault();
       setInstallPrompt(event);
-      setCanInstall(true);
     };
 
     window.addEventListener("beforeinstallprompt", handler);
@@ -33,16 +31,16 @@ function StartScreen({
   const handleInstallApp = async () => {
     if (!installPrompt) {
       alert(
-        "현재 브라우저에서는 설치 버튼을 사용할 수 없어요.\nChrome 또는 삼성 인터넷에서 다시 시도해주세요.",
+        "브라우저 메뉴(⋮)에서 '홈 화면에 추가' 또는 '앱 설치'를 선택해주세요.",
       );
       return;
     }
 
     installPrompt.prompt();
+
     const result = await installPrompt.userChoice;
 
     if (result.outcome === "accepted") {
-      setCanInstall(false);
       setInstallPrompt(null);
     }
   };
@@ -215,25 +213,23 @@ function StartScreen({
               💌 친구와 앱 공유하기
             </button>
 
-            {canInstall && (
-              <button
-                onClick={handleInstallApp}
-                style={{
-                  width: "100%",
-                  padding: "16px",
-                  borderRadius: "18px",
-                  border: "2px solid #ffd1e0",
-                  backgroundColor: "#fff8fb",
-                  color: "#ff4f87",
-                  fontSize: "18px",
-                  fontWeight: 800,
-                  cursor: "pointer",
-                  boxShadow: "0 6px 18px rgba(255,79,135,0.10)",
-                }}
-              >
-                📱 홈화면에 설치하기
-              </button>
-            )}
+            <button
+              onClick={handleInstallApp}
+              style={{
+                width: "100%",
+                padding: "16px",
+                borderRadius: "18px",
+                border: "2px solid #ffd1e0",
+                backgroundColor: "#fff8fb",
+                color: "#ff4f87",
+                fontSize: "18px",
+                fontWeight: 800,
+                cursor: "pointer",
+                boxShadow: "0 6px 18px rgba(255,79,135,0.10)",
+              }}
+            >
+              📱 홈화면에 설치하기
+            </button>
           </div>
         </div>
 
@@ -277,59 +273,51 @@ function StartScreen({
               fontWeight: 700,
               fontSize: "13px",
               color: "#555",
-              marginBottom: "6px",
-            }}
-          >
-            1인 빌더 밤나무랩의 다른 앱
-          </div>
-
-          <div
-            style={{
-              fontSize: "11px",
-              color: "#888",
               marginBottom: "10px",
-              lineHeight: 1.5,
             }}
           >
-            사진, 꽃, 달처럼
-            <br />
-            일상의 소중한 순간을 기록해보세요.
+            밤나무랩이 만든 앱
           </div>
 
-          <div
+          <a
+            href="https://mom-is-flower.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
-              display: "flex",
-              justifyContent: "center",
-              gap: "14px",
-              flexWrap: "wrap",
+              display: "block",
+              textDecoration: "none",
+              padding: "10px",
+              borderRadius: "12px",
+              background: "#fff",
+              border: "1px solid #f3d7e2",
+              color: "inherit",
             }}
           >
-            <a
-              href="https://mom-is-flower.vercel.app"
-              target="_blank"
-              rel="noopener noreferrer"
+            <div
               style={{
-                textDecoration: "none",
                 color: "#ff4f87",
-                fontWeight: 600,
+                fontWeight: 700,
+                fontSize: "20px",
+                marginBottom: "6px",
               }}
             >
               🌸 엄마는꽃
-            </a>
+            </div>
 
-            <a
-              href="https://my-moon-webapp.web.app"
-              target="_blank"
-              rel="noopener noreferrer"
+            <div
               style={{
-                textDecoration: "none",
-                color: "#6c63ff",
-                fontWeight: 600,
+                fontSize: "12px",
+                color: "#777",
+                lineHeight: 1.6,
               }}
             >
-              🌙 myMoon
-            </a>
-          </div>
+              꽃을 좋아하는 엄마에게
+              <br />
+              꽃 이름을 선물하세요.
+              <br />
+              AI가 꽃 이름과 꽃의 이야기를 찾아주는 앱
+            </div>
+          </a>
         </div>
 
         <div
