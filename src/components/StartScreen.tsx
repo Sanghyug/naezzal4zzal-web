@@ -250,6 +250,88 @@ function StartScreen({
           <br />더 멋진 내짤을 만들 수 있습니다.
         </p>
 
+        {/* 밤나무랩 앱 소개 */}
+        <div
+          style={{
+            marginTop: "24px",
+            padding: "14px",
+            borderRadius: "16px",
+            background: "#fff8fb",
+            border: "1px solid #f5d9e3",
+            textAlign: "center",
+          }}
+        >
+          <img
+            src="/bamnamulab-logo.png"
+            alt="밤나무랩"
+            style={{
+              width: "56px",
+              height: "56px",
+              objectFit: "contain",
+              marginBottom: "8px",
+            }}
+          />
+
+          <div
+            style={{
+              fontWeight: 700,
+              fontSize: "13px",
+              color: "#555",
+              marginBottom: "6px",
+            }}
+          >
+            1인 빌더 밤나무랩의 다른 앱
+          </div>
+
+          <div
+            style={{
+              fontSize: "11px",
+              color: "#888",
+              marginBottom: "10px",
+              lineHeight: 1.5,
+            }}
+          >
+            사진, 꽃, 달처럼
+            <br />
+            일상의 소중한 순간을 기록해보세요.
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              gap: "14px",
+              flexWrap: "wrap",
+            }}
+          >
+            <a
+              href="https://mom-is-flower.vercel.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                textDecoration: "none",
+                color: "#ff4f87",
+                fontWeight: 600,
+              }}
+            >
+              🌸 엄마는꽃
+            </a>
+
+            <a
+              href="https://my-moon-webapp.web.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                textDecoration: "none",
+                color: "#6c63ff",
+                fontWeight: 600,
+              }}
+            >
+              🌙 myMoon
+            </a>
+          </div>
+        </div>
+
         <div
           style={{
             marginTop: "24px",
@@ -262,7 +344,7 @@ function StartScreen({
           }}
         >
           <div>친구들과의 추억을 움직이는 짤로 ✿</div>
-          <div>© 2026 내짤4짤 · ver 1.2</div>
+          <div>© 2026 내짤4짤 · ver 1.2.1</div>
         </div>
       </div>
     </div>
