@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import ReactGA from "react-ga4";
 import StartScreen from "./components/StartScreen";
 import CutPreview from "./components/CutPreview";
 import SplashScreen from "./components/SplashScreen";
@@ -19,6 +20,13 @@ function App() {
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
+    ReactGA.send({
+      hitType: "pageview",
+      page: window.location.pathname,
+    });
+  }, []);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       setMode("start");
     }, 2400);
@@ -29,10 +37,20 @@ function App() {
   }, []);
 
   const handleCameraClick = () => {
+    ReactGA.event({
+      category: "Input",
+      action: "Camera Click",
+    });
+
     cameraInputRef.current?.click();
   };
 
   const handleUploadClick = () => {
+    ReactGA.event({
+      category: "Input",
+      action: "Upload Click",
+    });
+
     galleryInputRef.current?.click();
   };
 
@@ -40,6 +58,11 @@ function App() {
     const file = event.target.files?.[0];
 
     if (!file) return;
+
+    ReactGA.event({
+      category: "Input",
+      action: "Photo Selected",
+    });
 
     if (imageUrl) {
       URL.revokeObjectURL(imageUrl);
@@ -52,6 +75,11 @@ function App() {
 
   const handleShareApp = async () => {
     const appUrl = window.location.origin;
+
+    ReactGA.event({
+      category: "Share",
+      action: "Share App",
+    });
 
     try {
       if (navigator.share) {
