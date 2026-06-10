@@ -20,10 +20,13 @@ function App() {
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    ReactGA.send({
-      hitType: "pageview",
-      page: window.location.pathname,
+    ReactGA.gtag("event", "page_view", {
+      page_path: window.location.pathname,
+      page_location: window.location.href,
+      page_title: document.title,
     });
+
+    ReactGA.event("app_open");
   }, []);
 
   useEffect(() => {
