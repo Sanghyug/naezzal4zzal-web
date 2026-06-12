@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://naezzal4zzal-web.vercel.app/sitemap.xml

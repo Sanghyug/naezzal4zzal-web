@@ -1,20 +1,5 @@
 <!doctype html>
 <html lang="ko" translate="no">
-  <script
-    async
-    src="https://www.googletagmanager.com/gtag/js?id=G-CCRZET06T9"
-  ></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag() {
-      dataLayer.push(arguments);
-    }
-    window.gtag = gtag;
-    gtag("js", new Date());
-    gtag("config", "G-CCRZET06T9", {
-      debug_mode: true,
-    });
-  </script>
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/favicon-192.png" />
@@ -22,31 +7,46 @@
     <meta name="google" content="notranslate" />
     <meta name="theme-color" content="#ff5fa2" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
     <title>내짤4짤</title>
+    <meta
+      name="description"
+      content="내짤4짤은 인생네컷 사진을 자동으로 분리하고 GIF와 짤로 만들어 저장·공유할 수 있는 AI 포토 앱입니다."
+    />
+    <meta
+      name="keywords"
+      content="내짤4짤, 인생네컷, 네컷사진, GIF 만들기, 움짤 만들기, 포토부스, AI 사진"
+    />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://naezzal4zzal-web.vercel.app/" />
+
     <meta property="og:type" content="website" />
-
     <meta property="og:title" content="내짤4짤" />
-
     <meta
       property="og:description"
-      content="친구들과 찍은 네컷 사진을 움직이는 짤로 만들어보세요 ✨"
+      content="친구들과 찍은 네컷 사진을 귀여운 GIF와 짤로 만들어보세요."
     />
-
-    <meta property="og:image" content="/share-card.png" />
-
+    <meta
+      property="og:image"
+      content="https://naezzal4zzal-web.vercel.app/share-card.png"
+    />
+    <meta property="og:url" content="https://naezzal4zzal-web.vercel.app/" />
     <meta property="og:site_name" content="내짤4짤" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="내짤4짤" />
-
     <meta
       name="twitter:description"
-      content="친구들과 찍은 네컷 사진을 움직이는 짤로 만들어보세요 ✨"
+      content="친구들과 찍은 네컷 사진을 귀여운 GIF와 짤로 만들어보세요."
+    />
+    <meta
+      name="twitter:image"
+      content="https://naezzal4zzal-web.vercel.app/share-card.png"
     />
 
-    <meta name="twitter:image" content="/share-card.png" />
     <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
   </head>
+
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
