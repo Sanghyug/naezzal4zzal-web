@@ -2,23 +2,32 @@ import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
 
-export async function shareGif(gifUrl: string, text: string): Promise<boolean> {
-  const blob = await (await fetch(gifUrl)).blob();
+export type ShareResult = "shared" | "downloaded" | "unconfirmed";
+export async function shareMediaFile(file: File, text: string): Promise<ShareResult> {
   if (Capacitor.isNativePlatform()) {
     const data = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result).split(",")[1]);
-      reader.onerror = () => reject(new Error("파일을 읽지 못했어요.")); reader.readAsDataURL(blob);
+      const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(",")[1]);
+      reader.onerror = () => reject(new Error("파일을 읽지 못했어요.")); reader.readAsDataURL(file);
     });
-    const path = "naezzal4zzal-" + crypto.randomUUID() + ".gif";
-    const file = await Filesystem.writeFile({ path, data, directory: Directory.Cache });
-    try { await Share.share({ title: "내짤4짤", text, files: [file.uri] }); }
-    finally { await Filesystem.deleteFile({ path, directory: Directory.Cache }).catch(() => {}); }
-    return true;
+    const path = "naezzal4zzal-" + crypto.randomUUID() + (file.type === "video/mp4" ? ".mp4" : ".gif");
+    const saved = await Filesystem.writeFile({ path, data, directory: Directory.Cache });
+    // Keep the cache file available while the receiving app imports it.
+    const result = await Share.share({ title: "내짤4짤", text, files: [saved.uri] });
+    return result.activityType ? "shared" : "unconfirmed";
   }
-  const file = new File([blob], "naezzal4zzal.gif", { type: "image/gif" });
-  if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title: "내짤4짤", text }); return true; }
-  const link = document.createElement("a");
-  link.href = gifUrl; link.download = "naezzal4zzal.gif"; document.body.appendChild(link); link.click(); link.remove();
-  return false;
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: "내짤4짤", text });
+    return "shared";
+  }
+  downloadMediaFile(file);
+  return "downloaded";
+}
+export function downloadMediaFile(file: File) {
+  const url = URL.createObjectURL(file), link = document.createElement("a");
+  link.href = url; link.download = file.name; document.body.appendChild(link); link.click(); link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+export async function saveMediaFile(file: File) {
+  if (Capacitor.isNativePlatform()) { await shareMediaFile(file, "‘파일에 저장’ 또는 저장할 앱을 선택해주세요."); return; }
+  downloadMediaFile(file);
 }

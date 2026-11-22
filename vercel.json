@@ -5,6 +5,9 @@
   "functions": {
     "api/extract-cells.ts": {
       "maxDuration": 30
+    },
+    "api/videos.ts": {
+      "maxDuration": 60
     }
   }
 }

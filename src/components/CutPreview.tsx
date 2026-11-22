@@ -1,4 +1,6 @@
-import { shareGif } from "../lib/shareGif";
+import ShareControls from "./ShareControls";
+import VideoStudio from "./VideoStudio";
+import { useShareCount } from "../lib/shareRewards";
 import { useEffect, useRef, useState } from "react";
 import { createGif, type GifSpeed } from "../lib/createGif";
 import { alignImagesForGif } from "../lib/alignImagesForGif";
@@ -63,9 +65,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
   const [previewSizes, setPreviewSizes] = useState<PreviewSize[]>([]);
   const adjustsRef = useRef<Adjust[]>([]);
 
-  const [shareCount, setShareCount] = useState(() => {
-    return Number(localStorage.getItem("naezzal4zzal-share-count") || "0");
-  });
+  const shareCount = useShareCount();
   const unlockedFrames = getUnlockedFrames(shareCount);
   const [selectedFrame, setSelectedFrame] = useState<FrameType>("basic");
 
@@ -528,24 +528,6 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     return framedImages;
   };
 
-  const increaseShareCount = () => {
-    const nextCount = shareCount + 1;
-    localStorage.setItem("naezzal4zzal-share-count", String(nextCount));
-    setShareCount(nextCount);
-  };
-
-  const handleShareGif = async () => {
-    if (!gifUrl) return;
-    try {
-      const shared = await shareGif(gifUrl, memo || "내짤4짤에서 만든 움직이는 추억");
-      if (shared) increaseShareCount();
-      else alert("움짤을 다운로드했어요. 내려받은 파일을 친구에게 보내주세요.");
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") return;
-      alert("공유를 완료하지 못했어요. 보관함에 저장한 뒤 다시 시도해주세요.");
-    }
-  };
-
   const handleSaveToGallery = async () => {
     if (isSaving) return;
     if (!gifUrl) {
@@ -752,6 +734,8 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
               {isCreatingGif ? "움짤 만드는 중..." : "움짤 만들기"}
             </button>
 
+            <VideoStudio ready={cells.length === 4 && !!sourceUrl && !isCreatingGif} getImages={renderAdjustedImages} memo={memo} />
+
             <div
               style={{
                 marginTop: "12px",
@@ -778,6 +762,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                   <h3 style={{ color: "#ff4f87", marginTop: 0 }}>
                     움짤 스타일 선택
                   </h3>
+                  <p style={{fontSize:13,color:"#9b8790",lineHeight:1.6}}>이 기기의 공유 기록 {shareCount}회 · 완성한 결과물을 친구에게 공유하면 차례로 열려요.</p>
 
                   <button
                     onClick={() => handleSelectGifStyle("fast")}
@@ -839,6 +824,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                   <h3 style={{ color: "#ff4f87", marginTop: 0 }}>
                     프레임 선택
                   </h3>
+                  <p style={{fontSize:13,color:"#9b8790",lineHeight:1.6}}>이 기기의 공유 기록 {shareCount}회 · 완성한 결과물을 친구에게 공유하면 차례로 열려요.</p>
 
                   <FrameButton
                     label="기본 핑크 프레임"
@@ -927,9 +913,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
               {isSaving ? "저장 중..." : "보관함에 저장하기"}
             </button>
 
-            <button onClick={handleShareGif} style={shareButtonStyle}>
-              공유하기
-            </button>
+            <ShareControls url={gifUrl} text={memo || "내짤4짤에서 만든 움직이는 추억"} />
 
             <button
               onClick={() => setShowGifStyleModal(true)}
@@ -1309,19 +1293,6 @@ const saveButtonStyle: React.CSSProperties = {
   boxShadow: "0 8px 18px rgba(51,51,51,0.18)",
 };
 
-const shareButtonStyle: React.CSSProperties = {
-  marginTop: "12px",
-  width: "100%",
-  padding: "14px",
-  borderRadius: "14px",
-  border: "none",
-  backgroundColor: "#ff8f86",
-  color: "white",
-  fontSize: "16px",
-  fontWeight: 900,
-  cursor: "pointer",
-  boxShadow: "0 8px 18px rgba(255,143,134,0.18)",
-};
 
 const fastGifButtonStyle: React.CSSProperties = {
   width: "100%",

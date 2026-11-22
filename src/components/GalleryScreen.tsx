@@ -1,4 +1,4 @@
-import { shareGif } from "../lib/shareGif";
+import ShareControls from "./ShareControls";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   deleteGalleryItem,
@@ -55,15 +55,6 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
     }
   };
 
-  const handleShare = async (item: SavedNaezzalItem) => {
-    try { await shareGif(item.gifUrl, item.memo); }
-    catch (error) { if (!(error instanceof Error && error.name === "AbortError")) alert("공유하지 못했어요. 다시 시도해주세요."); }
-  };
-  const handleDownload = async (item: SavedNaezzalItem) => {
-    try { await shareGif(item.gifUrl, item.memo); }
-    catch { alert("파일을 저장하지 못했어요. 다시 시도해주세요."); }
-  };
-
   const formatDate = (createdAt: string) => {
     const date = new Date(createdAt);
 
@@ -114,9 +105,9 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
             color: "#555",
           }}
         >
-          💡 완성한 움짤은 이 기기에 보관됩니다.
+          💡 완성한 움짤과 영상은 이 기기에 보관됩니다.
           <br />
-          AI 자동 인식을 선택할 때만 분석용 사진을 서버와 OpenAI로 보냅니다.
+          AI 자동 인식은 OpenAI로, 영상 제작은 HeyGen으로 선택한 사진을 보냅니다.
           <br />
           앱을 삭제하거나 브라우저 데이터를 지우거나 기기를 변경하면 사라질 수 있으니, 소중한
           추억은 반드시 <strong>기기에 저장하기</strong>를 이용해 사진첩 또는
@@ -198,7 +189,7 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
                     boxShadow: "0 6px 16px rgba(255,79,135,0.10)",
                   }}
                 >
-                  <img
+                  {item.mediaType === "video" ? <video src={item.gifUrl} muted playsInline preload="metadata" aria-label={item.memo} style={{width:"100%",display:"block",aspectRatio:"1 / 1.25",objectFit:"cover",background:"#f5f5f5"}} /> : <img
                     src={item.gifUrl}
                     alt={item.memo}
                     style={{
@@ -208,7 +199,7 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
                       objectFit: "cover",
                       backgroundColor: "#f5f5f5",
                     }}
-                  />
+                  />}
 
                   <div
                     style={{
@@ -302,7 +293,7 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
               textAlign: "center",
             }}
           >
-            <img
+            {selectedItem.mediaType === "video" ? <video src={selectedItem.gifUrl} controls playsInline aria-label={selectedItem.memo} style={{width:"100%",display:"block",borderRadius:22}} /> : <img
               src={selectedItem.gifUrl}
               alt={selectedItem.memo}
               style={{
@@ -311,7 +302,7 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
                 borderRadius: "22px",
                 backgroundColor: "#f5f5f5",
               }}
-            />
+            />}
 
             <div
               style={{
@@ -347,6 +338,8 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
               {formatDate(selectedItem.createdAt)}
             </div>
 
+            <ShareControls key={selectedItem.id} url={selectedItem.gifUrl} text={selectedItem.memo} video={selectedItem.mediaType === "video"} />
+
             <div
               style={{
                 display: "grid",
@@ -355,20 +348,6 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
                 marginTop: "16px",
               }}
             >
-              <button
-                onClick={() => handleShare(selectedItem)}
-                style={modalPinkButtonStyle}
-              >
-                공유하기
-              </button>
-
-              <button
-                onClick={() => handleDownload(selectedItem)}
-                style={modalLavenderButtonStyle}
-              >
-                기기에 저장하기
-              </button>
-
               <button
                 onClick={() => handleDelete(selectedItem.id)}
                 style={modalGrayButtonStyle}
@@ -389,28 +368,6 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
     </div>
   );
 }
-
-const modalPinkButtonStyle: React.CSSProperties = {
-  padding: "13px 8px",
-  borderRadius: "15px",
-  border: "none",
-  backgroundColor: "#ff4f87",
-  color: "white",
-  fontSize: "14px",
-  fontWeight: 900,
-  cursor: "pointer",
-};
-
-const modalLavenderButtonStyle: React.CSSProperties = {
-  padding: "13px 8px",
-  borderRadius: "15px",
-  border: "none",
-  backgroundColor: "#b88cff",
-  color: "white",
-  fontSize: "14px",
-  fontWeight: 900,
-  cursor: "pointer",
-};
 
 const modalGrayButtonStyle: React.CSSProperties = {
   padding: "13px 8px",

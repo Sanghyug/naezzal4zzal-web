@@ -1,4 +1,4 @@
-export type SavedNaezzalItem = { id: string; gifUrl: string; gifBlob?: Blob; memo: string; styleName: string; createdAt: string };
+export type SavedNaezzalItem = { id: string; gifUrl: string; gifBlob?: Blob; mediaType?: "gif" | "video"; memo: string; styleName: string; createdAt: string };
 type StoredItem = Omit<SavedNaezzalItem, "gifUrl"> & { gifBlob: Blob; gifUrl?: string };
 const DB_NAME = "naezzal4zzal-gallery", STORE_NAME = "saved-gifs";
 function openDb(): Promise<IDBDatabase> {
@@ -10,12 +10,12 @@ function openDb(): Promise<IDBDatabase> {
     request.onsuccess = () => { request.result.onversionchange = () => request.result.close(); resolve(request.result); };
   });
 }
-export async function saveGalleryItem(gifUrl: string, memo: string, styleName: string): Promise<SavedNaezzalItem> {
+export async function saveGalleryItem(gifUrl: string, memo: string, styleName: string, mediaType: "gif" | "video" = "gif"): Promise<SavedNaezzalItem> {
   const response = await fetch(gifUrl);
   if (!response.ok) throw new Error("움짤 파일을 읽지 못했어요.");
   const gifBlob = await response.blob();
   if (!gifBlob.size) throw new Error("빈 움짤은 저장할 수 없어요.");
-  const item: StoredItem = { id: crypto.randomUUID(), gifBlob, memo: memo.trim() || "오늘의 움직이는 네컷 추억", styleName: styleName.trim() || "기본", createdAt: new Date().toISOString() };
+  const item: StoredItem = { id: crypto.randomUUID(), gifBlob, mediaType, memo: memo.trim() || "오늘의 움직이는 네컷 추억", styleName: styleName.trim() || "기본", createdAt: new Date().toISOString() };
   const db = await openDb();
   try {
     await new Promise<void>((resolve, reject) => {
