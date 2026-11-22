@@ -15,6 +15,8 @@ export default function VideoStudio({ ready, getImages, memo }: { ready: boolean
   const [token, setToken] = useState(storedToken);
   const [status, setStatus] = useState("");
   const [url, setUrl] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const fileUrl = useRef("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -23,7 +25,7 @@ export default function VideoStudio({ ready, getImages, memo }: { ready: boolean
   const lock = useRef(false);
   const pendingRequest = useRef<{ fingerprint: string; id: string } | null>(null);
   const active = useRef(true);
-  useEffect(()=>{active.current=true;return()=>{active.current=false;};},[]);
+  useEffect(()=>{active.current=true;return()=>{active.current=false;if(fileUrl.current)URL.revokeObjectURL(fileUrl.current);};},[]);
   useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
@@ -39,14 +41,21 @@ export default function VideoStudio({ ready, getImages, memo }: { ready: boolean
     const poll=async()=>{
       try{
         const response=await fetch(base+"/api/videos",{headers:{Authorization:"Bearer "+token},signal:controller.signal});
-        const result=await response.json();
+        const result=await response.json().catch(()=>({error:"제작 서버 응답을 확인하지 못했어요. 같은 요청으로 다시 확인해주세요."}));
         if(cancelled)return;
         if(!response.ok) {
           if([401,404].includes(response.status)){setMessage(result.error);setStatus("unavailable");return;}
           throw new Error(result.error||"영상 상태를 확인하지 못했어요.");
         }
         setStatus(result.status);
-        if(result.status==="completed"){setUrl(result.videoUrl);setMessage("5초 영상이 완성됐어요. 기기에 저장해 소중히 간직해주세요.");return;}
+        if(result.status==="completed"){
+          setSourceUrl(result.videoUrl); setMessage("5초 영상이 완성됐어요. 저장할 파일을 준비하고 있어요.");
+          const media=await fetch(base+"/api/videos?action=file",{headers:{Authorization:"Bearer "+token},signal:controller.signal});
+          if(!media.ok){const error=await media.json().catch(()=>({error:"영상 파일을 다시 확인해주세요."}));throw new Error(error.error||"영상 파일을 다시 확인해주세요.");}
+          const blob=await media.blob();if(cancelled)return;
+          if(fileUrl.current)URL.revokeObjectURL(fileUrl.current);fileUrl.current=URL.createObjectURL(blob);setUrl(fileUrl.current);
+          setMessage("5초 영상이 완성됐어요. 기기에 저장해 소중히 간직해주세요.");return;
+        }
         if(["failed","cancelled"].includes(result.status)){setMessage(result.error);return;}
         setMessage("네 사진으로 영상을 만들고 있어요. 몇 분 걸릴 수 있어요. 이 화면을 닫아도 제작은 계속되며, 같은 탭에서 영상 제작을 열면 다시 확인할 수 있어요.");
       }catch(error){
@@ -77,6 +86,7 @@ export default function VideoStudio({ ready, getImages, memo }: { ready: boolean
       const response=await fetch(base+"/api/videos",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({images,requestId:pendingRequest.current.id,accessCode:accessCode.trim(),consent:true}),signal:AbortSignal.timeout(58000)});
       const result=await response.json();
       if(!response.ok)throw new Error(result.error||"제작 요청을 확인하지 못했어요. 같은 요청으로 다시 시도해주세요.");
+      if(typeof result.token!=="string"||!result.token)throw new Error("접수 결과를 확인하지 못했어요. 같은 요청으로 다시 확인해주세요.");
       try{sessionStorage.setItem(jobKey,result.token);}catch{/* the open screen still keeps the token */}
       if(active.current){setToken(result.token);setStatus("pending");setSaved(false);setUrl("");}
     }catch(error){
@@ -84,7 +94,7 @@ export default function VideoStudio({ ready, getImages, memo }: { ready: boolean
     }finally{lock.current=false;if(active.current)setBusy(false);}
   };
   const newVideo=()=>{
-    setToken("");setStatus("");setUrl("");setMessage("");setSaved(false);setConsent(false);pendingRequest.current=null;
+    if(fileUrl.current)URL.revokeObjectURL(fileUrl.current);fileUrl.current="";setToken("");setStatus("");setUrl("");setSourceUrl("");setMessage("");setSaved(false);setConsent(false);pendingRequest.current=null;
     try{sessionStorage.removeItem(jobKey);sessionStorage.removeItem(requestKey);}catch{/* memory state is already reset */}
   };
   return <section aria-label="AI 영상 제작" style={{marginTop:12}}>
@@ -105,9 +115,10 @@ export default function VideoStudio({ ready, getImages, memo }: { ready: boolean
         <p style={{fontSize:12}}>제작 비용은 운영자의 HeyGen API 잔액에서 차감됩니다. 공유 보상과는 별개예요. <a href="https://www.heygen.com/privacy" target="_blank" rel="noreferrer">HeyGen 개인정보 안내</a></p>
         <button disabled={!available||!consent||!accessCode.trim()||busy||!ready} onClick={()=>void start()} style={{...button,background:"#b88cff",opacity:!available || !consent || !accessCode.trim() || busy ? 0.5 : 1}}>{busy?"제작 요청 확인 중...":"동의하고 5초 영상 제작"}</button>
       </>}
-      {token && !url && !["failed","cancelled","unavailable"].includes(status) && <p style={{fontWeight:800,color:"#9862d4"}}>✨ 영상 제작 중</p>}
+      {token && !sourceUrl && !["failed","cancelled","unavailable"].includes(status) && <p style={{fontWeight:800,color:"#9862d4"}}>✨ 영상 제작 중</p>}
       {message && <p role="status" style={{fontSize:13}}>{message}</p>}
       {token && <button onClick={()=>setRefresh(v=>v+1)} style={{...button,background:"#cfb1e8",marginTop:8}}>제작 상태 다시 확인</button>}
+      {sourceUrl && !url && <><video src={sourceUrl} controls playsInline aria-label="완성된 AI 영상" style={{width:"100%",borderRadius:16}} /><a href={sourceUrl} target="_blank" rel="noreferrer">영상 원본 열기 · 파일이 크면 여기서 저장해주세요</a></>}
       {url && <>
         <video src={url} controls playsInline aria-label="완성된 AI 영상" style={{width:"100%",borderRadius:16,marginTop:12}} />
         <button disabled={saving||saved} onClick={async()=>{

@@ -4,7 +4,7 @@ import handler from '../api/videos.ts';
 const image='data:image/jpeg;base64,/9j/AA==';
 async function invoke(overrides={}) {
   const result={code:200,headers:{},body:null};
-  const res={setHeader(k,v){result.headers[k]=v},status(c){result.code=c;return this},json(b){result.body=b},end(){}};
+  const res={setHeader(k,v){result.headers[k]=v},status(c){result.code=c;return this},json(b){result.body=b},end(bytes){result.file=bytes}};
   await handler({method:'POST',headers:{origin:'capacitor://localhost'},body:{images:[image,image,image,image],consent:true,accessCode:'office-test',requestId:'12345678-1234-1234-1234-123456789abc'},...overrides},res);
   return result;
 }
@@ -41,5 +41,19 @@ test('video creation uses four references, server-only key and stable idempotenc
   globalThis.fetch=async()=>({ok:false,status:402,json:async()=>({error:{code:'insufficient_credit',message:'private vendor message'}})});
   const failure=await invoke();assert.match(failure.body.error,/잔액/);assert.ok(!JSON.stringify(failure.body).includes('private'));
   globalThis.fetch=async()=>{throw Error('network')};assert.equal((await invoke()).code,504);
+ }finally{globalThis.fetch=fetch;if(key===undefined)delete process.env.HEYGEN_API_KEY;else process.env.HEYGEN_API_KEY=key;if(code===undefined)delete process.env.VIDEO_TEST_CODE;else process.env.VIDEO_TEST_CODE=code;}
+});
+
+test('completed video file is served only with its signed token, with type and payload limits',async()=>{
+ const key=process.env.HEYGEN_API_KEY,code=process.env.VIDEO_TEST_CODE,fetch=globalThis.fetch;
+ try{
+  process.env.HEYGEN_API_KEY='test-key';process.env.VIDEO_TEST_CODE='office-test';
+  globalThis.fetch=async()=>({ok:true,json:async()=>({data:{video_id:'file-video',status:'pending'}})});
+  const job=await invoke();let oversized=false;
+  globalThis.fetch=async url=>url.startsWith('https://api.heygen.com/')?{ok:true,json:async()=>({data:{status:'completed',video_url:'https://example.com/result.mp4'}})}:new Response(new Uint8Array([1,2,3]),{headers:{'Content-Type':'video/mp4','Content-Length':oversized?'5000000':'3'}});
+  const request={method:'GET',query:{action:'file'},headers:{authorization:'Bearer '+job.body.token}};
+  const result=await invoke(request);assert.equal(result.code,200);assert.equal(result.headers['Content-Type'],'video/mp4');assert.equal(result.file.length,3);
+  oversized=true;assert.equal((await invoke(request)).code,413);
+  assert.equal((await invoke({...request,headers:{}})).code,401);
  }finally{globalThis.fetch=fetch;if(key===undefined)delete process.env.HEYGEN_API_KEY;else process.env.HEYGEN_API_KEY=key;if(code===undefined)delete process.env.VIDEO_TEST_CODE;else process.env.VIDEO_TEST_CODE=code;}
 });

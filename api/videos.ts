@@ -2,7 +2,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 type Request = { method?: string; body?: { images?: unknown; requestId?: unknown; accessCode?: unknown; consent?: unknown }; headers: Record<string, string | string[] | undefined>; query?: Record<string, string | string[] | undefined> };
-type Response = { setHeader: (name: string, value: string) => void; status: (code: number) => Response; json: (body: unknown) => unknown; end: () => unknown };
+type Response = { setHeader: (name: string, value: string) => void; status: (code: number) => Response; json: (body: unknown) => unknown; end: (body?: Buffer) => unknown };
 const api = "https://api.heygen.com/v3/models/videos";
 const prompt = "Create one continuous five-second photorealistic photo-booth memory. <Picture 1> is the composition anchor; <Picture 2>, <Picture 3> and <Picture 4> show the same people and their expressions. Keep exactly the people in Picture 1, their identities, original left-to-right positions, clothing, hairstyle and background. Locked camera, medium framing matching Picture 1. Begin with their original pose, then a small friendly wave and a gentle heart gesture by the end. Natural tiny expressions, restrained movement, consistent faces and hands. No swaps, added people, scene cuts, zoom, captions, lettering, watermark, dialogue or music. Silent.";
 function equal(a: string, b: string) {
@@ -63,6 +63,20 @@ export default async function handler(req: Request, res: Response) {
       if (!["pending","queued","processing","completed","failed","cancelled"].includes(data.status)) return res.status(502).json({ error: "영상 상태를 다시 확인해주세요." });
       const url = typeof data.video_url === "string" && data.video_url.startsWith("https://") ? data.video_url : null;
       if (data.status === "completed" && !url) return res.status(502).json({ error: "완성 영상 주소를 다시 확인해주세요." });
+      if (req.query?.action === "file") {
+        if (data.status !== "completed" || !url) return res.status(409).json({ error: "영상이 아직 완성되지 않았어요." });
+        const file = await fetch(url, { signal: AbortSignal.timeout(25000), redirect: "error" });
+        if (!file.ok || !file.headers.get("content-type")?.startsWith("video/")) return res.status(502).json({ error: "영상 파일을 다시 확인해주세요." });
+        const maxBytes = 4_000_000;
+        if (Number(file.headers.get("content-length")) > maxBytes) { await file.body?.cancel(); return res.status(413).json({ error: "이 영상은 앱 보관함 용량보다 커요. 영상 원본 열기에서 저장해주세요." }); }
+        const reader = file.body?.getReader(); if (!reader) return res.status(502).json({ error: "영상 파일을 읽지 못했어요." });
+        const chunks: Uint8Array[] = []; let size = 0;
+        try { while (true) { const {value,done} = await reader.read(); if (done) break; size += value.length; if (size > maxBytes) return res.status(413).json({ error: "이 영상은 앱 보관함 용량보다 커요. 영상 원본 열기에서 저장해주세요." }); chunks.push(value); } }
+        finally { await reader.cancel().catch(() => {}); }
+        if (!size) return res.status(502).json({ error: "영상 파일이 비어 있어요." });
+        res.setHeader("Content-Type", "video/mp4"); res.setHeader("Content-Disposition", "attachment; filename=naezzal4zzal.mp4");
+        return res.status(200).end(Buffer.concat(chunks));
+      }
       return res.status(200).json({ status: data.status, videoUrl: data.status === "completed" ? url : null, error: ["failed","cancelled"].includes(data.status) ? "영상 제작을 완료하지 못했어요. 새 제작은 별도 요청으로 시작해주세요." : null });
     }
     if (typeof req.body?.accessCode !== "string" || !equal(req.body.accessCode, code)) return res.status(403).json({ error: "사무실 테스트 코드를 확인해주세요." });

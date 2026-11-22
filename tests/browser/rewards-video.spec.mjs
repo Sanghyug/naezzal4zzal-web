@@ -85,3 +85,49 @@ test('video consent, same-request retry, polling and reload recovery never auto-
  expect(posts).toBe(2);expect(gets).toBeGreaterThanOrEqual(2);
  await page.screenshot({path:'test-results/video-panel.png',fullPage:true});
 });
+
+test('completed MP4 plays, downloads, persists in gallery, and shares as a video file',async({page})=>{
+ page.on('dialog',d=>d.accept());
+ await page.addInitScript(()=>{
+  Object.defineProperty(navigator,'canShare',{value:()=>true,configurable:true});
+  Object.defineProperty(navigator,'share',{value:async data=>{window.sharedVideoType=data.files[0].type},configurable:true});
+ });
+ await page.goto('/');
+ const bytes=await page.evaluate(async()=>{
+  const canvas=document.createElement('canvas');canvas.width=160;canvas.height=120;const ctx=canvas.getContext('2d');const stream=canvas.captureStream(10);
+  const recorder=new MediaRecorder(stream,{mimeType:'video/mp4;codecs=avc1.42E01E'});const chunks=[];
+  return await new Promise(resolve=>{
+   recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+   recorder.onstop=async()=>{stream.getTracks().forEach(track=>track.stop());resolve(Array.from(new Uint8Array(await new Blob(chunks,{type:'video/mp4'}).arrayBuffer())))};
+   document.body.appendChild(canvas);recorder.start(100);let n=0;const timer=setInterval(()=>{ctx.fillStyle=n++%2?'#ff4f87':'#b88cff';ctx.fillRect(0,0,160,120)},50);
+   setTimeout(()=>{clearInterval(timer);recorder.stop()},1500);
+  });
+ });
+ expect(bytes.length).toBeGreaterThan(0);
+ await page.route('**/api/videos**',async route=>{
+  const req=route.request();
+  if(req.url().includes('action=config'))return route.fulfill({json:{available:true}});
+  if(req.url().includes('action=file'))return route.fulfill({contentType:'video/mp4',body:Buffer.from(bytes)});
+  if(req.method()==='POST')return route.fulfill({status:202,json:{token:'test-completed-token',status:'pending'}});
+  return route.fulfill({json:{status:'completed',videoUrl:'https://video.example.test/result.mp4'}});
+ });
+ await page.route('https://video.example.test/result.mp4',route=>route.fulfill({contentType:'video/mp4',body:Buffer.from(bytes)}));
+ await upload(page);await page.getByRole('button',{name:'🎬 AI 영상 만들기'}).click();
+ await page.getByLabel('사무실 테스트 코드').fill('office-test');await page.getByRole('checkbox').check();
+ await page.getByRole('button',{name:'동의하고 5초 영상 제작'}).click();
+ const video=page.getByLabel('완성된 AI 영상');
+ await expect(video).toHaveAttribute('src',/^blob:/);
+ await expect.poll(()=>video.evaluate(v=>v.readyState)).toBeGreaterThanOrEqual(2);
+ await expect(page.getByRole('button',{name:'기기에 저장하기',exact:true})).toBeEnabled();
+ const download=page.waitForEvent('download');await page.getByRole('button',{name:'기기에 저장하기',exact:true}).click();expect((await download).suggestedFilename()).toBe('naezzal4zzal.mp4');
+ expect(await page.evaluate(()=>localStorage.getItem('naezzal4zzal-share-count'))).toBeNull();
+ await page.getByRole('button',{name:'영상 보관함에 저장하기'}).click();
+ await expect(page.getByRole('button',{name:'보관함 저장 완료'})).toBeDisabled();
+ await page.reload();await page.getByRole('button',{name:'💗 내 보관함'}).click();
+ await page.locator('video').click();
+ await expect(page.getByRole('button',{name:'공유하기',exact:true})).toBeEnabled();
+ await page.getByRole('button',{name:'공유하기',exact:true}).click();
+ expect(await page.evaluate(()=>window.sharedVideoType)).toBe('video/mp4');
+ expect(await page.evaluate(()=>localStorage.getItem('naezzal4zzal-share-count'))).toBe('1');
+ await page.screenshot({path:'test-results/video-gallery.png',fullPage:true});
+});
