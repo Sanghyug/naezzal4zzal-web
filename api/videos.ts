@@ -1,25 +1,26 @@
 /// <reference types="node" />
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-type Request = { method?: string; body?: { images?: unknown; requestId?: unknown; accessCode?: unknown; consent?: unknown }; headers: Record<string, string | string[] | undefined>; query?: Record<string, string | string[] | undefined> };
+type Request = { method?: string; body?: { images?: unknown; requestId?: unknown; accessCode?: unknown; consent?: unknown; variant?: unknown }; headers: Record<string, string | string[] | undefined>; query?: Record<string, string | string[] | undefined> };
 type Response = { setHeader: (name: string, value: string) => void; status: (code: number) => Response; json: (body: unknown) => unknown; end: (body?: Buffer) => unknown };
 const api = "https://api.heygen.com/v3/models/videos";
-const prompt = "Create one continuous five-second photorealistic photo-booth memory. <Picture 1> is the composition anchor; <Picture 2>, <Picture 3> and <Picture 4> show the same people and their expressions. Keep exactly the people in Picture 1, their identities, original left-to-right positions, clothing, hairstyle and background. Locked camera, medium framing matching Picture 1. Begin with their original pose, then a small friendly wave and a gentle heart gesture by the end. Natural tiny expressions, restrained movement, consistent faces and hands. No swaps, added people, scene cuts, zoom, captions, lettering, watermark, dialogue or music. Silent.";
+const memoryPrompt = "Create one continuous five-second photorealistic photo-booth memory. <Picture 1> is the composition anchor; <Picture 2>, <Picture 3> and <Picture 4> show the same people and their expressions. Keep exactly the people in Picture 1, their identities, original left-to-right positions, clothing, hairstyle and background. Locked camera, medium framing matching Picture 1. Use exactly this motion plan: 0-1 seconds hold the original first-photo pose, 1-3 seconds a small friendly wave, 3-5 seconds a gentle heart gesture. Natural tiny expressions, restrained movement, consistent faces and hands. No swaps, added people, scene cuts, zoom, captions, lettering, watermark, dialogue or music. Silent.";
+const animalPrompt = "Create one continuous five-second cute 3D plush-toy photo-booth animation from four reference photos. <Picture 1> anchors the composition; <Picture 2>, <Picture 3> and <Picture 4> supply the same people and expressions. Transform EVERY person into one distinct adorable anthropomorphic animal character, choosing an animal based only on visible hairstyle silhouette, expression and outfit colors, not ethnicity or personal traits. Keep exactly the original person count, left-to-right positions, relative heights, clothing colors and accessories. Each character remains the same animal throughout. Rounded plush features, expressive animal faces, little paws, a warm photo-booth background matching the reference. No human faces, human skin, extra characters or merged bodies. Locked camera, medium framing. Use exactly this motion plan: 0-1 seconds hold the original first-photo pose, 1-3 seconds a small friendly wave, 3-5 seconds a gentle heart gesture. Match the direction and timing of this plan for all characters, with restrained movement and consistent paws. No scene cuts, zoom, captions, lettering, watermarks, dialogue or music. Silent.";
 function equal(a: string, b: string) {
   const left = Buffer.from(a), right = Buffer.from(b);
   return left.length === right.length && timingSafeEqual(left, right);
 }
 function sign(payload: string, key: string) { return createHmac("sha256", key).update(payload).digest("base64url"); }
-function tokenFor(videoId: string, key: string) {
-  const payload = Buffer.from(JSON.stringify({ videoId, exp: Date.now() + 7 * 86400000 })).toString("base64url");
+function tokenFor(videoId: string, key: string, variant: string) {
+  const payload = Buffer.from(JSON.stringify({ videoId, variant, exp: Date.now() + 7 * 86400000 })).toString("base64url");
   return payload + "." + sign(payload, key);
 }
-function readToken(token: string, key: string): string | null {
+function readToken(token: string, key: string): { videoId: string; variant: string } | null {
   try {
     const [payload, signature, extra] = token.split(".");
     if (!payload || !signature || extra || !equal(sign(payload, key), signature)) return null;
     const data = JSON.parse(Buffer.from(payload, "base64url").toString());
-    return typeof data.videoId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(data.videoId) && data.exp > Date.now() ? data.videoId : null;
+    return typeof data.videoId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(data.videoId) && data.exp > Date.now() ? { videoId: data.videoId, variant: data.variant === "animals" ? "animals" : "memory" } : null;
   } catch { return null; }
 }
 function imageReference(image: unknown) {
@@ -54,9 +55,9 @@ export default async function handler(req: Request, res: Response) {
   try {
     if (req.method === "GET") {
       const auth = req.headers.authorization;
-      const videoId = typeof auth === "string" && auth.startsWith("Bearer ") ? readToken(auth.slice(7), key + code) : null;
-      if (!videoId) return res.status(401).json({ error: "이 영상의 확인 기간이 지났어요. 저장한 영상을 확인해주세요." });
-      const response = await fetch(api + "/" + encodeURIComponent(videoId), { headers: { "x-api-key": key }, signal: AbortSignal.timeout(20000) });
+      const job = typeof auth === "string" && auth.startsWith("Bearer ") ? readToken(auth.slice(7), key + code) : null;
+      if (!job) return res.status(401).json({ error: "이 영상의 확인 기간이 지났어요. 저장한 영상을 확인해주세요." });
+      const response = await fetch(api + "/" + encodeURIComponent(job.videoId), { headers: { "x-api-key": key }, signal: AbortSignal.timeout(20000) });
       const body = await response.json();
       if (!response.ok) return res.status(response.status === 404 ? 404 : 502).json({ error: response.status === 404 ? "제작 중인 영상을 찾지 못했어요. 관리자에게 알려주세요." : failure(response.status, body.error?.code) });
       const data = body.data || body;
@@ -77,24 +78,26 @@ export default async function handler(req: Request, res: Response) {
         res.setHeader("Content-Type", "video/mp4"); res.setHeader("Content-Disposition", "attachment; filename=naezzal4zzal.mp4");
         return res.status(200).end(Buffer.concat(chunks));
       }
-      return res.status(200).json({ status: data.status, videoUrl: data.status === "completed" ? url : null, error: ["failed","cancelled"].includes(data.status) ? "영상 제작을 완료하지 못했어요. 새 제작은 별도 요청으로 시작해주세요." : null });
+      return res.status(200).json({ status: data.status, variant: job.variant, videoUrl: data.status === "completed" ? url : null, error: ["failed","cancelled"].includes(data.status) ? "영상 제작을 완료하지 못했어요. 새 제작은 별도 요청으로 시작해주세요." : null });
     }
     if (typeof req.body?.accessCode !== "string" || !equal(req.body.accessCode, code)) return res.status(403).json({ error: "사무실 테스트 코드를 확인해주세요." });
     if (req.body.consent !== true) return res.status(400).json({ error: "사진 전송과 영상 제작 안내에 동의해주세요." });
+    const variant = req.body.variant === undefined ? "memory" : req.body.variant;
+    if (variant !== "memory" && variant !== "animals") return res.status(400).json({ error: "영상 종류를 다시 선택해주세요." });
     const requestId = req.body.requestId;
     if (typeof requestId !== "string" || !/^[a-f0-9-]{36}$/.test(requestId)) return res.status(400).json({ error: "제작 요청 정보가 올바르지 않아요." });
     if (!Array.isArray(req.body.images) || req.body.images.length !== 4) return res.status(400).json({ error: "네 장의 사진이 필요해요." });
     const images = req.body.images.map(imageReference);
     if (images.some(image => !image)) return res.status(400).json({ error: "사진 파일을 다시 준비해주세요. 네 장 합계 3.8MB 이하로 보내주세요." });
     const response = await fetch(api, {
-      method: "POST", headers: { "Content-Type": "application/json", "x-api-key": key, "Idempotency-Key": "naezzal-" + sign(requestId, key) },
+      method: "POST", headers: { "Content-Type": "application/json", "x-api-key": key, "Idempotency-Key": "naezzal-" + sign(requestId + ":" + variant, key) },
       signal: AbortSignal.timeout(50000),
-      body: JSON.stringify({ model: "heygen-video-1", mode: "reference_to_video", prompt, reference_images: images, duration: 5, resolution: "768p", aspect_ratio: "4:3", prompt_enhancement: "quality" }),
+      body: JSON.stringify({ model: "heygen-video-1", mode: "reference_to_video", prompt: variant === "animals" ? animalPrompt : memoryPrompt, reference_images: images, duration: 5, resolution: "768p", aspect_ratio: "4:3", prompt_enhancement: "quality" }),
     });
     const body = await response.json();
     if (!response.ok) return res.status(response.status === 409 ? 409 : 502).json({ error: failure(response.status, body.error?.code) });
     const data = body.data || body;
     if (typeof data.video_id !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(data.video_id)) return res.status(502).json({ error: "접수 결과를 확인하지 못했어요. 같은 요청으로 다시 확인해주세요." });
-    return res.status(202).json({ token: tokenFor(data.video_id, key + code), status: data.status || "pending" });
+    return res.status(202).json({ token: tokenFor(data.video_id, key + code, variant), status: data.status || "pending" });
   } catch { return res.status(504).json({ error: "연결이 지연되고 있어요. 다시 시도하면 새 제작 대신 같은 요청을 확인합니다." }); }
 }

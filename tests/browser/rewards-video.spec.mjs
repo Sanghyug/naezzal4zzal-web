@@ -1,3 +1,4 @@
+import {readFileSync} from "node:fs";
 import {test,expect} from '@playwright/test';
 async function upload(page) {
  await page.goto('/');
@@ -79,7 +80,7 @@ test('video consent, same-request retry, polling and reload recovery never auto-
  await page.getByRole('checkbox').check();await expect(start).toBeEnabled();await start.click();
  await expect(page.getByText('연결 지연',{exact:true})).toBeVisible();
  await start.click();await expect(page.getByText('✨ 영상 제작 중')).toBeVisible();
- expect(received.images).toHaveLength(4);expect(received.consent).toBe(true);
+ expect(received.images).toHaveLength(4);expect(received.consent).toBe(true);expect(received.variant).toBe('memory');
  await page.reload();await upload(page);await page.getByRole('button',{name:'🎬 AI 영상 만들기'}).click();
  await expect(page.getByText('제작 실패 시험',{exact:true})).toBeVisible();
  expect(posts).toBe(2);expect(gets).toBeGreaterThanOrEqual(2);
@@ -93,16 +94,7 @@ test('completed MP4 plays, downloads, persists in gallery, and shares as a video
   Object.defineProperty(navigator,'share',{value:async data=>{window.sharedVideoType=data.files[0].type},configurable:true});
  });
  await page.goto('/');
- const bytes=await page.evaluate(async()=>{
-  const canvas=document.createElement('canvas');canvas.width=160;canvas.height=120;const ctx=canvas.getContext('2d');const stream=canvas.captureStream(10);
-  const recorder=new MediaRecorder(stream,{mimeType:'video/mp4;codecs=avc1.42E01E'});const chunks=[];
-  return await new Promise(resolve=>{
-   recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
-   recorder.onstop=async()=>{stream.getTracks().forEach(track=>track.stop());resolve(Array.from(new Uint8Array(await new Blob(chunks,{type:'video/mp4'}).arrayBuffer())))};
-   document.body.appendChild(canvas);recorder.start(100);let n=0;const timer=setInterval(()=>{ctx.fillStyle=n++%2?'#ff4f87':'#b88cff';ctx.fillRect(0,0,160,120)},50);
-   setTimeout(()=>{clearInterval(timer);recorder.stop()},1500);
-  });
- });
+ const bytes=readFileSync(new URL("../fixtures/share-test.mp4",import.meta.url));
  expect(bytes.length).toBeGreaterThan(0);
  await page.route('**/api/videos**',async route=>{
   const req=route.request();
@@ -130,4 +122,19 @@ test('completed MP4 plays, downloads, persists in gallery, and shares as a video
  expect(await page.evaluate(()=>window.sharedVideoType)).toBe('video/mp4');
  expect(await page.evaluate(()=>localStorage.getItem('naezzal4zzal-share-count'))).toBe('1');
  await page.screenshot({path:'test-results/video-gallery.png',fullPage:true});
+});
+
+test('animal variant is optional, asks for consent again, and submits the four photos with its own choice',async({page})=>{
+ let received;
+ await page.route('**/api/videos**',async route=>{
+  if(route.request().url().includes('action=config'))return route.fulfill({json:{available:true}});
+  if(route.request().method()==='POST'){received=route.request().postDataJSON();return route.fulfill({status:202,json:{token:'animals-token',status:'pending'}});}
+  return route.fulfill({json:{status:'processing',variant:'animals'}});
+ });
+ await upload(page);await page.getByRole('button',{name:'🎬 AI 영상 만들기'}).click();
+ await expect(page.getByRole('radio',{name:'기본 · 인물 그대로'})).toBeChecked();
+ await page.getByLabel('사무실 테스트 코드').fill('office-test');await page.getByRole('checkbox').check();
+ await page.getByRole('radio',{name:'귀여운 동물 변신'}).check();await expect(page.getByRole('checkbox')).not.toBeChecked();
+ await page.getByRole('checkbox').check();await page.getByRole('button',{name:'동의하고 5초 영상 제작'}).click();
+ await expect(page.getByText('✨ 영상 제작 중')).toBeVisible();expect(received.variant).toBe('animals');expect(received.images).toHaveLength(4);
 });

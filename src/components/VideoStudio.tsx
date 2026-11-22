@@ -12,6 +12,7 @@ export default function VideoStudio({ ready, getImages, memo }: { ready: boolean
   const [available, setAvailable] = useState<boolean | null>(null);
   const [accessCode, setAccessCode] = useState("");
   const [consent, setConsent] = useState(false);
+  const [variant, setVariant] = useState<"memory" | "animals">("memory");
   const [token, setToken] = useState(storedToken);
   const [status, setStatus] = useState("");
   const [url, setUrl] = useState("");
@@ -48,6 +49,7 @@ export default function VideoStudio({ ready, getImages, memo }: { ready: boolean
           throw new Error(result.error||"영상 상태를 확인하지 못했어요.");
         }
         setStatus(result.status);
+        if(result.variant==="memory"||result.variant==="animals")setVariant(result.variant);
         if(result.status==="completed"){
           setSourceUrl(result.videoUrl); setMessage("5초 영상이 완성됐어요. 저장할 파일을 준비하고 있어요.");
           const media=await fetch(base+"/api/videos?action=file",{headers:{Authorization:"Bearer "+token},signal:controller.signal});
@@ -78,12 +80,12 @@ export default function VideoStudio({ ready, getImages, memo }: { ready: boolean
         const image=await loadImage(cut);const canvas=document.createElement("canvas");canvas.width=image.width;canvas.height=image.height;
         const ctx=canvas.getContext("2d");if(!ctx)throw new Error("사진을 준비하지 못했어요.");ctx.drawImage(image,0,0);return canvas.toDataURL("image/jpeg",.9);
       }));
-      const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(images.join("|")));
+      const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(variant+"|"+images.join("|")));
       const fingerprint=Array.from(new Uint8Array(digest),n=>n.toString(16).padStart(2,"0")).join("");
       if(!pendingRequest.current){try{pendingRequest.current=JSON.parse(sessionStorage.getItem(requestKey)||"null");}catch{/* use an in-memory request below */}}
       if(pendingRequest.current?.fingerprint!==fingerprint)pendingRequest.current={fingerprint,id:crypto.randomUUID()};
       try{sessionStorage.setItem(requestKey,JSON.stringify(pendingRequest.current));}catch{/* same-page retries retain the in-memory request */}
-      const response=await fetch(base+"/api/videos",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({images,requestId:pendingRequest.current.id,accessCode:accessCode.trim(),consent:true}),signal:AbortSignal.timeout(58000)});
+      const response=await fetch(base+"/api/videos",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({images,requestId:pendingRequest.current.id,accessCode:accessCode.trim(),consent:true,variant}),signal:AbortSignal.timeout(58000)});
       const result=await response.json();
       if(!response.ok)throw new Error(result.error||"제작 요청을 확인하지 못했어요. 같은 요청으로 다시 시도해주세요.");
       if(typeof result.token!=="string"||!result.token)throw new Error("접수 결과를 확인하지 못했어요. 같은 요청으로 다시 확인해주세요.");
@@ -103,6 +105,13 @@ export default function VideoStudio({ ready, getImages, memo }: { ready: boolean
       <h3 style={{marginTop:0,color:"#9862d4"}}>네 컷이 살아나는 5초 영상</h3>
       <p style={{fontSize:13}}>맞춘 네 사진을 참고해 작은 손인사와 하트 동작을 만들어요. AI가 새로 만든 영상이므로 원본과 표정·손 모양 등이 달라질 수 있어요.</p>
       {!token && <>
+        <fieldset disabled={busy} style={{border:"1px solid #e1c7f4",borderRadius:14,padding:12,margin:"12px 0"}}>
+          <legend style={{fontWeight:800,color:"#9862d4"}}>어떤 영상으로 만들까요?</legend>
+          <label style={{display:"block",padding:"8px 0"}}><input type="radio" name="video-variant" value="memory" checked={variant==="memory"} onChange={()=>{setVariant("memory");setConsent(false);}} /> 기본 · 인물 그대로</label>
+          <label style={{display:"block",padding:"8px 0"}}><input type="radio" name="video-variant" value="animals" checked={variant==="animals"} onChange={()=>{setVariant("animals");setConsent(false);}} /> 귀여운 동물 변신</label>
+          <p style={{fontSize:12,marginBottom:0}}>{variant==="animals"?"각 인물의 표정·헤어스타일·옷 색을 참고한 귀여운 동물 캐릭터로 바꿔요. 인물 수와 좌우 배치는 유지하도록 요청해요.":"네 사진 속 인물을 유지해 자연스러운 5초 영상을 만들어요."}</p>
+          <p style={{fontSize:12,marginBottom:0}}>두 방식 모두 원래 포즈 → 작은 손인사 → 하트 순서로 움직여요. 별도로 만드는 영상이라 동작과 타이밍이 완전히 같지는 않을 수 있어요.</p>
+        </fieldset>
         {available===null && <p role="status">영상 연결을 확인하고 있어요.</p>}
         {available===false && <p role="status">영상 제작 연결을 준비하고 있어요. GIF는 지금 만들 수 있어요. <button onClick={()=>setRefresh(v=>v+1)}>연결 다시 확인</button></p>}
         <label style={{display:"block",fontSize:13,fontWeight:800}}>사무실 테스트 코드
@@ -123,7 +132,7 @@ export default function VideoStudio({ ready, getImages, memo }: { ready: boolean
         <video src={url} controls playsInline aria-label="완성된 AI 영상" style={{width:"100%",borderRadius:16,marginTop:12}} />
         <button disabled={saving||saved} onClick={async()=>{
           if(saving||saved)return;setSaving(true);
-          try{const item=await saveGalleryItem(url,memo,"HeyGen 5초 영상","video");URL.revokeObjectURL(item.gifUrl);setSaved(true);setMessage("영상도 내 보관함에 저장했어요 💗");}
+          try{const item=await saveGalleryItem(url,memo,variant==="animals"?"동물 변신 5초 영상":"기본 5초 영상","video");URL.revokeObjectURL(item.gifUrl);setSaved(true);setMessage("영상도 내 보관함에 저장했어요 💗");}
           catch{setMessage("보관함에 저장하지 못했어요. 기기에 저장하거나 다시 시도해주세요.");}finally{setSaving(false);}
         }} style={{...button,background:"#ff4f87",marginTop:12}}>{saved?"보관함 저장 완료":saving?"저장 중...":"영상 보관함에 저장하기"}</button>
         <ShareControls url={url} text={memo||"내짤4짤에서 만든 움직이는 추억"} video />
