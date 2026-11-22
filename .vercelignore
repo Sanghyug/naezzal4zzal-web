@@ -1,0 +1,12 @@
+node_modules
+.git
+android
+ios
+test-results
+playwright-report
+tests
+project_dump.txt
+*-source.zip
+PREVIOUS_PROJECT_NOTES.md
+.env*
+artifacts

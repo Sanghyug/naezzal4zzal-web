@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">내짤4짤</string>
+    <string name="title_activity_main">내짤4짤</string>
+    <string name="package_name">com.bamnamulab.naezzal4zzal</string>
+    <string name="custom_url_scheme">com.bamnamulab.naezzal4zzal</string>
+</resources>

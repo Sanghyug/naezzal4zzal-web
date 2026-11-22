@@ -1,6 +1,8 @@
+import { loadImage } from "./loadImage";
 export async function alignImagesForGif(images: string[]): Promise<string[]> {
   console.log("face alignment temporarily skipped");
 
+  if (!images.length) throw new Error("움짤로 만들 사진이 없어요.");
   const firstImage = await loadImage(images[0]);
   const targetWidth = 480;
   const targetHeight = Math.round(
@@ -29,12 +31,4 @@ export async function alignImagesForGif(images: string[]): Promise<string[]> {
   }
 
   return alignedImages;
-}
-
-function loadImage(imageUrl: string): Promise<HTMLImageElement> {
-  return new Promise((resolve) => {
-    const image = new Image();
-    image.src = imageUrl;
-    image.onload = () => resolve(image);
-  });
 }

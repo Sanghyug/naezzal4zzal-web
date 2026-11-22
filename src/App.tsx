@@ -1,3 +1,6 @@
+import { Capacitor } from "@capacitor/core";
+import { Share } from "@capacitor/share";
+import PrivacyScreen from "./components/PrivacyScreen";
 import { useEffect, useRef, useState } from "react";
 import StartScreen from "./components/StartScreen";
 import CutPreview from "./components/CutPreview";
@@ -6,11 +9,13 @@ import GalleryScreen from "./components/GalleryScreen";
 
 declare global {
   interface Window {
+    // Legacy OpenCV helpers are retained for reference, outside the active app.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     cv: any;
   }
 }
 
-type AppMode = "splash" | "start" | "preview" | "gallery";
+type AppMode = "splash" | "start" | "preview" | "gallery" | "privacy";
 
 function App() {
   const [mode, setMode] = useState<AppMode>("splash");
@@ -40,6 +45,9 @@ function App() {
     const file = event.target.files?.[0];
 
     if (!file) return;
+    event.target.value = "";
+    if (!file.type.startsWith("image/")) { alert("사진 파일을 골라주세요."); return; }
+    if (file.size > 25 * 1024 * 1024) { alert("사진이 너무 커요. 25MB 이하의 사진으로 골라주세요."); return; }
 
     if (imageUrl) {
       URL.revokeObjectURL(imageUrl);
@@ -51,9 +59,10 @@ function App() {
   };
 
   const handleShareApp = async () => {
-    const appUrl = window.location.origin;
+    const appUrl = "https://naezzal4zzal-web.vercel.app";
 
     try {
+      if (Capacitor.isNativePlatform()) { await Share.share({ title: "내짤4짤", text: "네컷사진을 움직이는 추억으로 만들어보세요.", url: appUrl }); return; }
       if (navigator.share) {
         await navigator.share({
           title: "내짤4짤",
@@ -90,6 +99,7 @@ function App() {
   return (
     <>
       {mode === "splash" && <SplashScreen />}
+      {mode === "privacy" && <PrivacyScreen onBack={() => setMode("start")} />}
 
       <input
         ref={cameraInputRef}
@@ -122,6 +132,7 @@ function App() {
           onShareAppClick={handleShareApp}
         />
       )}
+      {mode === "start" && <div style={{textAlign: "center", padding: "0 12px 24px", background: "#ffe4ec"}}><button onClick={() => setMode("privacy")} style={{background: "none", border: 0, color: "#79535f", textDecoration: "underline"}}>사진과 개인정보 안내 · 문의</button></div>}
     </>
   );
 }

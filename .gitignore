@@ -27,3 +27,19 @@ dist-ssr
 .vercel
 .env*.local
 .env*
+
+# Test output
+playwright-report/
+test-results/
+
+!.env.example
+
+# Private user-photo verification artifacts
+artifacts/
+
+# Legacy snapshots and store packages
+*-source.zip
+project_dump.txt
+*.ait
+*.jks
+*.keystore

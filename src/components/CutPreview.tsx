@@ -1,8 +1,12 @@
+import { shareGif } from "../lib/shareGif";
 import { useEffect, useRef, useState } from "react";
 import { createGif, type GifSpeed } from "../lib/createGif";
 import { alignImagesForGif } from "../lib/alignImagesForGif";
-import { detectFaceBasedCells } from "../lib/detectFaceBasedCells";
-import { hasSameGalleryItem, saveGalleryItem } from "../lib/galleryStore";
+import { extractCells } from "../lib/extractCells";
+import { createLayoutCells, type PhotoLayout } from "../lib/photoGeometry.js";
+import { loadImage } from "../lib/loadImage";
+import CropSelector from "./CropSelector";
+import { saveGalleryItem } from "../lib/galleryStore";
 
 type CutPreviewProps = {
   imageUrl: string;
@@ -21,20 +25,6 @@ function getUnlockedFrames(shareCount: number): FrameType[] {
 type PreviewSize = {
   width: number;
   height: number;
-};
-
-type PhotoLayout = "1x4" | "2x2" | "unknown";
-
-type StripRect = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
-type LayoutResult = {
-  layout: PhotoLayout;
-  strip?: StripRect;
 };
 
 export type FrameType = "basic" | "spring" | "autumn" | "film";
@@ -79,276 +69,61 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
   const unlockedFrames = getUnlockedFrames(shareCount);
   const [selectedFrame, setSelectedFrame] = useState<FrameType>("basic");
 
-  useEffect(() => {
-    let isCancelled = false;
+  const [useAI, setUseAI] = useState<boolean | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedGif, setSavedGif] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (useAI === null) return;
+    let cancelled = false;
+    const controller = new AbortController();
+    let timer: number | undefined;
     async function generateCells() {
       try {
-        setSourceUrl(null);
-        setCells([]);
-        setAdjusts([]);
-        setGifUrl(null);
         setStatus("loading");
-        setMessage("사진을 보기 좋게 자동 보정하는 중입니다.");
-
-        const enhancedImageUrl = await enhanceImage(imageUrl);
-
-        setMessage("AI가 네 컷 사진의 위치를 찾는 중입니다.");
-
-        const originalImage = new Image();
-        originalImage.src = enhancedImageUrl;
-
-        originalImage.onload = async () => {
-          if (isCancelled) return;
-
-          const width = originalImage.width;
-          const height = originalImage.height;
-
-          const initialAdjust = {
-            x: 0,
-            y: 0,
-            scale: 1,
-            rotate: 0,
-          };
-
-          function applyCells(
-            detectedCells: CellRect[],
-            nextStatus: "success" | "fallback",
-            nextMessage: string,
-          ) {
-            setSourceUrl(enhancedImageUrl);
-            setSourceSize({ width, height });
-            setCells(detectedCells);
-
-            const initialAdjusts = detectedCells.map(() => ({
-              ...initialAdjust,
-            }));
-            adjustsRef.current = initialAdjusts;
-            setAdjusts(initialAdjusts);
-
-            setStatus(nextStatus);
-            setMessage(nextMessage);
-          }
-
-          const layoutResult = await Promise.race([
-            detectLayoutWithGpt(enhancedImageUrl),
-            new Promise<LayoutResult>((resolve) => {
-              window.setTimeout(() => resolve({ layout: "unknown" }), 10000);
-            }),
-          ]);
-
-          if (isCancelled) return;
-
-          if (
-            (layoutResult.layout === "1x4" || layoutResult.layout === "2x2") &&
-            layoutResult.strip &&
-            isReasonableStrip(layoutResult.strip, width, height)
-          ) {
-            const layoutCells = createLayoutCells(
-              layoutResult.layout,
-              layoutResult.strip,
-            );
-
-            applyCells(
-              layoutCells,
-              "success",
-              layoutResult.layout === "1x4"
-                ? "AI가 세로형 네컷으로 판단해 네 컷을 정리했어요. 손가락으로 미세조정할 수 있어요."
-                : "AI가 2x2 네컷으로 판단해 네 컷을 정리했어요. 손가락으로 미세조정할 수 있어요.",
-            );
-            return;
-          }
-
-          setMessage(
-            "정밀 AI 추출이 어려워 얼굴 기준으로 다시 정리하는 중입니다.",
-          );
-
-          const faceCells = await Promise.race([
-            detectFaceBasedCells(enhancedImageUrl),
-            new Promise<CellRect[]>((resolve) => {
-              window.setTimeout(() => resolve([]), 5000);
-            }),
-          ]);
-
-          if (isCancelled) return;
-
-          if (faceCells.length === 4) {
-            applyCells(
-              faceCells,
-              "success",
-              "얼굴 위치를 기준으로 네 컷을 정리했어요. 손가락으로 미세조정할 수 있어요.",
-            );
-            return;
-          }
-
-          console.log(
-            "AI and face based detection failed. use original fallback.",
-          );
-
-          const stripWidth = Math.min(width * 0.52, height / 3.2);
-          const stripX = (width - stripWidth) / 2;
-          const cellHeight = height / 4;
-
-          const fallbackCells = Array.from({ length: 4 }, (_, i) => ({
-            x: stripX,
-            y: cellHeight * i,
-            width: stripWidth,
-            height: cellHeight,
-          }));
-
-          applyCells(
-            fallbackCells,
-            "fallback",
-            "자동 인식이 어려워 원본 기준으로 배치했어요. 손가락으로 맞춰주세요.",
-          );
-        };
-
-        originalImage.onerror = () => {
-          if (!isCancelled) {
-            setStatus("error");
-            setMessage(
-              "이미지를 불러오지 못했어요. 다른 사진으로 다시 시도해주세요.",
-            );
-          }
-        };
+        setMessage("사진을 불러오고 있어요.");
+        const enhanced = await enhanceImage(imageUrl);
+        const image = await loadImage(enhanced);
+        if (cancelled) return;
+        const { width, height } = image;
+        let detected: CellRect[] = [];
+        let analysisError = "";
+        if (useAI) {
+          setMessage("AI가 사진 네 장의 테두리를 각각 찾고 있어요.");
+          timer = window.setTimeout(() => controller.abort(), 25000);
+          try { detected = await extractCells(enhanced, width, height, controller.signal); }
+          catch (error) { analysisError = error instanceof Error && error.name !== "AbortError" && error.name !== "TypeError" ? error.message : "AI 서버에 연결하지 못했어요. 아래 칸은 AI 인식 결과가 아닌 임시 배치입니다."; }
+          finally { window.clearTimeout(timer); }
+        }
+        if (cancelled) return;
+        const found = detected.length === 4;
+        setSourceUrl(enhanced);
+        setSourceSize({ width, height });
+        setCells(found ? detected : createLayoutCells(height / width > 1.8 ? "1x4" : "2x2", width, height));
+        const initial = Array.from({ length: 4 }, () => ({ x: 0, y: 0, scale: 1, rotate: 0 }));
+        adjustsRef.current = initial;
+        setAdjusts(initial);
+        setStatus(found ? "success" : "fallback");
+        setMessage(found ? "AI가 인화지 안의 네 사진을 찾았어요. 종이 여백과 배경이 제외됐는지 확인해주세요." : analysisError || (useAI ? "AI가 네 사진의 경계를 확실하게 찾지 못했어요. 아래 칸은 직접 맞추기용 임시 배치입니다." : "사진은 전송하지 않았어요. 아래 칸은 인식 결과가 아닌 직접 맞추기용 임시 배치입니다."));
       } catch (error) {
-        console.error(error);
-        if (!isCancelled) {
+        if (!cancelled) {
           setStatus("error");
-          setMessage(
-            "사진을 분석하는 중 문제가 생겼어요. 다른 사진으로 다시 시도해주세요.",
-          );
+          setMessage(error instanceof Error ? error.message : "사진을 읽지 못했어요. 다른 사진으로 다시 시도해주세요.");
         }
       }
     }
+    void generateCells();
+    return () => { cancelled = true; controller.abort(); window.clearTimeout(timer); };
+  }, [imageUrl, useAI]);
 
-    async function imageUrlToDataUrl(imageUrl: string): Promise<string> {
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
-
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-
-        reader.onloadend = () => {
-          if (typeof reader.result === "string") {
-            resolve(reader.result);
-          } else {
-            reject(new Error("이미지를 data URL로 변환하지 못했습니다."));
-          }
-        };
-
-        reader.onerror = () => {
-          reject(new Error("이미지를 읽지 못했습니다."));
-        };
-
-        reader.readAsDataURL(blob);
-      });
-    }
-
-    async function detectLayoutWithGpt(
-      imageUrl: string,
-    ): Promise<LayoutResult> {
-      const imageDataUrl = await imageUrlToDataUrl(imageUrl);
-
-      const response = await fetch("/api/extract-cells", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          image: imageDataUrl,
-        }),
-      });
-
-      if (!response.ok) {
-        const detail = await response.json().catch(() => null);
-        console.error("GPT layout detection failed:", detail);
-        return { layout: "unknown" };
-      }
-
-      const data = await response.json();
-      console.log("GPT layout response:", data);
-
-      if (data.layout === "1x4" || data.layout === "2x2") {
-        return {
-          layout: data.layout,
-          strip: data.strip,
-        };
-      }
-
-      return { layout: "unknown" };
-    }
-
-    function isReasonableStrip(
-      strip: StripRect,
-      width: number,
-      height: number,
-    ) {
-      if (strip.width < width * 0.22) return false;
-      if (strip.width > width * 0.85) return false;
-      if (strip.height < height * 0.45) return false;
-      if (strip.height > height * 1.05) return false;
-      if (strip.x < 0 || strip.y < 0) return false;
-      if (strip.x + strip.width > width) return false;
-      if (strip.y + strip.height > height) return false;
-
-      return true;
-    }
-
-    function createLayoutCells(
-      layout: PhotoLayout,
-      strip: StripRect,
-    ): CellRect[] {
-      if (layout === "2x2") {
-        const cellWidth = strip.width / 2;
-        const cellHeight = strip.height / 2;
-
-        return [
-          { x: strip.x, y: strip.y, width: cellWidth, height: cellHeight },
-          {
-            x: strip.x + cellWidth,
-            y: strip.y,
-            width: cellWidth,
-            height: cellHeight,
-          },
-          {
-            x: strip.x,
-            y: strip.y + cellHeight,
-            width: cellWidth,
-            height: cellHeight,
-          },
-          {
-            x: strip.x + cellWidth,
-            y: strip.y + cellHeight,
-            width: cellWidth,
-            height: cellHeight,
-          },
-        ];
-      }
-
-      const paddingTop = strip.height * 0.03;
-      const paddingBottom = strip.height * 0.03;
-
-      const usableHeight = strip.height - paddingTop - paddingBottom;
-
-      const cellHeight = usableHeight / 4;
-
-      return Array.from({ length: 4 }, (_, i) => ({
-        x: strip.x,
-        y: strip.y + paddingTop + cellHeight * i,
-        width: strip.width,
-        height: cellHeight,
-      }));
-    }
-
-    generateCells();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [imageUrl]);
+  const changeLayout = (layout: PhotoLayout) => {
+    setCells(createLayoutCells(layout, sourceSize.width, sourceSize.height));
+    resetAllAdjusts();
+    setGifUrl(null);
+  };
 
   const updateAdjust = (index: number, next: Partial<Adjust>) => {
+    setGifUrl(null);
     setAdjusts((prev) => {
       const updated = prev.map((item, i) =>
         i === index
@@ -365,6 +140,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
   };
 
   const resetAllAdjusts = () => {
+    setGifUrl(null);
     const reset = cells.map(() => ({
       x: 0,
       y: 0,
@@ -403,63 +179,17 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, targetWidth, targetHeight);
 
-      const finalScale = adjust.scale * extraScale;
-
-      const sourceCropWidth = cell.width / finalScale;
-      const sourceCropHeight = cell.height / finalScale;
-
-      const previewFrameWidth = previewSizes[i]?.width || 220;
-      const previewFrameHeight =
-        previewSizes[i]?.height ||
-        previewFrameWidth * (cell.height / cell.width);
-
-      const moveScaleX = cell.width / previewFrameWidth;
-      const moveScaleY = cell.height / previewFrameHeight;
-
-      const sourceX =
-        cell.x +
-        (cell.width - sourceCropWidth) / 2 -
-        (adjust.x * moveScaleX) / adjust.scale;
-
-      const sourceY =
-        cell.y +
-        (cell.height - sourceCropHeight) / 2 -
-        (adjust.y * moveScaleY) / adjust.scale;
-      const safeSourceX = clamp(
-        sourceX,
-        0,
-        sourceImage.width - sourceCropWidth,
-      );
-      const safeSourceY = clamp(
-        sourceY,
-        0,
-        sourceImage.height - sourceCropHeight,
-      );
-
-      const tempCanvas = document.createElement("canvas");
-      const tempCtx = tempCanvas.getContext("2d");
-
-      if (!tempCtx) continue;
-
-      tempCanvas.width = targetWidth;
-      tempCanvas.height = targetHeight;
-
-      tempCtx.drawImage(
-        sourceImage,
-        safeSourceX,
-        safeSourceY,
-        Math.min(sourceCropWidth, sourceImage.width),
-        Math.min(sourceCropHeight, sourceImage.height),
-        0,
-        0,
-        targetWidth,
-        targetHeight,
-      );
-
+      const frameWidth = previewSizes[i]?.width || 220;
+      const frameHeight = previewSizes[i]?.height || frameWidth * (3.4 / 4.3);
       ctx.save();
-      ctx.translate(targetWidth / 2, targetHeight / 2);
+      ctx.translate(targetWidth / 2 + adjust.x * targetWidth / frameWidth, targetHeight / 2 + adjust.y * targetHeight / frameHeight);
+      ctx.scale(adjust.scale * extraScale, adjust.scale * extraScale);
       ctx.rotate(((adjust.rotate + extraRotate) * Math.PI) / 180);
-      ctx.drawImage(tempCanvas, -targetWidth / 2, -targetHeight / 2);
+      ctx.drawImage(sourceImage,
+        -targetWidth / 2 - cell.x * targetWidth / cell.width,
+        -targetHeight / 2 - cell.y * targetHeight / cell.height,
+        sourceImage.width * targetWidth / cell.width,
+        sourceImage.height * targetHeight / cell.height);
       ctx.restore();
 
       enhanceRenderedCut(canvas);
@@ -806,60 +536,18 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
 
   const handleShareGif = async () => {
     if (!gifUrl) return;
-
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    if (!isMobile) {
-      alert(
-        "PC 브라우저에서는 GIF 파일 공유가 불안정해요.\n스마트폰에서 공유하거나, 보관함의 다운로드 기능을 이용해주세요.",
-      );
-      return;
-    }
-
-    const appUrl = window.location.origin;
-    const shareText = `${memo || "내짤4짤에서 만든 움직이는 네컷 추억 ✨"}
-
-너도 만들어봐 👉 ${appUrl}`;
-
     try {
-      const response = await fetch(gifUrl);
-      const blob = await response.blob();
-
-      const file = new File([blob], "naezzal4zzal.gif", {
-        type: "image/gif",
-      });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: "내짤4짤",
-          text: shareText,
-        });
-
-        increaseShareCount();
-        return;
-      }
-
-      if (navigator.share) {
-        await navigator.share({
-          title: "내짤4짤",
-          text: shareText,
-          url: appUrl,
-        });
-
-        increaseShareCount();
-        return;
-      }
-
-      await navigator.clipboard.writeText(shareText);
-      alert("앱 링크와 문구를 복사했어요 💌");
+      const shared = await shareGif(gifUrl, memo || "내짤4짤에서 만든 움직이는 추억");
+      if (shared) increaseShareCount();
+      else alert("움짤을 다운로드했어요. 내려받은 파일을 친구에게 보내주세요.");
     } catch (error) {
-      console.error(error);
-      alert("공유를 취소했거나 사용할 수 없는 브라우저예요.");
+      if (error instanceof Error && error.name === "AbortError") return;
+      alert("공유를 완료하지 못했어요. 보관함에 저장한 뒤 다시 시도해주세요.");
     }
   };
 
   const handleSaveToGallery = async () => {
+    if (isSaving) return;
     if (!gifUrl) {
       alert("아직 저장할 GIF가 없어요.");
       return;
@@ -868,19 +556,16 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     const currentStyleName = currentGifStyleName || "기본 GIF";
 
     try {
-      const alreadySaved = await hasSameGalleryItem(memo, currentStyleName);
-
-      if (alreadySaved) {
-        alert("이 스타일은 이미 보관함에 저장되어 있어요 💗");
-        return;
-      }
-
-      await saveGalleryItem(gifUrl, memo, currentStyleName);
+      if (savedGif === gifUrl) { alert("이 움짤은 이미 저장했어요."); return; }
+      setIsSaving(true);
+      const saved = await saveGalleryItem(gifUrl, memo, currentStyleName);
+      URL.revokeObjectURL(saved.gifUrl);
+      setSavedGif(gifUrl);
       alert("내 보관함에 저장했어요 💗");
     } catch (error) {
       console.error(error);
-      alert("보관함에 저장하지 못했어요.");
-    }
+      alert("보관함에 저장하지 못했어요. 기기의 남은 공간을 확인해주세요.");
+    } finally { setIsSaving(false); }
   };
 
   return (
@@ -914,7 +599,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
             minHeight: "34px",
           }}
         >
-          {status === "loading" ? (
+          {useAI === null ? "네 컷 사진 준비" : status === "loading" ? (
             <>
               이미지 추출 중
               <LoadingDots />
@@ -922,7 +607,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
           ) : status === "error" ? (
             "추출 실패"
           ) : (
-            "추출된 네 컷"
+            status === "fallback" ? "직접 맞추기 · 임시 배치" : "AI가 찾은 네 컷"
           )}
         </h2>
 
@@ -941,9 +626,23 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
             fontWeight: 600,
           }}
         >
-          {message}
+          {useAI === null ? "자동으로 찾거나, 직접 테두리를 맞출 수 있어요." : message}
         </div>
 
+        {useAI === null && (
+          <div style={{ padding: 16, background: "#fff4f8", borderRadius: 16, lineHeight: 1.7 }}>
+            <strong>네 컷을 어떻게 찾을까요?</strong>
+            <p>AI 자동 인식을 선택하면 이 사진 한 장을 분석 서버와 OpenAI에 보내 사진의 위치를 찾습니다. 메모와 보관함은 보내지 않아요. 전송을 원하지 않으면 직접 맞추기를 선택해주세요.</p>
+            <button onClick={() => setUseAI(true)} style={primarySubButtonStyle}>사진 전송에 동의하고 AI로 찾기</button>
+            <button onClick={() => setUseAI(false)} style={secondaryButtonStyle}>사진 전송 없이 직접 맞추기</button>
+          </div>
+        )}
+        {useAI !== null && status === "loading" && <button onClick={() => { setUseAI(false); }} style={smallButtonStyle}>AI 기다리지 않고 직접 맞추기</button>}
+        {sourceUrl && cells.length > 0 && (
+          <CropSelector sourceUrl={sourceUrl} sourceSize={sourceSize} cells={cells}
+            onChange={(next) => { setCells(next); resetAllAdjusts(); setGifUrl(null); }}
+            onLayoutChange={changeLayout} />
+        )}
         {sourceUrl && cells.length > 0 && (
           <>
             <div
@@ -963,6 +662,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
                   onChange={(next) => updateAdjust(index, next)}
                   onSizeChange={(size) => {
                     setPreviewSizes((prev) => {
+                      if (prev[index]?.width === size.width && prev[index]?.height === size.height) return prev;
                       const next = [...prev];
                       next[index] = size;
                       return next;
@@ -998,7 +698,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
             <textarea
               className="memo-textarea"
               value={memo}
-              onChange={(event) => setMemo(event.target.value)}
+              onChange={(event) => { setMemo(event.target.value); setGifUrl(null); }}
               placeholder="예) 지은이랑 찍은 봄날의 네컷"
               maxLength={80}
               style={{
@@ -1223,8 +923,8 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
               }}
             />
 
-            <button onClick={handleSaveToGallery} style={saveButtonStyle}>
-              저장하기
+            <button onClick={handleSaveToGallery} disabled={isSaving} style={saveButtonStyle}>
+              {isSaving ? "저장 중..." : "보관함에 저장하기"}
             </button>
 
             <button onClick={handleShareGif} style={shareButtonStyle}>
@@ -1250,7 +950,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
             letterSpacing: "0.2px",
           }}
         >
-          Powered by AI extraction
+          내 사진으로 만드는 움직이는 네컷
         </div>
 
         {status !== "error" && (
@@ -1435,13 +1135,12 @@ async function enhanceImage(imageUrl: string): Promise<string> {
 
   if (!ctx) return imageUrl;
 
-  const maxWidth = 1600;
-  const scale = image.width > maxWidth ? maxWidth / image.width : 1;
+  const scale = Math.min(1, 1600 / Math.max(image.width, image.height));
 
   canvas.width = Math.round(image.width * scale);
   canvas.height = Math.round(image.height * scale);
 
-  ctx.filter = "brightness(1.08) contrast(1.14) saturate(1.08)";
+  ctx.filter = "none";
   ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
   ctx.filter = "none";
 
@@ -1534,14 +1233,6 @@ function sharpenImageData(imageData: ImageData, amount = 0.18): ImageData {
   }
 
   return output;
-}
-
-function loadImage(imageUrl: string): Promise<HTMLImageElement> {
-  return new Promise((resolve) => {
-    const image = new Image();
-    image.src = imageUrl;
-    image.onload = () => resolve(image);
-  });
 }
 
 function roundRect(

@@ -35,7 +35,7 @@ export async function detectFaceBasedCells(
     return [];
   }
 
-  const faces: FaceBox[] = detections.map((detection: any) => {
+  const faces: FaceBox[] = detections.map((detection) => {
     const box = detection.box;
     return {
       x: box.x,

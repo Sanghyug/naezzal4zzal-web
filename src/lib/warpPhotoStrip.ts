@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Legacy OpenCV module; not imported by the app. */
 export async function warpPhotoStrip(imageUrl: string): Promise<string> {
   return new Promise((resolve) => {
     const image = new Image();

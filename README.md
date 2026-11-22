@@ -1,73 +1,73 @@
-# React + TypeScript + Vite
+# 내짤4짤
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+종이 네컷사진을 불러와 네 장의 사진을 각각 맞추고, 움직이는 GIF로 저장하는 앱입니다.
+현재 단계: 안드로이드·아이폰 출시를 위한 수정본. **아직 앱스토어에 제출할 상태는 아닙니다.**
 
-Currently, two official plugins are available:
+## 이번에 바꾼 점
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- 인화지 전체를 등분하던 AI 요청을 개별 사진 네 장의 위치 요청으로 변경했습니다.
+- AI 결과를 정해진 형식으로 받고, 사진 밖 좌표·겹치는 좌표를 검사합니다.
+- 기본 분석 모델은 gpt-5.4이며 서버 환경변수로 바꿀 수 있습니다. 사용자가 제공한 세로형 사진 한 장에서 mini와 비교했고, 실제 경계 보완을 더한 GPT-5.4 결과로 네 컷 추출과 GIF 생성을 확인했습니다. 다른 사진에서의 정확도는 추가 확인이 필요합니다.
+- 사진마다 외부 AI 전송 여부를 선택합니다. 직접 편집은 외부 전송 없이 동작합니다.
+- 원본 위에서 네 컷을 이동·크기 조절할 수 있습니다. 세로형과 2×2 기본 배치를 지원합니다.
+- 통신 실패, 기다림 취소, 이미지 로드 오류 뒤에도 복구할 수 있습니다.
+- 편집 화면의 반복 갱신과 다른 사진 저장 차단 문제를 수정했습니다.
+- 저장 완료는 데이터베이스의 실제 저장 종료 후 표시합니다.
+- 아이폰용 Capacitor 프로젝트와 기본 파일 저장·공유 연결을 추가했습니다.
 
-## React Compiler
+## 작업 폴더
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+사용자가 지정한 현재 작업 폴더는 D:\Codex\naezzal4zzal-app 입니다. GitHub main ca96fe0d4e100608d6bbff394248514d65178de1을 새로 받은 뒤 이번 수정본을 적용했습니다. 기존 C:\Users\parki\naezzal4zzal-app은 변경하지 않았습니다. 예전 프로젝트 설명은 PREVIOUS_PROJECT_NOTES.md에 보존했습니다. 그 문서의 예전 작업 경로 지시는 현재 작업 경로가 아닙니다.
 
-## Expanding the ESLint configuration
+안드로이드와 아이폰은 같은 TypeScript 화면과 사진 처리 코드를 사용하고, Capacitor가 각 기기의 저장·공유 기능을 연결합니다. 앱인토스 .ait 제작은 별도 대상입니다.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 컴퓨터에서 확인
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Node.js 24 기준입니다.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+npm ci
+npm run dev
+npm test
+npm run lint
+npm run build
+npm run test:e2e
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+브라우저 검사는 설치된 Google Chrome을 사용합니다. 가짜 네컷 이미지를 만들어 GIF 생성·저장·재열기와 AI 실패 복구를 검사합니다. AI 응답은 검사 중에만 가짜 응답으로 바꾸므로 유료 AI 호출은 없습니다.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+기본 Vite 서버만으로는 AI 서버 함수가 실행되지 않습니다. 현재 작업 컴퓨터에서는 .env.local의 VISION_TEST_DEPLOYMENT와 기존 Vercel 로그인을 이용하는 개발용 연결로 Preview API를 호출합니다. 키 값은 서버에만 있습니다. 다른 컴퓨터에서는 먼저 Vercel 연결과 개발용 설정이 필요하며, 직접 편집은 AI 연결 없이도 가능합니다.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## AI 서버 설정
+
+.env.example은 설정 이름 안내입니다. 키를 소스코드나 VITE_ 변수에 넣지 마세요. 실제 키는 배포 서버의 환경변수에만 설정합니다.
+
+- OPENAI_API_KEY: 서버에서만 사용하는 키
+- OPENAI_VISION_MODEL: 기본 gpt-5.4
+- ALLOWED_ORIGINS: 허용할 웹 주소와 capacitor://localhost
+- VITE_API_BASE_URL: 아이폰 앱에서 사용할 HTTPS 분석 서버 주소. 아이폰 배포용 제작 전에 설정해야 합니다.
+
+기존 서버는 예전 응답 형식을 사용하므로 새 앱의 AI 분석에는 업데이트된 서버가 필요합니다. 수정본은 Preview에 배포해 실제 사진으로 확인했으며, 기존 공개 앱 주소는 전환하지 않았습니다. 사진은 요청당 4MB 이하, 긴 변 1600px 이하로 제한합니다. AI 응답은 앱과 서버 양쪽에서 검사합니다. CORS는 비용 남용 방지 수단이 아니므로 공개 운영 전에 서버 측 요청 횟수 제한과 지출 한도를 설정해야 합니다.
+
+## 아이폰 앱
+
+```sh
+npm run ios:sync
+npm run ios:open
 ```
+
+첫 명령은 웹 파일을 만들고 아이폰 프로젝트로 복사합니다. 두 번째 명령과 실제 iOS 제작은 macOS와 Xcode가 필요합니다. Windows에서 만든 프로젝트를 Mac으로 옮긴 후 npm ci와 ios:sync를 실행할 수 있습니다. 현재 개발자 서명·아이폰 실기기 테스트·TestFlight 업로드는 진행하지 않았습니다.
+
+앱 식별자는 임시로 com.bamnamulab.naezzal4zzal을 사용합니다. 소유자의 개발자 계정과 사용 가능 여부를 확인한 뒤 확정하세요. 카메라·사진 선택 설명과 파일시각 접근 사유를 추가했습니다. iOS 공유 메뉴는 GIF를 공유하거나 파일로 저장하기 위한 기능이며, 사진 앱에 GIF가 실제로 저장되고 재생되는지는 실기기 확인이 필요합니다.
+
+[출시 전에 남은 일](./RELEASE_CHECKLIST.md)
+
+## 안드로이드
+
+`npm run android:sync`로 공통 화면을 안드로이드 프로젝트에 복사하고, `npm run android:open`으로 Android Studio에서 엽니다. 현재 프로젝트 생성과 동기화만 확인했으며 APK 제작·서명과 실제 휴대폰 저장·공유는 아직 검사하지 않았습니다.
+
+작업 위치와 예전 AI 연결 점검 결과: [WORKSPACE_STATUS.md](./WORKSPACE_STATUS.md)
+
+## 다음 작업
+
+[NEXT_SESSION.md](./NEXT_SESSION.md)에 이번 검사 결과와 다음 진행 순서를 기록했습니다. 개인 사진·추출 이미지·GIF·영상 기록은 로컬 artifacts 폴더에만 보관하며 GitHub와 Vercel 배포에서 제외합니다.

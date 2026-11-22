@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 import { useEffect, useState } from "react";
 
 type StartScreenProps = {
@@ -13,12 +14,12 @@ function StartScreen({
   onGalleryClick,
   onShareAppClick,
 }: StartScreenProps) {
-  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [installPrompt, setInstallPrompt] = useState<(Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> }) | null>(null);
 
   useEffect(() => {
-    const handler = (event: any) => {
+    const handler = (event: Event) => {
       event.preventDefault();
-      setInstallPrompt(event);
+      setInstallPrompt(event as Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> });
     };
 
     window.addEventListener("beforeinstallprompt", handler);
@@ -214,6 +215,7 @@ function StartScreen({
             </button>
 
             <button
+              hidden={Capacitor.isNativePlatform()}
               onClick={handleInstallApp}
               style={{
                 width: "100%",

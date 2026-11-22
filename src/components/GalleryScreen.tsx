@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { shareGif } from "../lib/shareGif";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   deleteGalleryItem,
   getGalleryItems,
@@ -16,14 +17,14 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
   );
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    loadItems();
-  }, []);
-
-  const loadItems = async () => {
+  const urlsRef = useRef<string[]>([]);
+  const activeRef = useRef(true);
+  const loadItems = useCallback(async () => {
     try {
-      setIsLoading(true);
       const savedItems = await getGalleryItems();
+      if (!activeRef.current) { savedItems.forEach(item => URL.revokeObjectURL(item.gifUrl)); return; }
+      urlsRef.current.forEach(url => URL.revokeObjectURL(url));
+      urlsRef.current = savedItems.map(item => item.gifUrl);
       setItems(savedItems);
     } catch (error) {
       console.error(error);
@@ -31,7 +32,14 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+  useEffect(() => {
+    activeRef.current = true;
+    // IndexedDB results arrive asynchronously; there is no synchronous state update here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadItems();
+    return () => { activeRef.current = false; urlsRef.current.forEach(url => URL.revokeObjectURL(url)); };
+  }, [loadItems]);
 
   const handleDelete = async (id: string) => {
     const ok = window.confirm("이 내짤을 보관함에서 삭제할까요?");
@@ -48,55 +56,12 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
   };
 
   const handleShare = async (item: SavedNaezzalItem) => {
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    if (!isMobile) {
-      alert(
-        "PC 브라우저에서는 GIF 파일 공유가 불안정해요.\n스마트폰에서 공유하거나, 다운로드 기능을 이용해주세요.",
-      );
-      return;
-    }
-
-    try {
-      const response = await fetch(item.gifUrl);
-      const blob = await response.blob();
-
-      const file = new File([blob], "naezzal4zzal.gif", {
-        type: "image/gif",
-      });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: "내짤4짤",
-          text: item.memo,
-          files: [file],
-        });
-        return;
-      }
-
-      if (navigator.share) {
-        await navigator.share({
-          title: "내짤4짤",
-          text: `${item.memo}\n내짤4짤에서 만든 움직이는 네컷 추억.`,
-          url: window.location.origin,
-        });
-        return;
-      }
-
-      alert("이 브라우저에서는 공유 기능을 사용할 수 없어요.");
-    } catch (error) {
-      console.error(error);
-      alert("공유하는 중 문제가 생겼어요.");
-    }
+    try { await shareGif(item.gifUrl, item.memo); }
+    catch (error) { if (!(error instanceof Error && error.name === "AbortError")) alert("공유하지 못했어요. 다시 시도해주세요."); }
   };
-
-  const handleDownload = (item: SavedNaezzalItem) => {
-    const link = document.createElement("a");
-    link.href = item.gifUrl;
-    link.download = "naezzal4zzal.gif";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+  const handleDownload = async (item: SavedNaezzalItem) => {
+    try { await shareGif(item.gifUrl, item.memo); }
+    catch { alert("파일을 저장하지 못했어요. 다시 시도해주세요."); }
   };
 
   const formatDate = (createdAt: string) => {
@@ -149,11 +114,11 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
             color: "#555",
           }}
         >
-          💡 내짤4짤은 서버 없이 동작하는 웹앱입니다.
+          💡 완성한 움짤은 이 기기에 보관됩니다.
           <br />
-          저장된 내짤은 이 기기의 브라우저 안에만 보관됩니다.
+          AI 자동 인식을 선택할 때만 분석용 사진을 서버와 OpenAI로 보냅니다.
           <br />
-          브라우저 데이터를 삭제하거나 기기를 변경하면 사라질 수 있으니, 소중한
+          앱을 삭제하거나 브라우저 데이터를 지우거나 기기를 변경하면 사라질 수 있으니, 소중한
           추억은 반드시 <strong>기기에 저장하기</strong>를 이용해 사진첩 또는
           다운로드 폴더에 보관해주세요.
         </div>
@@ -401,7 +366,7 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
                 onClick={() => handleDownload(selectedItem)}
                 style={modalLavenderButtonStyle}
               >
-                다운로드
+                기기에 저장하기
               </button>
 
               <button

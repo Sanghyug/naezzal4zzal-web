@@ -54,7 +54,7 @@ function CameraGuide({ onCapture, onCancel }: CameraGuideProps) {
     };
   }, []);
 
-  const stopCamera = () => {
+  function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
   };
