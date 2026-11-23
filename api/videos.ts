@@ -50,7 +50,7 @@ export default async function handler(req: Request, res: Response) {
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "GET" && req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   const key = process.env.HEYGEN_API_KEY, code = process.env.VIDEO_TEST_CODE;
-  if (req.method === "GET" && req.query?.action === "config") return res.status(200).json({ available: Boolean(key && code), duration: 5, resolution: "768p" });
+  if (req.method === "GET" && req.query?.action === "config") return res.status(200).json({ available: Boolean(key && code), duration: 5, resolution: "480p" });
   if (!key || !code) return res.status(503).json({ error: "영상 제작 연결을 준비하고 있어요. GIF는 지금 만들 수 있어요." });
   try {
     if (req.method === "GET") {
@@ -92,7 +92,7 @@ export default async function handler(req: Request, res: Response) {
     const response = await fetch(api, {
       method: "POST", headers: { "Content-Type": "application/json", "x-api-key": key, "Idempotency-Key": "naezzal-" + sign(requestId + ":" + variant, key) },
       signal: AbortSignal.timeout(50000),
-      body: JSON.stringify({ model: "heygen-video-1", mode: "reference_to_video", prompt: variant === "drawing" ? drawingPrompt : memoryPrompt, reference_images: images, duration: 5, resolution: "768p", aspect_ratio: "4:3", prompt_enhancement: "disabled" }),
+      body: JSON.stringify({ model: "heygen-video-1", mode: "reference_to_video", prompt: variant === "drawing" ? drawingPrompt : memoryPrompt, reference_images: images, duration: 5, resolution: "480p", aspect_ratio: "4:3", prompt_enhancement: "disabled" }),
     });
     const body = await response.json();
     if (!response.ok) return res.status(response.status === 409 ? 409 : 502).json({ error: failure(response.status, body.error?.code) });

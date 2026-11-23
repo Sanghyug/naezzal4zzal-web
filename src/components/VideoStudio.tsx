@@ -103,6 +103,7 @@ export default function VideoStudio({ ready, getImages, memo }: { ready: boolean
     <button disabled={!ready||busy} onClick={()=>setOpen(v=>!v)} style={{...button,background:"#b88cff",boxShadow:"0 8px 20px rgba(184,140,255,.25)",opacity:ready?1:.6}}>🎬 AI 영상 만들기</button>
     {open && <div style={{marginTop:12,padding:16,borderRadius:20,background:"#faf3ff",border:"1px solid #ead8ff",color:"#6f5961",lineHeight:1.7}}>
       <h3 style={{marginTop:0,color:"#9862d4"}}>네 컷이 살아나는 5초 영상</h3>
+      <p style={{fontSize:12,color:"#9862d4"}}>스마트폰 감상용 480p · 5초 영상</p>
       <p style={{fontSize:13}}>맞춘 네 사진을 참고해 작은 손인사와 하트 동작을 만들어요. AI가 새로 만든 영상이므로 원본과 표정·손 모양 등이 달라질 수 있어요.</p>
       {!token && <>
         <fieldset disabled={busy} style={{border:"1px solid #e1c7f4",borderRadius:14,padding:12,margin:"12px 0"}}>
