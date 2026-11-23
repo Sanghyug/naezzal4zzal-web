@@ -124,17 +124,17 @@ test('completed MP4 plays, downloads, persists in gallery, and shares as a video
  await page.screenshot({path:'test-results/video-gallery.png',fullPage:true});
 });
 
-test('animal variant is optional, asks for consent again, and submits the four photos with its own choice',async({page})=>{
+test('drawing variant is optional, asks for consent again, and submits the four photos with its own choice',async({page})=>{
  let received;
  await page.route('**/api/videos**',async route=>{
   if(route.request().url().includes('action=config'))return route.fulfill({json:{available:true}});
-  if(route.request().method()==='POST'){received=route.request().postDataJSON();return route.fulfill({status:202,json:{token:'animals-token',status:'pending'}});}
-  return route.fulfill({json:{status:'processing',variant:'animals'}});
+  if(route.request().method()==='POST'){received=route.request().postDataJSON();return route.fulfill({status:202,json:{token:'drawing-token',status:'pending'}});}
+  return route.fulfill({json:{status:'processing',variant:'drawing'}});
  });
  await upload(page);await page.getByRole('button',{name:'🎬 AI 영상 만들기'}).click();
  await expect(page.getByRole('radio',{name:'기본 · 인물 그대로'})).toBeChecked();
  await page.getByLabel('사무실 테스트 코드').fill('office-test');await page.getByRole('checkbox').check();
- await page.getByRole('radio',{name:'귀여운 강아지 변신'}).check();await expect(page.getByRole('checkbox')).not.toBeChecked();
+ await page.getByRole('radio',{name:'2D 펜화 애니메이션'}).check();await expect(page.getByRole('checkbox')).not.toBeChecked();
  await page.getByRole('checkbox').check();await page.getByRole('button',{name:'동의하고 5초 영상 제작'}).click();
- await expect(page.getByText('✨ 영상 제작 중')).toBeVisible();expect(received.variant).toBe('animals');expect(received.images).toHaveLength(4);
+ await expect(page.getByText('✨ 영상 제작 중')).toBeVisible();expect(received.variant).toBe('drawing');expect(received.images).toHaveLength(4);
 });

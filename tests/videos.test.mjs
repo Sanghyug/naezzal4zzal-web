@@ -34,8 +34,8 @@ test('video creation uses four references, server-only key and stable idempotenc
   assert.equal(requests[0].options.headers['Idempotency-Key'],requests[1].options.headers['Idempotency-Key']);
   assert.equal(requests[0].options.headers['x-api-key'],'test-key');
   const payload=JSON.parse(requests[0].options.body);assert.equal(payload.reference_images.length,4);assert.equal(payload.duration,5);assert.equal(payload.mode,'reference_to_video');assert.match(payload.prompt,/photorealistic/);assert.equal(payload.prompt_enhancement,'disabled');
-  await invoke({body:{images:[image,image,image,image],consent:true,accessCode:'office-test',requestId:'12345678-1234-1234-1234-123456789abc',variant:'animals'}});
-  assert.match(JSON.parse(requests[2].options.body).prompt,/complete furry canine body/);assert.equal(JSON.parse(requests[2].options.body).prompt_enhancement,'disabled');assert.notEqual(requests[0].options.headers['Idempotency-Key'],requests[2].options.headers['Idempotency-Key']);
+  await invoke({body:{images:[image,image,image,image],consent:true,accessCode:'office-test',requestId:'12345678-1234-1234-1234-123456789abc',variant:'drawing'}});
+  assert.match(JSON.parse(requests[2].options.body).prompt,/hand-drawn 2D pen-and-ink/);assert.equal(JSON.parse(requests[2].options.body).prompt_enhancement,'disabled');assert.notEqual(requests[0].options.headers['Idempotency-Key'],requests[2].options.headers['Idempotency-Key']);
   assert.ok(!JSON.stringify(a.body).includes('test-key'));
   const result=await invoke({method:'GET',headers:{authorization:'Bearer '+a.body.token}});assert.equal(result.body.status,'completed');assert.equal(result.body.videoUrl,'https://example.com/result.mp4');
   const signedToken=a.body.token;const tampered=(signedToken[0]==='a'?'b':'a')+signedToken.slice(1);

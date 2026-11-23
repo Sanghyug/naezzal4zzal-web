@@ -12,7 +12,7 @@ export default function VideoStudio({ ready, getImages, memo }: { ready: boolean
   const [available, setAvailable] = useState<boolean | null>(null);
   const [accessCode, setAccessCode] = useState("");
   const [consent, setConsent] = useState(false);
-  const [variant, setVariant] = useState<"memory" | "animals">("memory");
+  const [variant, setVariant] = useState<"memory" | "drawing">("memory");
   const [token, setToken] = useState(storedToken);
   const [status, setStatus] = useState("");
   const [url, setUrl] = useState("");
@@ -49,7 +49,7 @@ export default function VideoStudio({ ready, getImages, memo }: { ready: boolean
           throw new Error(result.error||"영상 상태를 확인하지 못했어요.");
         }
         setStatus(result.status);
-        if(result.variant==="memory"||result.variant==="animals")setVariant(result.variant);
+        if(result.variant==="memory"||result.variant==="drawing")setVariant(result.variant);
         if(result.status==="completed"){
           setSourceUrl(result.videoUrl); setMessage("5초 영상이 완성됐어요. 저장할 파일을 준비하고 있어요.");
           const media=await fetch(base+"/api/videos?action=file",{headers:{Authorization:"Bearer "+token},signal:controller.signal});
@@ -108,8 +108,8 @@ export default function VideoStudio({ ready, getImages, memo }: { ready: boolean
         <fieldset disabled={busy} style={{border:"1px solid #e1c7f4",borderRadius:14,padding:12,margin:"12px 0"}}>
           <legend style={{fontWeight:800,color:"#9862d4"}}>어떤 영상으로 만들까요?</legend>
           <label style={{display:"block",padding:"8px 0"}}><input type="radio" name="video-variant" value="memory" checked={variant==="memory"} onChange={()=>{setVariant("memory");setConsent(false);}} /> 기본 · 인물 그대로</label>
-          <label style={{display:"block",padding:"8px 0"}}><input type="radio" name="video-variant" value="animals" checked={variant==="animals"} onChange={()=>{setVariant("animals");setConsent(false);}} /> 귀여운 강아지 변신</label>
-          <p style={{fontSize:12,marginBottom:0}}>{variant==="animals"?"눈매·얼굴 윤곽·표정의 느낌을 살린 귀여운 강아지 캐릭터로 몸 전체를 바꿔요. 사람의 머리카락이나 동물 탈 대신 강아지의 털·주둥이·앞발로 표현해요.":"네 사진 속 인물을 유지해 자연스러운 5초 영상을 만들어요."}</p>
+          <label style={{display:"block",padding:"8px 0"}}><input type="radio" name="video-variant" value="drawing" checked={variant==="drawing"} onChange={()=>{setVariant("drawing");setConsent(false);}} /> 2D 펜화 애니메이션</label>
+          <p style={{fontSize:12,marginBottom:0}}>{variant==="drawing"?"원래 인물의 얼굴·머리 모양·옷을 살린 가는 펜선과 옅은 수채색의 2D 그림으로 만들어요. 작은 손인사와 하트 동작을 애니메이션으로 표현해요.":"네 사진 속 인물을 유지해 자연스러운 5초 영상을 만들어요."}</p>
           <p style={{fontSize:12,marginBottom:0}}>두 방식 모두 원래 포즈 → 작은 손인사 → 하트 순서로 움직여요. 별도로 만드는 영상이라 동작과 타이밍이 완전히 같지는 않을 수 있어요.</p>
         </fieldset>
         {available===null && <p role="status">영상 연결을 확인하고 있어요.</p>}
@@ -132,7 +132,7 @@ export default function VideoStudio({ ready, getImages, memo }: { ready: boolean
         <video src={url} controls playsInline aria-label="완성된 AI 영상" style={{width:"100%",borderRadius:16,marginTop:12}} />
         <button disabled={saving||saved} onClick={async()=>{
           if(saving||saved)return;setSaving(true);
-          try{const item=await saveGalleryItem(url,memo,variant==="animals"?"강아지 변신 5초 영상":"기본 5초 영상","video");URL.revokeObjectURL(item.gifUrl);setSaved(true);setMessage("영상도 내 보관함에 저장했어요 💗");}
+          try{const item=await saveGalleryItem(url,memo,variant==="drawing"?"2D 펜화 5초 영상":"기본 5초 영상","video");URL.revokeObjectURL(item.gifUrl);setSaved(true);setMessage("영상도 내 보관함에 저장했어요 💗");}
           catch{setMessage("보관함에 저장하지 못했어요. 기기에 저장하거나 다시 시도해주세요.");}finally{setSaving(false);}
         }} style={{...button,background:"#ff4f87",marginTop:12}}>{saved?"보관함 저장 완료":saving?"저장 중...":"영상 보관함에 저장하기"}</button>
         <ShareControls url={url} text={memo||"내짤4짤에서 만든 움직이는 추억"} video />
