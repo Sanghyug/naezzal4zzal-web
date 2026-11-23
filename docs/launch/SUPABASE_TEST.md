@@ -1,5 +1,28 @@
 # Supabase 테스트 연결 — 2026-11-24
 
+## 현재 배포 검증 결과
+
+- 테스트 주소: https://naezzal4zzal-b0lcm7ksl-sanghyug-park-s-projects.vercel.app
+- Vercel Preview, 브랜치 `codex/launch-credits-20261123`. 운영 배포 아님.
+- 사용자가 입력한 두 Secret은 내려받지 않았다. 나머지 공개 키·독립 난수·테스트 플래그를 브랜치 Preview에만 등록했다.
+- 실제 PostgreSQL 장부 읽기/트랜잭션 성공. 신형 서버 키로 두 버킷의 합성 파일 쓰기·읽기·삭제와 공개 URL 접근 차단 성공.
+- 시험 파일은 모두 삭제했다. 사용자 파일·회원·장부 초기화 없음.
+- 실제 `paymentMode=mock`, `videoMode=mock`, `demo=false`. 유료 영상과 기존 유료 사진 분석 경로 차단.
+- Kakao Enabled=true, Google=false 재조회 확인. 실제 회원 로그인·가입 선물은 소유자의 로그인 후 검증해야 한다.
+- 일회성 검증 경로는 Preview·test·mock·독립 비밀값으로 보호되며 비밀값 없는 호출은 거부했다. 회원 인증 우회/가짜 회원 생성 기능은 없다.
+
+### 소유자가 직접 확인할 순서
+
+1. Supabase Authentication → URL Configuration → Redirect URLs에 위 테스트 원본 주소의 `/?auth=return`을 정확히 추가·저장한다. Kakao Developers의 콜백은 기존 Supabase `/auth/v1/callback` 그대로 유지한다.
+2. 테스트 주소를 연다. Vercel 보호 화면이 보이면 배포 소유자 계정으로 로그인한다.
+3. 처음에는 외부 기본 브라우저에서 `내 크레딧 · 로그인` → `카카오로 시작하기`를 누른다. 이메일 없이 가입·복귀한다.
+4. 신규 회원은 5크레딧, 새로고침·로그아웃·같은 카카오 계정 재로그인 뒤에도 총 5인지 확인한다. 원래 사용·충전 내역이 있다면 잔액 대신 가입 선물 내역이 정확히 한 건인지 확인한다.
+5. 기본 GIF 제작은 무료다. 사진 편집 후 로그인 취소·복귀 시 사진·편집 상태가 유지되는지 확인한다.
+6. 시험용 AI 제작 버튼은 실제 AI 대신 모의 영상만 생성하며 크레딧 예약·사용과 비공개 결과 저장을 시험한다. 실제 결제는 하지 않는다.
+7. 기본 브라우저 성공 뒤 카카오톡 인앱에서도 같은 창으로 왕복한다. Vercel 보호 로그인과 Supabase 복귀 주소 허용이 먼저 필요하다.
+
+원격 장부의 회원·가입 선물 건수는 소유자 로그인 후 읽기 전용으로 확인한다. 키·카카오 비밀번호를 채팅으로 받지 않는다.
+
 대상은 상혁님이 만든 **naezzal4zzal-test**, 서울 프로젝트다.
 
 - 공개 URL: https://cvwikgszywzlvadsvvvq.supabase.co

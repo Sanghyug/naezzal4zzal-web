@@ -1,5 +1,14 @@
 # 이어서 작업할 내용
 
+## 실제 Supabase Preview 연결 확인 — 2026-11-24
+
+- 사용자가 입력한 두 Secret은 그대로 서버에 두고, 공개 키·독립 난수·mock/test 차단 플래그를 해당 브랜치 Preview에 등록했다.
+- 배포 dpl_EUe6mc2F6MtUZwC2G3n2AQ6AnJ3m: https://naezzal4zzal-b0lcm7ksl-sanghyug-park-s-projects.vercel.app
+- 실제 DB 트랜잭션·sb_secret 키로 두 비공개 버킷 저장/조회/삭제·공개 읽기 차단 성공. 무인증 검사 요청·기존 유료 영상·사진 분석 차단 확인.
+- Kakao=true, Google=false. 실제 카카오 왕복과 가입5 중복 방지는 사용자 로그인이 남음. Supabase Redirect URLs에 위 원본의 /?auth=return 등록 필요. SUPABASE_TEST.md에 직접 확인 순서.
+- api/launch의 previewIntegrationCheck는 Preview+test+mock+비밀값으로 보호된 합성 파일 검사 전용. 사용자 인증 우회나 회원 생성은 하지 않음. 출력에 키/사용자 정보 없음.
+- 검사 결과는 artifacts/launch/supabase-preview-verification.json, 검사 전용 난수는 비공개 artifacts/launch/preview-check-secret. Supabase Secret/DB 연결 값은 로컬에 없음.
+
 ## 작업 브랜치 원격 등록 — 2026-11-24
 
 - 사용자 요청으로 Vercel 연결 Git 저장소를 확인: Sanghyug/naezzal4zzal-web, 운영 브랜치 main.

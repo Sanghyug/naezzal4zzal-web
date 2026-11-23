@@ -33,7 +33,7 @@ export default async function handler(req: Request, res: Response) {
     const requestedAction = String(
       req.query?.action || req.body?.action || "config",
     );
-    if (requestedAction === "previewMediaCheck") {
+    if (["previewMediaCheck", "previewIntegrationCheck"].includes(requestedAction)) {
       const expected = process.env.LAUNCH_PREVIEW_CHECK,
         auth = req.headers.authorization;
       requireRule(
@@ -44,7 +44,29 @@ export default async function handler(req: Request, res: Response) {
         "미리보기 검사 권한이 필요해요.",
         403,
       );
-      return res.status(200).json(await mediaSmoke());
+      if (requestedAction === "previewMediaCheck")
+        return res.status(200).json(await mediaSmoke());
+      requireRule(process.env.LAUNCH_ENV === "test" && process.env.PAYMENT_MODE === "mock" &&
+        process.env.ENABLE_LIVE_GENERATION === "0", "테스트 설정을 확인해주세요.", 403);
+      const check = await runtime();
+      const config = await check.service.config();
+      requireRule(config.paymentMode === "mock" && config.videoMode === "mock", "모의 모드가 필요해요.", 403);
+      const results: Record<string, boolean> = {};
+      for (const [bucket, ext, type] of [["launch-inputs", "json", "application/json"], ["launch-results", "mp4", "video/mp4"]]) {
+        const key = `preview-check/${randomUUID()}.${ext}`;
+        const bytes = Buffer.from('Synthetic private-storage transport check; no personal files.');
+        try {
+          await check.service.storage.put(bucket, key, bytes, type);
+          results[bucket + "Read"] = (await check.service.storage.get(bucket, key)).equals(bytes);
+          const publicRead = await fetch(`${check.authConfig.url}/storage/v1/object/public/${bucket}/${key}`);
+          results[bucket + "Private"] = !publicRead.ok;
+        } finally {
+          await check.service.storage.remove(bucket, key);
+        }
+        try { await check.service.storage.get(bucket, key); results[bucket + "Deleted"] = false; }
+        catch { results[bucket + "Deleted"] = true; }
+      }
+      return res.status(200).json({ database: true, paymentMode: config.paymentMode, videoMode: config.videoMode, checks: results });
     }
     if (
       requestedAction === "config" &&
