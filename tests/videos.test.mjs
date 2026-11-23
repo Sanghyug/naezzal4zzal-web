@@ -2,6 +2,11 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import handler from '../api/videos.ts';
 const image='data:image/jpeg;base64,/9j/AA==';
+test('launch mode disables office-code creation without contacting the paid provider',async()=>{
+ const previous=process.env.LAUNCH_ENABLED,fetch=globalThis.fetch;let calls=0;
+ try{process.env.LAUNCH_ENABLED='1';globalThis.fetch=async()=>{calls++;throw Error('must not call')};const result=await invoke();assert.equal(result.code,410);assert.equal((await invoke({method:'GET',query:{action:'config'}})).body.available,false);assert.equal(calls,0);}
+ finally{globalThis.fetch=fetch;if(previous===undefined)delete process.env.LAUNCH_ENABLED;else process.env.LAUNCH_ENABLED=previous;}
+});
 async function invoke(overrides={}) {
   const result={code:200,headers:{},body:null};
   const res={setHeader(k,v){result.headers[k]=v},status(c){result.code=c;return this},json(b){result.body=b},end(bytes){result.file=bytes}};

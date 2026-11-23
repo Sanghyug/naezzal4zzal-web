@@ -49,8 +49,11 @@ export default async function handler(req: Request, res: Response) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "GET" && req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  // Once the credit launch is enabled, the former office-code POST must not
+  // bypass authenticated credit reservations. Existing signed downloads remain valid.
+  if (req.method === "POST" && process.env.LAUNCH_ENABLED === "1") return res.status(410).json({ error: "앱을 새로 열고 로그인한 뒤 크레딧으로 제작해주세요." });
   const key = process.env.HEYGEN_API_KEY, code = process.env.VIDEO_TEST_CODE;
-  if (req.method === "GET" && req.query?.action === "config") return res.status(200).json({ available: Boolean(key && code), duration: 5, resolution: "480p" });
+  if (req.method === "GET" && req.query?.action === "config") return res.status(200).json({ available: process.env.LAUNCH_ENABLED !== "1" && Boolean(key && code), duration: 5, resolution: "480p" });
   if (!key || !code) return res.status(503).json({ error: "영상 제작 연결을 준비하고 있어요. GIF는 지금 만들 수 있어요." });
   try {
     if (req.method === "GET") {
