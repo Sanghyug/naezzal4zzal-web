@@ -134,7 +134,7 @@ test('animal variant is optional, asks for consent again, and submits the four p
  await upload(page);await page.getByRole('button',{name:'🎬 AI 영상 만들기'}).click();
  await expect(page.getByRole('radio',{name:'기본 · 인물 그대로'})).toBeChecked();
  await page.getByLabel('사무실 테스트 코드').fill('office-test');await page.getByRole('checkbox').check();
- await page.getByRole('radio',{name:'귀여운 동물 변신'}).check();await expect(page.getByRole('checkbox')).not.toBeChecked();
+ await page.getByRole('radio',{name:'귀여운 강아지 변신'}).check();await expect(page.getByRole('checkbox')).not.toBeChecked();
  await page.getByRole('checkbox').check();await page.getByRole('button',{name:'동의하고 5초 영상 제작'}).click();
  await expect(page.getByText('✨ 영상 제작 중')).toBeVisible();expect(received.variant).toBe('animals');expect(received.images).toHaveLength(4);
 });
