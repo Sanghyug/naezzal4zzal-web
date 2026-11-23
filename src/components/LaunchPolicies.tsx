@@ -13,7 +13,7 @@ export default function LaunchPolicies({ onBack }: { onBack: () => void }) {
         임의의 만료일을 적용하지 않아요.
       </p>
       <p>
-        사진 편집과 기본 GIF는 로그인 없이 이용할 수 있어요. AI 영상은 Google
+        사진 편집과 기본 GIF는 로그인 없이 이용할 수 있어요. AI 영상은 카카오
         로그인 후 제공하며 보통 몇 분이 걸릴 수 있어요. AI가 만든 얼굴·손·동작은
         원본과 다를 수 있어요. 다른 사람 사진은 그 사람의 허락을 받고
         사용해주세요.
@@ -43,7 +43,7 @@ export default function LaunchPolicies({ onBack }: { onBack: () => void }) {
       </p>
       <h3>어떤 정보가 어디로 가나요?</h3>
       <p>
-        Google 로그인을 Supabase 인증으로 확인하고, 계정 식별자·중복 선물 방지용
+        카카오 로그인을 Supabase 인증으로 확인하고, 계정 식별자·중복 선물 방지용
         식별 해시·크레딧 장부·구매·제작·초대 기록을 서버 DB에서 관리해요.
         카드정보는 직접 저장하지 않고 결제대행사 토스페이먼츠가 처리해요.
       </p>

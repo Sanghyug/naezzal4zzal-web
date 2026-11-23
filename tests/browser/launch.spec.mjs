@@ -1,4 +1,28 @@
 import { test, expect } from "@playwright/test";
+// This is an OAuth transport simulation, not a real Kakao account/device test.
+async function simulatedKakao(page, alias, cancel) {
+  await page.route("**/api/launch**", async (route) => {
+    if (route.request().method() === "GET" && route.request().url().includes("action=config")) {
+      const response = await route.fetch();
+      const config = await response.json();
+      return route.fulfill({ json: { ...config, demo: false, auth: { url: "http://127.0.0.1:5173", anon: "public-test-key" } } });
+    }
+    const headers = route.request().headers();
+    if (headers.authorization) headers.authorization = "Bearer demo-" + alias;
+    await route.continue({ headers });
+  });
+  await page.route("**/auth/v1/authorize?**", async (route) => {
+    const u = new URL(route.request().url());
+    expect(u.searchParams.get("provider")).toBe("kakao");
+    expect(u.searchParams.get("scopes")).not.toContain("account_email");
+    expect(u.searchParams.get("code_challenge")).toBeTruthy();
+    await route.fulfill({ status: 302, headers: { location: "http://127.0.0.1:5173/?auth=return&" + (cancel ? "error=access_denied&error_description=cancelled" : "code=test-code") } });
+  });
+  await page.route("**/auth/v1/token?**", (route) => route.fulfill({ json: {
+    access_token: "test-access-token-for-kakao", refresh_token: "test-refresh-token", token_type: "bearer", expires_in: 3600,
+    user: { id: "member-without-email", aud: "authenticated", created_at: new Date().toISOString(), app_metadata: { provider: "kakao" }, user_metadata: {}, identities: [{ provider: "kakao", id: alias }] },
+  } }));
+}
 const unique = () =>
   "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 async function upload(page) {
@@ -135,7 +159,7 @@ test("mock 3900 payment credits exactly ten; unused cancellation restores paid l
     fullPage: true,
   });
 });
-test("anonymous invited GIF completion then signup rewards inviter once; GIF remains downloadable without login", async ({
+test("simulated KakaoTalk invite GIF then email-less Kakao OAuth rewards inviter once and restores GIF", async ({
   browser,
   page,
 }) => {
@@ -160,9 +184,11 @@ test("anonymous invited GIF completion then signup rewards inviter once; GIF rem
     ownerToken,
   );
   const context = await browser.newContext({
+      userAgent: "Mozilla/5.0 Android KAKAOTALK/26.1.0",
       viewport: { width: 390, height: 844 },
     }),
     friend = await context.newPage();
+  await simulatedKakao(friend, unique(), false);
   await friend.goto("http://127.0.0.1:5173/?ref=" + account.invite.code);
   await friend.getByRole("button", { name: "🖼️ 불러오기" }).waitFor();
   const data = await friend.evaluate(() => {
@@ -207,16 +233,46 @@ test("anonymous invited GIF completion then signup rewards inviter once; GIF rem
     .getByRole("button", { name: "GIF 전송에 동의하고 초대 완료 확인" })
     .click();
   await expect(friend.getByText(/GIF 완료를 확인했어요/)).toBeVisible();
+  const savedGif = await friend.evaluate(async () => {
+    const { flushDraft, getDraft } = await import('/src/lib/launch.ts');
+    await flushDraft();
+    return (await getDraft()).gif;
+  });
   await friend.screenshot({
     path: "artifacts/launch/preview-invite.png",
     fullPage: true,
   });
-  await login(friend, unique());
+  await friend.getByRole("button", { name: "카카오로 시작하기" }).click();
+  await expect(friend.getByText("편집하던 사진을 복원했어요.")).toBeVisible();
+  await expect(friend.getByRole("button", { name: "내 크레딧 5 · 내역" })).toBeVisible();
+  expect(await friend.evaluate(async () => (await (await import('/src/lib/launch.ts')).getDraft()).gif)).toBe(savedGif);
+  await friend.reload();
+  await expect(friend.getByRole("button", { name: "내 크레딧 5 · 내역" })).toBeVisible();
   await page.reload();
   await expect(
     page.getByRole("button", { name: "내 크레딧 7 · 내역" }),
   ).toBeVisible();
   await context.close();
+});
+
+test("Kakao cancellation preserves photo bytes and all editor settings in the same browser", async ({ page }) => {
+  await simulatedKakao(page, unique(), true);
+  await upload(page);
+  const draft = () => page.evaluate(async () => {
+    const { flushDraft, getDraft } = await import('/src/lib/launch.ts');
+    await flushDraft();
+    const d = await getDraft();
+    return { ...d, at: 0, original: Array.from(new Uint8Array(await d.original.arrayBuffer())) };
+  });
+  const before = await draft();
+  await page.getByRole("button", { name: "🎬 AI 영상 만들기" }).click();
+  await page.getByRole("button", { name: "카카오로 시작하기" }).click();
+  await expect(page.getByText("편집하던 사진을 복원했어요.")).toBeVisible();
+  await expect(page.getByText(/카카오 로그인이 취소되었거나/)).toBeVisible();
+  const after = await draft();
+  expect(after.original).toEqual(before.original);
+  for (const key of ['cells', 'adjusts', 'memo', 'selectedFrame', 'sourceSize']) expect(after[key]).toEqual(before[key]);
+  expect(page.url()).not.toContain('error_description');
 });
 test("mobile layout does not overflow; forged amount and unauthenticated generation are rejected", async ({
   page,

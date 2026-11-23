@@ -139,15 +139,21 @@ async function initialize() {
       client = createClient(config.auth.url, config.auth.anon, {
         auth: { flowType: "pkce", detectSessionInUrl: false },
       });
-      const code = new URLSearchParams(location.search).get("code");
+      const callback = new URL(location.href);
+      const callbackParams = new URLSearchParams(location.hash.slice(1));
+      const authError = callback.searchParams.get("error") || callbackParams.get("error");
+      const code = callback.searchParams.get("code");
+      if (authError || code || callback.searchParams.has("auth")) {
+        for (const k of ["code", "auth", "error", "error_code", "error_description"])
+          callback.searchParams.delete(k);
+        callback.hash = "";
+        history.replaceState(null, "", callback.pathname + callback.search);
+      }
+      if (authError) emit({ error: "카카오 로그인이 취소되었거나 완료되지 않았어요. 사진과 편집 내용은 그대로예요." });
       if (code) {
         const { error } = await client.auth.exchangeCodeForSession(code);
         if (error)
-          throw new Error("로그인을 확인하지 못했어요. 다시 시도해주세요.");
-        const u = new URL(location.href);
-        u.searchParams.delete("code");
-        u.searchParams.delete("auth");
-        history.replaceState(null, "", u.pathname + u.search);
+          emit({ error: "로그인을 확인하지 못했어요. 사진과 편집 내용은 보관했으니 다시 시도해주세요." });
       }
     }
     const params = new URLSearchParams(location.search),
@@ -209,20 +215,15 @@ export async function demoLogin(alias: string) {
   emit({ account, error: "" });
   await refreshConfig();
 }
-export async function googleLogin() {
+export async function kakaoLogin() {
   await flushDraft();
   await refreshConfig();
-  if (!client) throw new Error("Google 로그인 연결을 준비하고 있어요.");
-  const inApp = /KAKAOTALK|Instagram|FBAN|FBAV/i.test(navigator.userAgent);
-  if (inApp)
-    throw new Error(
-      "편집 내용은 이 브라우저에 보관했어요. 카카오톡 메뉴에서 기본 브라우저로 열어 로그인해주세요. 외부 브라우저에는 사진을 다시 불러와야 할 수 있어요.",
-    );
+  if (!client) throw new Error("카카오 로그인 연결을 준비하고 있어요.");
   const { error } = await client.auth.signInWithOAuth({
-    provider: "google",
-    options: { redirectTo: location.origin + "/?auth=return" },
+    provider: "kakao",
+    options: { redirectTo: location.origin + "/?auth=return", scopes: "profile_nickname profile_image" },
   });
-  if (error) throw new Error("Google 로그인을 시작하지 못했어요.");
+  if (error) throw new Error("카카오 로그인을 시작하지 못했어요. 편집 내용은 보관했어요.");
 }
 export async function logout() {
   sessionStorage.removeItem("nz-credit-job");

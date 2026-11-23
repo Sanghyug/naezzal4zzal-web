@@ -1,13 +1,14 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { resolve } from "node:path";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { createClient } from "@supabase/supabase-js";
+import { serverSupabase } from "./supabase.ts";
 import { LaunchService } from "./service.ts";
 import { sqliteStore, postgresStore } from "./store.ts";
 import { localStorage, supabaseStorage } from "./storage.ts";
 import { mockPayments, tossPayments } from "./payments.ts";
 import { mockVideoProvider, heygenProvider } from "./video.ts";
 import { requireRule } from "./domain.ts";
+import { verifiedIdentity } from "./identity.ts";
 export type Identity = { id: string; hash: string; created: number };
 export type Runtime = {
   service: LaunchService;
@@ -39,7 +40,9 @@ async function createRuntime(): Promise<Runtime> {
     "미리보기는 테스트 DB를 사용해야 해요.",
     503,
   );
-  const baseUrl = process.env.APP_BASE_URL || "http://127.0.0.1:5173";
+  const baseUrl = process.env.APP_BASE_URL ||
+    (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}` : "http://127.0.0.1:5173");
   requireRule(
     demo || new URL(baseUrl).protocol === "https:",
     "HTTPS 서비스 주소가 필요해요.",
@@ -133,26 +136,15 @@ async function createRuntime(): Promise<Runtime> {
       "로그인이 필요해요.",
       401,
     );
-    const c = createClient(url, required("SUPABASE_ANON_KEY"), {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    const c = serverSupabase(url, required("SUPABASE_ANON_KEY"));
     const { data, error } = await c.auth.getUser(token);
     requireRule(!error && data.user, "다시 로그인해주세요.", 401);
-    const google = data.user.identities?.find((i) => i.provider === "google");
-    requireRule(google, "Google 로그인을 이용해주세요.", 401);
-    return {
-      id: data.user.id,
-      hash: createHmac("sha256", identitySecret)
-        .update("google:" + String(google.identity_data?.sub || google.id))
-        .digest("hex"),
-      created: Date.parse(data.user.created_at),
-    };
+    const existingMember = await store.tx((s) => Boolean(s.users[data.user!.id]));
+    return verifiedIdentity(data.user, identitySecret, existingMember);
   };
   const deleteIdentity = async (id: string) => {
     if (!demo) {
-      const c = createClient(url, required("SUPABASE_SERVICE_ROLE_KEY"), {
-        auth: { persistSession: false },
-      });
+      const c = serverSupabase(url, required("SUPABASE_SERVICE_ROLE_KEY"));
       const { error } = await c.auth.admin.deleteUser(id);
       requireRule(!error, "로그인 계정 삭제를 다시 확인할게요.", 502);
     }

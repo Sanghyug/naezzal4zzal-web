@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import {
   demoLogin,
-  googleLogin,
+  kakaoLogin,
   launchApi,
   logout,
   refreshAccount,
@@ -36,13 +36,14 @@ export function LoginPrompt() {
         </label>
       )}
       <button
+        className={config?.demo ? undefined : "nz-kakao-login"}
         disabled={busy}
         onClick={async () => {
           setBusy(true);
           setError("");
           try {
             if (config?.demo) await demoLogin(alias);
-            else await googleLogin();
+            else await kakaoLogin();
           } catch (e) {
             setError(
               e instanceof Error ? e.message : "로그인을 다시 확인해주세요.",
@@ -52,7 +53,7 @@ export function LoginPrompt() {
           }
         }}
       >
-        {config?.demo ? "모의 계정으로 로그인" : "Google로 계속하기"}
+        {config?.demo ? "모의 계정으로 로그인" : "카카오로 시작하기"}
       </button>
       {error && <p role="alert">{error}</p>}
     </div>
@@ -124,6 +125,7 @@ export default function LaunchAccount() {
           <span>출시 준비 미리보기 · 실제 결제·AI 비용 없음</span>
         )}
       </div>
+      {error && <p className="nz-bar" role="status">{error}</p>}
       {open && (
         <section className="nz-account" aria-label="내 크레딧">
           <div className="nz-heading">
@@ -429,7 +431,7 @@ export default function LaunchAccount() {
               비공개 문의 연락처는 공개 출시 전에 연결할 예정이에요.
             </p>
           )}
-          {(message || error) && <p role="status">{message || error}</p>}
+          {message && <p role="status">{message}</p>}
           {purchase && accountId && purchase.user === accountId && (
             <Checkout
               order={purchase}

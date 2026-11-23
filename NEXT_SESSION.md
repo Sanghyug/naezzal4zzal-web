@@ -1,5 +1,35 @@
 # 이어서 작업할 내용
 
+## 작업 브랜치 원격 등록 — 2026-11-24
+
+- 사용자 요청으로 Vercel 연결 Git 저장소를 확인: Sanghyug/naezzal4zzal-web, 운영 브랜치 main.
+- 카카오 로그인·신형 Supabase 키 지원과 테스트 프로젝트 준비를 codex/launch-credits-20261123 브랜치로 커밋·푸시한다. 운영 병합·운영 배포는 하지 않는다.
+- Vercel의 Preview 환경변수 Git Branch 항목은 codex/launch-credits-20261123을 사용한다.
+
+## 신형 Supabase 서버 키 — 2026-11-24
+
+- 소유자가 Supabase Kakao Enabled·Allow users without an email·키·Redirect URI 저장 완료를 알림. Google 보류.
+- Vercel 입력은 아직 전. 사용자 입력 확정: 테스트 Preview/브랜치에 SUPABASE_SERVICE_ROLE_KEY=sb_secret_…와 LAUNCH_DATABASE_URL만 Sensitive로 직접 등록.
+- 나머지 공개 키·테스트 플래그·독립 난수 비밀값은 입력 완료 뒤 코선생이 서버에 설정. SETUP.md에 전체 목록 확정. 비밀키를 내려받거나 출력하지 말 것.
+- server/launch/supabase.ts가 최신 키의 잘못된 Bearer 복사를 제거하고 실제 회원 JWT는 유지. Storage·Auth admin·getUser 요청을 가짜 키로 검증. 31개 자동 검사, launch 빌드·lint 통과.
+- Preview APP_BASE_URL 생략 시 VERCEL_URL의 해당 HTTPS 배포 주소를 사용. 최종 주소의 /?auth=return을 Supabase에 허용하고 실제 소유자 로그인→가입5→비공개 파일 쓰기/읽기/삭제를 검사해야 함. 실제 외부 연결 검사는 아직 미완료.
+
+## 카카오 로그인 우선 — 2026-11-24
+
+- 사용자 지시로 Google 연동 보류. 로그인 버튼은 '카카오로 시작하기', Supabase OAuth provider=kakao, PKCE, 이메일 scope 없음.
+- 카카오톡 인앱 로그인 차단 제거. OAuth 취소/실패 URL을 정리하고 편집 복원과 초대 visit 처리를 계속한다.
+- 서버 getUser로 검증된 Supabase 회원 UUID에 크레딧 연결. 카카오 subject는 중복 가입 선물 방지 해시에만 사용. 이메일·사용자 수정 가능한 프로필은 권한 판단에 사용하지 않음.
+- 기존 장부 초기화·회원 병합 없음. 기존 Google 회원의 유효한 세션만 호환 유지하고 신규 Google 가입은 받지 않음.
+- SETUP.md가 현행 카카오 키 입력 안내. Supabase Kakao의 Allow users without an email 활성화 필요. 키 미입력으로 실제 카카오 계정·카카오톡 실기기 검증은 대기 중.
+
+## Supabase 테스트 연결 — 2026-11-24 최신
+
+- `naezzal4zzal-test` / `cvwikgszywzlvadsvvvq` / 서울 정상 가동 확인. Supabase 도구 연결됨.
+- test 장부 두 개와 비공개 `launch-inputs`(JSON 4 MiB), `launch-results`(MP4 12 MiB)를 원격 생성했다.
+- RLS와 일반 역할 권한 차단, 실제 공개 REST 접근 거부 확인. 기본 자동 RLS 함수의 불필요한 공개 실행 권한 회수. 보안 경고 없음(의도한 정책 없음 INFO 두 개).
+- Google은 비활성 상태. 도구에 Auth 설정 수정 기능 없음. 사용자가 대시보드에 Google Client Secret, Vercel Preview에 서버 키·DB 연결 URL 직접 입력해야 함.
+- `docs/launch/SUPABASE_TEST.md`에 정확한 입력 위치·후속 검사를 기록. 앱 서버 DB/Storage 실제 연결과 Google 왕복은 아직 미검증. 기존 운영 배포 변경 없음.
+
 ## 크레딧 출시 준비 — 2026-11-23 최신
 
 - 작업 브랜치 `codex/launch-credits-20261123`. 기존 운영 주소는 변경하지 않았고 Git push도 하지 않았습니다.

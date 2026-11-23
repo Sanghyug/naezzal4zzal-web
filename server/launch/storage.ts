@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { createClient } from "@supabase/supabase-js";
+import { serverSupabase } from "./supabase.ts";
 export interface Storage {
   put(bucket: string, key: string, bytes: Buffer, type: string): Promise<void>;
   get(bucket: string, key: string): Promise<Buffer>;
@@ -30,10 +30,8 @@ export function localStorage(root: string): Storage {
 function requireSeparator() {
   return process.platform === "win32" ? "\\" : "/";
 }
-export function supabaseStorage(url: string, key: string): Storage {
-  const c = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+export function supabaseStorage(url: string, key: string, transport: typeof fetch = fetch): Storage {
+  const c = serverSupabase(url, key, transport);
   return {
     async put(b, k, bytes, type) {
       const { error } = await c.storage
