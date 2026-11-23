@@ -17,6 +17,7 @@ export default async function handler(req: Request, res: Response) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (process.env.LAUNCH_PREVIEW_SAFE === "1") return res.status(503).json({ error: "출시 미리보기에서는 실제 AI 분석을 호출하지 않아요. 직접 맞추기로 계속해주세요." });
   const image = req.body?.image;
   if (typeof image !== "string" || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(image)) return res.status(400).json({ error: "A base64 image is required" });
   if (image.length > 4_000_000) return res.status(413).json({ error: "Image too large" });

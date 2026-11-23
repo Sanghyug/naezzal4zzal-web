@@ -117,6 +117,7 @@ PG의 실제 상점 심사에서 충전형 상품 취급 가능 여부, 회원 �
 
 | 서버 설정 | 용도 |
 |---|---|
+| LAUNCH_PREVIEW_SAFE | 화면 전용 Preview에서 1: 기존 사진 분석·사무실 영상 생성도 차단 |
 | LAUNCH_ENABLED / LAUNCH_ENV | 출시 서버 켜기 / test 또는 production 장부 구분 |
 | LAUNCH_DATABASE_URL | 해당 환경 PostgreSQL 연결 |
 | SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY | 해당 환경 인증·비공개 파일 |
