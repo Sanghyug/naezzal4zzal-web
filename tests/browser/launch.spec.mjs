@@ -252,3 +252,43 @@ test("mobile layout does not overflow; forged amount and unauthenticated generat
   });
   expect(result).toEqual({ tamper: 400, unauth: 401, overflow: false });
 });
+
+test("expired local photo draft is deleted when the app is opened again", async ({
+  page,
+}) => {
+  await upload(page);
+  await page.reload();
+  await expect(page.getByText("편집하던 사진을 복원했어요.")).toBeVisible();
+  await page.evaluate(async () => {
+    const d = await new Promise((resolve, reject) => {
+      const r = indexedDB.open("naezzal-launch-draft", 1);
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = reject;
+    });
+    await new Promise((resolve, reject) => {
+      const tx = d.transaction("drafts", "readwrite"),
+        store = tx.objectStore("drafts"),
+        r = store.get("current");
+      r.onsuccess = () =>
+        store.put({ ...r.result, at: Date.now() - 86400001 }, "current");
+      tx.oncomplete = resolve;
+      tx.onerror = reject;
+    });
+    d.close();
+  });
+  await page.reload();
+  await expect(page.getByRole("button", { name: "🖼️ 불러오기" })).toBeVisible();
+  const count = await page.evaluate(async () => {
+    const d = await new Promise((resolve) => {
+      const r = indexedDB.open("naezzal-launch-draft", 1);
+      r.onsuccess = () => resolve(r.result);
+    });
+    const count = await new Promise((resolve) => {
+      const r = d.transaction("drafts").objectStore("drafts").count();
+      r.onsuccess = () => resolve(r.result);
+    });
+    d.close();
+    return count;
+  });
+  expect(count).toBe(0);
+});

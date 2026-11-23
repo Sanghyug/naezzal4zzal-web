@@ -316,12 +316,16 @@ export async function getDraft(): Promise<EditorDraft | null> {
   const d = await db();
   try {
     return await new Promise((resolve, reject) => {
-      const r = d.transaction("drafts").objectStore("drafts").get("current");
-      r.onsuccess = () =>
-        resolve(
-          r.result && r.result.at > Date.now() - 86400000 ? r.result : null,
-        );
-      r.onerror = () => reject(new Error("편집 복원 실패"));
+      const tx = d.transaction("drafts", "readwrite");
+      const store = tx.objectStore("drafts");
+      const r = store.get("current");
+      let draft: EditorDraft | null = null;
+      r.onsuccess = () => {
+        if (r.result && r.result.at > Date.now() - 86400000) draft = r.result;
+        else if (r.result) store.delete("current");
+      };
+      tx.oncomplete = () => resolve(draft);
+      tx.onerror = tx.onabort = () => reject(new Error("편집 복원 실패"));
     });
   } finally {
     d.close();
