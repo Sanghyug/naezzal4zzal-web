@@ -1,0 +1,179 @@
+.nz-bar,
+.nz-account,
+.nz-video,
+.nz-invite {
+  font-family: system-ui, sans-serif;
+  color: #59454e;
+  line-height: 1.65;
+  box-sizing: border-box;
+}
+.nz-bar {
+  max-width: 480px;
+  margin: auto;
+  padding: 10px 16px;
+  background: #fff5f8;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.nz-bar span {
+  font-size: 11px;
+  color: #915f7b;
+}
+.nz-account {
+  max-width: 480px;
+  margin: auto;
+  padding: 20px;
+  background: #fffafd;
+  border-bottom: 2px solid #edd2e3;
+}
+.nz-heading {
+  display: flex;
+  gap: 12px;
+  align-items: start;
+  justify-content: space-between;
+}
+.nz-heading h2 {
+  font-size: 20px;
+  margin: 0 0 16px;
+}
+.nz-account h3,
+.nz-video h3 {
+  font-size: 17px;
+}
+.nz-account button,
+.nz-video button,
+.nz-invite button,
+.nz-login button {
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 14px;
+  background: #b576a8;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  max-width: 100%;
+  margin: 5px 5px 5px 0;
+  white-space: normal;
+}
+.nz-account button:disabled,
+.nz-video button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.nz-account input,
+.nz-login input,
+.nz-video input[type="text"] {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  border: 1px solid #decbdc;
+  border-radius: 10px;
+  font: inherit;
+}
+.nz-balance,
+.nz-product,
+.nz-history,
+.nz-login {
+  background: white;
+  border: 1px solid #ecd7e4;
+  border-radius: 16px;
+  padding: 16px;
+  margin: 14px 0;
+}
+.nz-balance strong {
+  display: block;
+  font-size: 30px;
+  color: #9b5796;
+}
+.nz-balance span,
+.nz-muted,
+small {
+  font-size: 12px;
+}
+.nz-history > span,
+.nz-history small {
+  display: block;
+}
+.nz-ledger {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #efdfeb;
+}
+.nz-ledger small {
+  display: block;
+}
+.nz-checkout {
+  border: 2px solid #ba8baa;
+  background: #fff;
+  border-radius: 18px;
+  padding: 20px;
+  margin-top: 20px;
+  scroll-margin-top: 20px;
+}
+.nz-video,
+.nz-invite {
+  background: #faf3ff;
+  border: 1px solid #ead8ff;
+  border-radius: 20px;
+  padding: 16px;
+  margin-top: 14px;
+}
+.nz-video fieldset {
+  border: 1px solid #dbc6e5;
+  border-radius: 14px;
+}
+.nz-video fieldset label {
+  display: block;
+  margin: 12px 0;
+}
+.nz-video video {
+  width: 100%;
+  border-radius: 14px;
+}
+.nz-video .nz-consent {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+}
+.nz-video .nz-consent input {
+  flex-shrink: 0;
+  align-self: start;
+  margin-top: 5px;
+}
+.nz-account a,
+.nz-video a,
+.nz-invite a {
+  color: #8d4d83;
+  overflow-wrap: anywhere;
+}
+.nz-video p,
+.nz-account p,
+.nz-invite p {
+  overflow-wrap: anywhere;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 3px solid #865ca6;
+  outline-offset: 3px;
+}
+@media (max-width: 360px) {
+  .nz-account {
+    padding: 14px;
+  }
+  .nz-heading {
+    flex-wrap: wrap;
+  }
+  .nz-bar {
+    padding: 8px;
+  }
+  .nz-checkout {
+    padding: 12px;
+  }
+}

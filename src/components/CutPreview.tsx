@@ -9,10 +9,14 @@ import { createLayoutCells, type PhotoLayout } from "../lib/photoGeometry.js";
 import { loadImage } from "../lib/loadImage";
 import CropSelector from "./CropSelector";
 import { saveGalleryItem } from "../lib/galleryStore";
+import { launchEnabled, saveDraft, beginInviteRender } from "../lib/launch";
+import type { EditorDraft } from "../lib/launch";
+import InviteCompletion from "./InviteCompletion";
 
 type CutPreviewProps = {
   imageUrl: string;
   onBack: () => void;
+  initialDraft?: EditorDraft | null;
 };
 
 type GifMode = "fast" | "slow" | "heartbeat" | "shake" | "shabang" | "longing";
@@ -47,33 +51,38 @@ type Adjust = {
   rotate: number;
 };
 
-function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
-  const [sourceUrl, setSourceUrl] = useState<string | null>(null);
-  const [sourceSize, setSourceSize] = useState({ width: 0, height: 0 });
-  const [cells, setCells] = useState<CellRect[]>([]);
-  const [adjusts, setAdjusts] = useState<Adjust[]>([]);
-  const [gifUrl, setGifUrl] = useState<string | null>(null);
-  const [currentGifStyleName, setCurrentGifStyleName] = useState("");
-  const [memo, setMemo] = useState("");
+function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
+  const [sourceUrl, setSourceUrl] = useState<string | null>(initialDraft?.sourceUrl || null);
+  const [sourceSize, setSourceSize] = useState(initialDraft?.sourceSize || { width: 0, height: 0 });
+  const [cells, setCells] = useState<CellRect[]>(initialDraft?.cells || []);
+  const [adjusts, setAdjusts] = useState<Adjust[]>(initialDraft?.adjusts || []);
+  const [gifUrl, setGifUrl] = useState<string | null>(initialDraft?.gif || null);
+  const [currentGifStyleName, setCurrentGifStyleName] = useState(initialDraft?.styleName || "");
+  const [memo, setMemo] = useState(initialDraft?.memo || "");
+  const [inviteRender, setInviteRender] = useState(initialDraft?.inviteRender || "");
   const [isCreatingGif, setIsCreatingGif] = useState(false);
-  const [status, setStatus] = useState<ExtractStatus>("loading");
-  const [message, setMessage] = useState("인생네컷을 분석하고 있어요 ❀");
+  const [status, setStatus] = useState<ExtractStatus>(initialDraft?.sourceUrl ? initialDraft.extractStatus || "fallback" : "loading");
+  const [message, setMessage] = useState(initialDraft?.sourceUrl ? "편집하던 사진을 복원했어요." : "인생네컷을 분석하고 있어요 ❀");
 
   const [showGifStyleModal, setShowGifStyleModal] = useState(false);
   const [showFrameModal, setShowFrameModal] = useState(false);
   const [pendingGifMode, setPendingGifMode] = useState<GifMode | null>(null);
   const [previewSizes, setPreviewSizes] = useState<PreviewSize[]>([]);
-  const adjustsRef = useRef<Adjust[]>([]);
+  const adjustsRef = useRef<Adjust[]>(initialDraft?.adjusts || []);
 
   const shareCount = useShareCount();
   const unlockedFrames = getUnlockedFrames(shareCount);
-  const [selectedFrame, setSelectedFrame] = useState<FrameType>("basic");
+  const [selectedFrame, setSelectedFrame] = useState<FrameType>(initialDraft?.selectedFrame || "basic");
 
-  const [useAI, setUseAI] = useState<boolean | null>(null);
+  const [useAI, setUseAI] = useState<boolean | null>(initialDraft?.sourceUrl ? false : null);
   const [isSaving, setIsSaving] = useState(false);
   const [savedGif, setSavedGif] = useState<string | null>(null);
+  useEffect(() => {
+    if (launchEnabled) void saveDraft(imageUrl, { sourceUrl, sourceSize, cells, adjusts, memo, selectedFrame, gif: gifUrl, styleName: currentGifStyleName, extractStatus: status, inviteRender }).catch(() => {});
+  }, [imageUrl, sourceUrl, sourceSize, cells, adjusts, memo, selectedFrame, gifUrl, currentGifStyleName, status, inviteRender]);
 
   useEffect(() => {
+    if (initialDraft?.sourceUrl) return;
     if (useAI === null) return;
     let cancelled = false;
     const controller = new AbortController();
@@ -114,7 +123,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     }
     void generateCells();
     return () => { cancelled = true; controller.abort(); window.clearTimeout(timer); };
-  }, [imageUrl, useAI]);
+  }, [imageUrl, useAI, initialDraft]);
 
   const changeLayout = (layout: PhotoLayout) => {
     setCells(createLayoutCells(layout, sourceSize.width, sourceSize.height));
@@ -236,6 +245,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
     setCurrentGifStyleName(getGifStyleName(mode));
 
     try {
+      if (launchEnabled) setInviteRender(await beginInviteRender());
       let images: string[] = [];
       let speed: GifSpeed = "normal";
 
@@ -914,6 +924,7 @@ function CutPreview({ imageUrl, onBack }: CutPreviewProps) {
             </button>
 
             <ShareControls url={gifUrl} text={memo || "내짤4짤에서 만든 움직이는 추억"} />
+            {launchEnabled && <InviteCompletion key={gifUrl} gif={gifUrl} renderId={inviteRender} />}
 
             <button
               onClick={() => setShowGifStyleModal(true)}

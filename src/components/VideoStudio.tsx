@@ -2,12 +2,19 @@ import { useEffect, useRef, useState } from "react";
 import { loadImage } from "../lib/loadImage";
 import { saveGalleryItem } from "../lib/galleryStore";
 import ShareControls from "./ShareControls";
+import CreditVideoStudio from "./CreditVideoStudio";
+import { launchEnabled, useLaunch } from "../lib/launch";
 
 const base = import.meta.env.VITE_API_BASE_URL || "";
 const jobKey = "naezzal4zzal-video-job";
 const requestKey = "naezzal4zzal-video-request";
 function storedToken() { try { return sessionStorage.getItem(jobKey) || ""; } catch { return ""; } }
-export default function VideoStudio({ ready, getImages, memo }: { ready: boolean; getImages: () => Promise<string[]>; memo: string }) {
+export default function VideoStudio(props: { ready: boolean; getImages: () => Promise<string[]>; memo: string }) {
+  const { account } = useLaunch();
+  const [creditOpen, setCreditOpen] = useState(false);
+  return launchEnabled ? <CreditVideoStudio key={account?.user.id || 'guest'} {...props} open={creditOpen} onToggle={() => setCreditOpen(v => !v)} /> : <LegacyVideoStudio {...props} />;
+}
+function LegacyVideoStudio({ ready, getImages, memo }: { ready: boolean; getImages: () => Promise<string[]>; memo: string }) {
   const [open, setOpen] = useState(false);
   const [available, setAvailable] = useState<boolean | null>(null);
   const [accessCode, setAccessCode] = useState("");

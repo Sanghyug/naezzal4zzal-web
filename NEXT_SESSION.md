@@ -1,5 +1,17 @@
 # 이어서 작업할 내용
 
+## 크레딧 출시 준비 — 2026-11-23 최신
+
+- 작업 브랜치 `codex/launch-credits-20261123`. 기존 운영 주소는 변경하지 않았고 Git push도 하지 않았습니다.
+- 승인 상품: 실사 B1 1 / 펜화 A3 3, 가입 5(선착순 100), 10크레딧 3,900원, 신규 친구 기본 GIF 검증+가입 후 초대자 2(한국 시간 월 5명).
+- `docs/launch/REPORT.md`, `SETUP.md`, `OPERATIONS.md`에 구현·검증·한계·다음 사용자 작업을 기록했습니다.
+- `npm run dev:launch`의 `http://127.0.0.1:5173/`은 SQLite에 지속되는 모의 체험입니다. 실제 돈·OpenAI·HeyGen 호출은 없습니다.
+- 실제 Supabase·Google OAuth·토스 테스트 키·사업자·도메인 연결은 대기 중입니다. 다음은 naezzal4zzal 전용 Supabase 테스트 프로젝트 연결부터입니다.
+- Vercel Preview 주소/배포 식별자는 비공개 `artifacts/launch/deployment.json`에 있습니다. 실제 외부 연결 전 로그인·결제·AI는 비활성화했습니다.
+- Vercel Linux에서 합성 MP4의 실제 오디오 트랙 제거를 검증했습니다. 추가 유료 영상은 생성하지 않았습니다.
+- 일반 `build`는 출시 화면 비활성화, `build:launch`는 출시 화면 활성화입니다. `vercel.launch.json`은 Pro 주기 작업과 운영 DB/계약을 갖춘 뒤에만 사용합니다.
+- 작업 전부터 있던 `scripts/motion-i2v/` 미커밋 파일은 이번 출시 커밋에 섞지 않았습니다. 개인 사진/영상·DB·검사 자료는 artifacts 아래에 보존하며 Git/배포 제외입니다.
+
 기준 위치: D:\\Codex\\naezzal4zzal-app. C:\\Users\\parki\\Documents\\ChatGPT\\naezzal4zzal 3\\app은 같은 폴더를 가리키는 Junction입니다.
 
 2026-11-23 사용자가 공개 배포, 어제 실제 사진의 공개 앱·OpenAI 재전송 검사, 앱의 HeyGen 연동과 공유 보상 구현을 요청했습니다. 이전 배포 보류 지시는 대체되었습니다.

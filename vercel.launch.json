@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npm run build:launch",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "functions": {
+    "api/extract-cells.ts": { "maxDuration": 30 },
+    "api/videos.ts": { "maxDuration": 60 },
+    "api/launch.ts": { "maxDuration": 300, "includeFiles": "node_modules/ffmpeg-static/**" }
+  },
+  "crons": [{ "path": "/api/launch?action=maintenance", "schedule": "*/2 * * * *" }]
+}

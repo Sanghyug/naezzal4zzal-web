@@ -8,6 +8,10 @@
     },
     "api/videos.ts": {
       "maxDuration": 60
+    },
+    "api/launch.ts": {
+      "maxDuration": 300,
+      "includeFiles": "node_modules/ffmpeg-static/**"
     }
   }
 }

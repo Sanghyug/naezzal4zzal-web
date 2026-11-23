@@ -6,6 +6,11 @@ import StartScreen from "./components/StartScreen";
 import CutPreview from "./components/CutPreview";
 import SplashScreen from "./components/SplashScreen";
 import GalleryScreen from "./components/GalleryScreen";
+import LaunchAccount from "./components/LaunchAccount";
+import LaunchPolicies from "./components/LaunchPolicies";
+import LaunchOperator from "./components/LaunchOperator";
+import { launchEnabled, initializeLaunch, getDraft, clearDraft, appShareUrl } from "./lib/launch";
+import type { EditorDraft } from "./lib/launch";
 
 declare global {
   interface Window {
@@ -20,11 +25,17 @@ type AppMode = "splash" | "start" | "preview" | "gallery" | "privacy";
 function App() {
   const [mode, setMode] = useState<AppMode>("splash");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [restoredDraft, setRestoredDraft] = useState<EditorDraft | null>(null);
+  const [policies, setPolicies] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    if (launchEnabled) void initializeLaunch();
+    const timer = window.setTimeout(async () => {
+      if (launchEnabled) {
+        try { const draft = await getDraft(); if (draft) { setRestoredDraft(draft); setImageUrl(URL.createObjectURL(draft.original)); setMode("preview"); return; } } catch { /* free creation stays usable */ }
+      }
       setMode("start");
     }, 2400);
 
@@ -54,12 +65,13 @@ function App() {
     }
 
     const url = URL.createObjectURL(file);
+    setRestoredDraft(null);
     setImageUrl(url);
     setMode("preview");
   };
 
   const handleShareApp = async () => {
-    const appUrl = "https://naezzal4zzal-web.vercel.app";
+    const appUrl = launchEnabled ? appShareUrl() : "https://naezzal4zzal-web.vercel.app";
 
     try {
       if (Capacitor.isNativePlatform()) { await Share.share({ title: "내짤4짤", text: "네컷사진을 움직이는 추억으로 만들어보세요.", url: appUrl }); return; }
@@ -80,6 +92,8 @@ function App() {
   };
 
   const handleReset = () => {
+    if (launchEnabled) void clearDraft();
+    setRestoredDraft(null);
     if (imageUrl && imageUrl.startsWith("blob:")) {
       URL.revokeObjectURL(imageUrl);
     }
@@ -98,6 +112,9 @@ function App() {
 
   return (
     <>
+      {launchEnabled && mode !== "splash" && <LaunchAccount />}
+      {launchEnabled && mode !== "splash" && <LaunchOperator />}
+      {launchEnabled && policies && <LaunchPolicies onBack={() => setPolicies(false)} />}
       {mode === "splash" && <SplashScreen />}
       {mode === "privacy" && <PrivacyScreen onBack={() => setMode("start")} />}
 
@@ -121,7 +138,7 @@ function App() {
       />
 
       {mode === "preview" && imageUrl && (
-        <CutPreview imageUrl={imageUrl} onBack={handleReset} />
+        <CutPreview imageUrl={imageUrl} onBack={handleReset} initialDraft={restoredDraft} />
       )}
 
       {mode === "start" && (
@@ -133,6 +150,7 @@ function App() {
         />
       )}
       {mode === "start" && <div style={{textAlign: "center", padding: "0 12px 24px", background: "#ffe4ec"}}><button onClick={() => setMode("privacy")} style={{background: "none", border: 0, color: "#79535f", textDecoration: "underline"}}>사진과 개인정보 안내 · 문의</button></div>}
+      {launchEnabled && mode !== "splash" && <div style={{textAlign:"center",padding:16}}><button onClick={() => setPolicies(v => !v)}>상품·이용약관·개인정보·환불 안내</button></div>}
     </>
   );
 }

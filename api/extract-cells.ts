@@ -1,5 +1,9 @@
 /// <reference types="node" />
 import { validateCells } from "../src/lib/photoGeometry.js";
+import { runtime } from "../server/launch/runtime.ts";
+import { dayKst, rate, requireRule } from "../server/launch/domain.ts";
+import { createHmac } from "node:crypto";
+import { imageSize } from "../server/launch/dimensions.ts";
 type Request = { method?: string; body?: { image?: unknown }; headers: Record<string, string | string[] | undefined> };
 type Response = { setHeader: (key: string, value: string) => void; status: (code: number) => Response; json: (body: unknown) => unknown; end: () => unknown };
 export default async function handler(req: Request, res: Response) {
@@ -18,13 +22,29 @@ export default async function handler(req: Request, res: Response) {
   if (image.length > 4_000_000) return res.status(413).json({ error: "Image too large" });
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return res.status(503).json({ error: "AI is not configured" });
+  if (process.env.LAUNCH_ENABLED === "1") {
+    try {
+      const r = await runtime();
+      if (r.demo || r.service.video.kind === "mock") return res.status(503).json({error:"테스트 환경에서는 실제 AI 분석을 호출하지 않아요."});
+      const size = imageSize(Buffer.from(image.split(",")[1],"base64"));
+      requireRule(size.width <= 1000 && size.height <= 1000,"분석 사진 크기를 확인해주세요.");
+      await r.service.store.tx(s => {
+        requireRule(s.config.generation,"AI 분석을 잠시 쉬고 있어요.",503);
+        const now = Date.now(), day = dayKst(now), ip = String(req.headers["x-vercel-forwarded-for"] || req.headers["x-real-ip"] || "unknown");
+        rate(s,"extract-rate:"+createHmac("sha256",r.cookieSecret).update(ip).digest("hex"),10,60000,now);
+        const used = Object.values(s.jobs).filter(j=>j.day===day).reduce((n,j)=>n+j.reserveUsd,0)+(s.rates["extract-cost:"+day]?.count||0)*.05;
+        requireRule(used+.05<=s.config.dailyUsd,"오늘 AI 분석 한도에 도달했어요.",429);
+        rate(s,"extract-cost:"+day,500,2*86400000,now);
+      });
+    } catch { return res.status(503).json({error:"AI 분석 한도 또는 연결을 확인해주세요. 직접 맞추기는 계속 사용할 수 있어요."}); }
+  }
   const rect = { type: "object", properties: { x: { type: "number" }, y: { type: "number" }, width: { type: "number" }, height: { type: "number" } }, required: ["x", "y", "width", "height"], additionalProperties: false };
   try {
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST", signal: AbortSignal.timeout(22000),
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiKey },
       body: JSON.stringify({
-        model: process.env.OPENAI_VISION_MODEL || "gpt-5.4", store: false, max_output_tokens: 2200,
+        model: process.env.LAUNCH_ENABLED === "1" ? "gpt-5.4" : process.env.OPENAI_VISION_MODEL || "gpt-5.4", store: false, max_output_tokens: 2200,
         input: [{ role: "user", content: [
           { type: "input_text", text: "The input is an EXACTLY SQUARE image with a 0 to 1000 coordinate scale on BOTH axes. A faint numbered grid is a coordinate guide, not part of the photo. The original image may be a phone screenshot: ignore phone status bars, buttons, table and other surroundings. Locate the FOUR actual photo panels INSIDE the photographed Korean/Japanese photo-booth paper. Return a tight bounding rectangle around EACH photo, excluding paper margins, decorative frames, captions, logos, QR codes and gaps. Do not identify people or infer personal attributes. Coordinates use a 1000 by 1000 grid relative to the ENTIRE input image: x,y is top left; width,height are sizes. Support one vertical column of four or a two-by-two grid. Order top-to-bottom for a column and row-major for a grid. Do NOT divide the paper into equal quarters: inspect each panel's visible edges independently. If four panels cannot be found reliably, return layout unknown and cells []. Return axis-aligned rectangles. Carefully read the grid at the left, right, top and bottom edges of each actual panel. Include the entire photographic background above the heads; exclude the printed logo above panel 1. Never include part of the next photo panel in a rectangle. Check that the four rectangles have similar widths and reasonable similar heights. Do not invent coordinates from an example." },
           { type: "input_image", image_url: image, detail: "high" },

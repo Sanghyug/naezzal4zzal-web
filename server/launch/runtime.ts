@@ -1,0 +1,180 @@
+import { createHmac, randomBytes } from "node:crypto";
+import { resolve } from "node:path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { createClient } from "@supabase/supabase-js";
+import { LaunchService } from "./service.ts";
+import { sqliteStore, postgresStore } from "./store.ts";
+import { localStorage, supabaseStorage } from "./storage.ts";
+import { mockPayments, tossPayments } from "./payments.ts";
+import { mockVideoProvider, heygenProvider } from "./video.ts";
+import { requireRule } from "./domain.ts";
+export type Identity = { id: string; hash: string; created: number };
+export type Runtime = {
+  service: LaunchService;
+  demo: boolean;
+  auth: (token: string) => Promise<Identity>;
+  cookieSecret: string;
+  authConfig: { url: string; anon: string };
+  baseUrl: string;
+  adminIds: string[];
+  deleteIdentity: (id: string) => Promise<void>;
+};
+let instance: Promise<Runtime> | undefined;
+export const runtime = () => (instance ??= createRuntime());
+async function createRuntime(): Promise<Runtime> {
+  const demo = process.env.LAUNCH_DEMO === "1" && !process.env.VERCEL;
+  requireRule(
+    demo || process.env.LAUNCH_ENABLED === "1",
+    "출시 기능을 준비하고 있어요.",
+    503,
+  );
+  const env = process.env.LAUNCH_ENV || "test";
+  requireRule(
+    env === "test" || env === "production",
+    "환경 이름을 확인해주세요.",
+    503,
+  );
+  requireRule(
+    !(process.env.VERCEL_ENV === "preview" && env === "production"),
+    "미리보기는 테스트 DB를 사용해야 해요.",
+    503,
+  );
+  const baseUrl = process.env.APP_BASE_URL || "http://127.0.0.1:5173";
+  requireRule(
+    demo || new URL(baseUrl).protocol === "https:",
+    "HTTPS 서비스 주소가 필요해요.",
+    503,
+  );
+  const store = demo
+    ? await sqliteStore(resolve("artifacts/launch/demo.sqlite"))
+    : await postgresStore(required("LAUNCH_DATABASE_URL"), env);
+  const storage = demo
+    ? localStorage(resolve("artifacts/launch/storage"))
+    : supabaseStorage(
+        required("SUPABASE_URL"),
+        required("SUPABASE_SERVICE_ROLE_KEY"),
+      );
+  const paymentMode = demo ? "mock" : process.env.PAYMENT_MODE || "toss-test";
+  requireRule(
+    ["mock", "toss-test", "live"].includes(paymentMode),
+    "결제 환경을 확인해주세요.",
+    503,
+  );
+  requireRule(
+    env !== "production" || paymentMode === "live",
+    "운영 DB에는 모의·테스트 충전을 연결할 수 없어요.",
+    503,
+  );
+  requireRule(
+    paymentMode !== "live" ||
+      (env === "production" && process.env.LIVE_COMMERCE_APPROVED === "1"),
+    "실결제는 출시 승인 후에만 사용할 수 있어요.",
+    503,
+  );
+  const payments =
+    paymentMode === "mock"
+      ? mockPayments(store)
+      : tossPayments(
+          required("TOSS_SECRET_KEY"),
+          paymentMode as "toss-test" | "live",
+        );
+  const liveVideo =
+    !demo &&
+    env === "production" &&
+    paymentMode === "live" &&
+    process.env.LIVE_COMMERCE_APPROVED === "1" &&
+    process.env.ENABLE_LIVE_GENERATION === "1";
+  const video = liveVideo
+    ? heygenProvider(required("OPENAI_API_KEY"), required("HEYGEN_API_KEY"))
+    : mockVideoProvider();
+  // A test DB/account/payment can never trigger real HeyGen generation.
+  const service = new LaunchService(store, storage, payments, video);
+  if (demo)
+    await store.tx((s) => {
+      if (!s.entries.some((e) => e.kind === "demo_initialized")) {
+        s.config.payments = true;
+        s.config.generation = true;
+        s.entries.push({
+          id: "demo_initialized",
+          user: "system",
+          kind: "demo_initialized",
+          amount: 0,
+          cause: "demo",
+          at: Date.now(),
+        });
+      }
+    });
+  const demoSecretPath = resolve("artifacts/launch/demo-cookie-secret");
+  if (demo && !existsSync(demoSecretPath))
+    writeFileSync(demoSecretPath, randomBytes(32).toString("hex"));
+  const cookieSecret = demo
+    ? readFileSync(demoSecretPath, "utf8")
+    : required("LAUNCH_COOKIE_SECRET");
+  const identitySecret = demo
+    ? "local-demo-only"
+    : required("IDENTITY_HASH_SECRET");
+  const url = process.env.SUPABASE_URL || "",
+    anon = process.env.SUPABASE_ANON_KEY || "";
+  const auth = async (token: string): Promise<Identity> => {
+    if (demo) {
+      requireRule(
+        /^demo-[a-z0-9-]{1,40}$/.test(token),
+        "모의 로그인이 필요해요.",
+        401,
+      );
+      return {
+        id: token,
+        hash: createHmac("sha256", identitySecret).update(token).digest("hex"),
+        created: Date.now(),
+      };
+    }
+    requireRule(
+      token.length > 20 && token.length < 8000,
+      "로그인이 필요해요.",
+      401,
+    );
+    const c = createClient(url, required("SUPABASE_ANON_KEY"), {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data, error } = await c.auth.getUser(token);
+    requireRule(!error && data.user, "다시 로그인해주세요.", 401);
+    const google = data.user.identities?.find((i) => i.provider === "google");
+    requireRule(google, "Google 로그인을 이용해주세요.", 401);
+    return {
+      id: data.user.id,
+      hash: createHmac("sha256", identitySecret)
+        .update("google:" + String(google.identity_data?.sub || google.id))
+        .digest("hex"),
+      created: Date.parse(data.user.created_at),
+    };
+  };
+  const deleteIdentity = async (id: string) => {
+    if (!demo) {
+      const c = createClient(url, required("SUPABASE_SERVICE_ROLE_KEY"), {
+        auth: { persistSession: false },
+      });
+      const { error } = await c.auth.admin.deleteUser(id);
+      requireRule(!error, "로그인 계정 삭제를 다시 확인할게요.", 502);
+    }
+    await store.tx((s) => {
+      if (s.users[id]) s.users[id].authDeletionPending = false;
+    });
+  };
+  return {
+    service,
+    demo,
+    auth,
+    cookieSecret,
+    authConfig: { url, anon },
+    baseUrl,
+    deleteIdentity,
+    adminIds: demo
+      ? ["demo-operator"]
+      : (process.env.LAUNCH_ADMIN_IDS || "").split(",").filter(Boolean),
+  };
+}
+function required(name: string) {
+  const v = process.env[name];
+  requireRule(v && v.length > 0, "서버 연결 설정을 준비하고 있어요.", 503);
+  return v;
+}
