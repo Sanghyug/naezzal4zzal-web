@@ -1,6 +1,15 @@
 # Supabase 테스트 연결 — 2026-11-24
 
-## KOE205 수정 Preview (최신)
+## 현재 고정 테스트 주소
+
+**https://naezzal4zzal-test.vercel.app**
+
+이제 배포별 임시 주소를 계속 등록하지 않는다. Site URL과 정확한 Redirect URL은 SETUP.md의 맨 위 고정 주소 절차를 따른다.
+소유자가 설정 저장을 확인했고, 실제 Supabase callback 취소 복귀가 고정 원본임을 재검증했다.
+허용되지 않은 원본의 기본 Site URL 복귀도 고정 원본으로 바뀌어 localhost 경로를 제거했다.
+Vercel 도메인은 해당 작업 브랜치의 Preview에 자동 연결되며 운영 도메인은 그대로다.
+
+## KOE205 수정 당시 Preview 기록
 
 https://naezzal4zzal-38zkw0hx7-sanghyug-park-s-projects.vercel.app
 

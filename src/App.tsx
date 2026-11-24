@@ -26,7 +26,17 @@ function App() {
   const [mode, setMode] = useState<AppMode>("splash");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [restoredDraft, setRestoredDraft] = useState<EditorDraft | null>(null);
-  const [policies, setPolicies] = useState(false);
+  const [policies, setPolicies] = useState<"product" | "privacy" | "refund" | null>(null);
+  const policyPanelRef = useRef<HTMLDivElement>(null);
+  const policyTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const openPolicy = (section: "product" | "privacy" | "refund", trigger: HTMLButtonElement) => {
+    policyTriggerRef.current = trigger;
+    setPolicies(section);
+    requestAnimationFrame(() => {
+      policyPanelRef.current?.focus({ preventScroll: true });
+      policyPanelRef.current?.querySelector(`#nz-home-policy-${section}`)?.scrollIntoView({ block: "start" });
+    });
+  };
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -114,7 +124,7 @@ function App() {
     <>
       {launchEnabled && mode !== "splash" && <LaunchAccount />}
       {launchEnabled && mode !== "splash" && <LaunchOperator />}
-      {launchEnabled && policies && <LaunchPolicies onBack={() => setPolicies(false)} />}
+      {launchEnabled && policies && <div className="nz-home-policy-panel" ref={policyPanelRef} tabIndex={-1}><LaunchPolicies sectionPrefix="nz-home-policy" onBack={() => { setPolicies(null); requestAnimationFrame(() => policyTriggerRef.current?.focus()); }} /></div>}
       {mode === "splash" && <SplashScreen />}
       {mode === "privacy" && <PrivacyScreen onBack={() => setMode("start")} />}
 
@@ -149,8 +159,14 @@ function App() {
           onShareAppClick={handleShareApp}
         />
       )}
-      {mode === "start" && <div style={{textAlign: "center", padding: "0 12px 24px", background: "#ffe4ec"}}><button onClick={() => setMode("privacy")} style={{background: "none", border: 0, color: "#79535f", textDecoration: "underline"}}>사진과 개인정보 안내 · 문의</button></div>}
-      {launchEnabled && mode !== "splash" && <div style={{textAlign:"center",padding:16}}><button onClick={() => setPolicies(v => !v)}>상품·이용약관·개인정보·환불 안내</button></div>}
+      {mode !== "splash" && <footer className="nz-home-footer">
+        {mode === "start" && <button className="nz-photo-policy" onClick={() => setMode("privacy")}>사진과 개인정보 안내 · 문의</button>}
+        {launchEnabled && <nav aria-label="상품·이용약관·개인정보·환불 안내">
+          <button onClick={e => openPolicy("product", e.currentTarget)}>상품·이용약관</button><span aria-hidden="true">·</span>
+          <button onClick={e => openPolicy("privacy", e.currentTarget)}>개인정보</button><span aria-hidden="true">·</span>
+          <button onClick={e => openPolicy("refund", e.currentTarget)}>환불 안내</button>
+        </nav>}
+      </footer>}
     </>
   );
 }

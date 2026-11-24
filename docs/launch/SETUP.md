@@ -1,5 +1,16 @@
 # 외부 연결 준비 — 상혁님이 필요한 순서
 
+## 고정 테스트 주소와 로그인 복귀 (현행)
+
+- 앞으로 이 브랜치 테스트는 **https://naezzal4zzal-test.vercel.app**만 사용한다.
+- Vercel 프로젝트 도메인을 `codex/launch-credits-20261123` Git 브랜치에 연결했다. 새 커밋의 Preview가 이 주소를 자동 갱신하며 운영 도메인은 변경하지 않는다.
+- 소유자가 테스트 Supabase Site URL을 위 원본으로, Redirect URLs에 `https://naezzal4zzal-test.vercel.app/?auth=return`을 추가해 저장했다. 기존 허용 주소는 유지했다.
+- 실제 취소 callback 요청으로 같은 고정 원본 복귀를 확인했다. 허용되지 않은 원본의 Site URL fallback도 같은 고정 주소이며 localhost가 아님을 확인했다. 실제 계정 재로그인 완료 검사는 별도다.
+- 브랜치 Preview에 `APP_BASE_URL`과 공개 빌드 설정 `VITE_TEST_APP_ORIGIN`을 모두 위 원본으로 등록했다. Production/다른 브랜치에는 등록하지 않았다.
+- 새 임시 배포 주소 진입은 편집/로그인 시작 전에 고정 원본으로 통일한다. 이미 code/auth=return이 있는 callback은 다른 원본으로 넘기지 않으며 초대 쿼리도 보존한다. 기존 원본의 편집 파일을 다른 원본으로 복사하는 기능은 아니다.
+- `node scripts/verifyAuthReturn.mjs https://naezzal4zzal-test.vercel.app`으로 SDK의 redirect_to·PKCE·빈 scope와 실제 Supabase 취소 복귀를 재확인할 수 있다. 이 검사는 회원/크레딧을 생성하지 않는다.
+- Vercel 보호 로그인은 유지한다. 카카오 Developers의 Supabase callback은 변경하지 않는다.
+
 2026-11-24 최신: Preview 배포와 실제 DB·두 비공개 버킷 저장/조회/삭제 검증을 완료했다.
 테스트 주소와 로그인 복귀 허용 등록·가입 5 중복 검사 순서는 [SUPABASE_TEST.md](SUPABASE_TEST.md)의 맨 위를 따른다.
 실제 카카오 회원 로그인과 가입 지급 검증은 소유자가 직접 로그인한 뒤 이어간다. 아래 과거 준비 상태보다 이 기록이 최신이다.
@@ -178,8 +189,8 @@ PG의 실제 상점 심사에서 충전형 상품 취급 가능 여부, 회원 �
 | `ENABLE_LIVE_GENERATION`, `LIVE_COMMERCE_APPROVED`, `BUSINESS_DETAILS_VERIFIED` | `0` |
 | `LAUNCH_ENABLED`, `VITE_LAUNCH_ENABLED`, `LAUNCH_PREVIEW_SAFE` | `1` |
 
-`LAUNCH_DEMO`는 Vercel에 등록하지 않는다. `APP_BASE_URL`은 최초 Preview에서 생략하면
-Vercel이 제공한 해당 배포의 HTTPS 주소를 사용한다. 고정 테스트 별칭을 정할 때 그 주소로 명시한다.
+`LAUNCH_DEMO`는 Vercel에 등록하지 않는다. 현재 브랜치 Preview의 `APP_BASE_URL`과
+`VITE_TEST_APP_ORIGIN`은 모두 `https://naezzal4zzal-test.vercel.app`으로 유지한다.
 `VITE_API_BASE_URL`도 최초 웹 Preview에는 생략하여 같은 원본의 API를 호출한다.
 운영 주소가 들어간 Preview 변수가 있다면 테스트 브랜치에서 제거·교정한다.
 `LAUNCH_ADMIN_IDS`는 실제 로그인 후 확인한 소유자 UUID만 추가한다.

@@ -1,5 +1,13 @@
 # 이어서 작업할 내용
 
+## 고정 Preview·localhost 복귀·홈 메뉴 — 2026-11-24 최신
+
+- 고정 테스트 주소 https://naezzal4zzal-test.vercel.app 를 Vercel 프로젝트 도메인으로 생성하고 Git branch=codex/launch-credits-20261123으로 연결. 운영 도메인/브랜치 변경 없음.
+- 사용자에게 Site URL과 고정 주소 /?auth=return 등록을 요청했고 '두 항목 저장 완료' 답변 받음. 실제 취소 callback으로 sameOrigin=true 및 Site URL fallback이 고정 주소임을 검증. 빈 scope 유지. 실제 계정 재로그인은 별도.
+- APP_BASE_URL, VITE_TEST_APP_ORIGIN은 해당 브랜치 Preview에만 고정 원본으로 설정. 새 임시 URL 진입을 편집/OAuth 전에 정규화하되 code/auth=return callback은 이동하지 않아 PKCE/원본 문맥 보존.
+- 홈 상단 로그인/잔액 버튼은 분홍 테두리 둥근 pill, 홈 카드 420px과 정렬. 하단은 기존 사진 안내 + 상품·이용약관/개인정보/환불 텍스트 메뉴. 각 기존 정책 구간 이동과 닫기 후 포커스 복귀.
+- scripts/verifyAuthReturn.mjs로 실제 취소 복귀 확인. 브라우저 설정 UI는 URL 안전 확인 실패로 제어 중단됐으며 이후 사용자 직접 입력과 공개 Auth 요청만 사용함.
+
 ## 승인 로그인·내 크레딧 디자인 — 2026-11-24
 
 - 승인 ZIP 지시서와 두 시안에 따라 LaunchAccount 화면을 실제 컴포넌트로 재구성. 상세 구현/검사/한계는 docs/launch/UI_REDESIGN.md.

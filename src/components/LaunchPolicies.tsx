@@ -1,11 +1,11 @@
 import { useLaunch } from "../lib/launch";
-export default function LaunchPolicies({ onBack }: { onBack: () => void }) {
+export default function LaunchPolicies({ onBack, sectionPrefix = "nz-policy" }: { onBack: () => void; sectionPrefix?: string }) {
   const { config } = useLaunch();
   return (
     <article className="nz-account" aria-label="이용과 개인정보 안내">
       <h2>내짤4짤 이용 안내</h2>
       <p>출시 준비용 안내 · 2026년 11월 23일</p>
-      <h3>상품과 제공 방식</h3>
+      <h3 id={sectionPrefix + "-product"}>상품과 제공 방식</h3>
       <p>
         이 서비스 안에서만 사용하는 AI 영상 제작 10크레딧의 최종 결제금액은
         3,900원이에요. 실사 영상 1편은 1, 펜화 영상 1편은 3크레딧이에요.
@@ -27,7 +27,7 @@ export default function LaunchPolicies({ onBack }: { onBack: () => void }) {
         따라 무료 지급을 중지할 수 있어요. 무료분부터 사용하고 현재 무료
         크레딧에도 별도 만료일을 적용하지 않아요.
       </p>
-      <h3>제작 실패·취소·환불</h3>
+      <h3 id={sectionPrefix + "-refund"}>제작 실패·취소·환불</h3>
       <p>
         영상 제작 전에 필요한 크레딧을 예약하고 무음 완성본의 보관이 끝나면
         사용을 확정해요. 기술 실패가 확인되면 같은 예약분을 한 번 복구해요. 단순
@@ -41,7 +41,7 @@ export default function LaunchPolicies({ onBack }: { onBack: () => void }) {
         환불 조건과 처리 연락처는 PG 계약·사업자 정보 확인 후 공개 출시 전에
         확정해요.
       </p>
-      <h3>어떤 정보가 어디로 가나요?</h3>
+      <h3 id={sectionPrefix + "-privacy"}>어떤 정보가 어디로 가나요?</h3>
       <p>
         카카오 로그인을 Supabase 인증으로 확인하고, 계정 식별자·중복 선물 방지용
         식별 해시·크레딧 장부·구매·제작·초대 기록을 서버 DB에서 관리해요.

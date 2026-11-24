@@ -123,3 +123,18 @@
 @media(max-width:374px){.nz-redesign.nz-account{padding-left:13px;padding-right:13px}.nz-redesign .nz-login-title{font-size:37px}.nz-gift-ticket>svg{width:42px}.nz-gift-ticket strong{font-size:25px}.nz-gift-ticket strong b{font-size:46px}.nz-gift-ticket p{font-size:11px}.nz-ticket-top strong{font-size:29px}.nz-ticket-top strong b{font-size:62px}.nz-cost-chips>span{font-size:11px;gap:2px}.nz-cost-chips svg{width:20px}.nz-redesign h2{font-size:21px}.nz-referral-card .nz-plane{width:44px;left:10px}.nz-redesign .nz-referral-card h2{font-size:20px;margin-left:29px}.nz-redesign .nz-referral-card>p{margin-left:25px}.nz-price b,.nz-price strong{font-size:26px}}
 @media(prefers-reduced-motion:reduce){.nz-redesign *{scroll-behavior:auto;animation:none;transition:none}}
 @media(max-width:374px){.nz-ticket:before{left:-12px}.nz-ticket:after{right:-12px}}
+
+/* Home entry points share the 420px home card's outer alignment. */
+.nz-bar{width:100%;max-width:456px;margin:0 auto;padding:12px 18px 4px;background:#fff1f5;font-family:system-ui,sans-serif;box-sizing:border-box}
+.nz-bar>button{border:1.5px solid #f294ba;background:#fff9fc;color:#b63d73;border-radius:999px;padding:9px 17px;min-height:44px;font:600 14px/1.4 system-ui,sans-serif;cursor:pointer;box-shadow:0 2px 5px #e98aaf10;max-width:100%;white-space:normal}
+.nz-bar>button:hover{background:#ffeaf3;border-color:#ed6ba4}
+.nz-bar>button:focus-visible{outline:3px solid #c968a9;outline-offset:3px}
+.nz-home-footer{background:#ffe4ec;color:#79535f;text-align:center;padding:0 18px calc(18px + env(safe-area-inset-bottom));font:12px/1.6 system-ui,sans-serif}
+.nz-home-footer nav{max-width:420px;margin:auto;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:2px}
+.nz-home-footer button{appearance:none;border:0;background:none;box-shadow:none;color:#79535f;font:inherit;font-size:12px;font-weight:400;padding:8px 5px;min-height:44px;border-radius:7px;cursor:pointer;text-decoration:underline;text-underline-offset:4px;text-decoration-color:#bd8a9c}
+.nz-home-footer button:hover{color:#b52d60;text-decoration-color:currentColor}
+.nz-home-footer button:focus-visible{outline:2px solid #bd6b9d;outline-offset:2px}
+.nz-home-footer .nz-photo-policy{font-size:13px;margin-bottom:2px}
+.nz-home-footer nav>span{color:#bfa1ac}
+.nz-home-policy-panel{max-width:480px;margin:0 auto;text-align:left;scroll-margin-top:12px}
+.nz-home-policy-panel h3{scroll-margin-top:18px}

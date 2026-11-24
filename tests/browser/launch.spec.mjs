@@ -28,6 +28,29 @@ async function simulatedKakao(page, alias, cancel) {
 const unique = () =>
   "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
+test("home credit pill and footer text menus retain policy navigation and focus", async ({page}) => {
+  await page.goto('/');
+  const entry=page.getByRole('button',{name:'내 크레딧 · 로그인',exact:true});
+  await entry.waitFor();
+  expect(await entry.evaluate(e=>parseFloat(getComputedStyle(e).borderRadius))).toBeGreaterThan(20);
+  const menus=page.getByRole('navigation',{name:'상품·이용약관·개인정보·환불 안내'});
+  for(const [label,heading] of [['상품·이용약관','상품과 제공 방식'],['개인정보','어떤 정보가 어디로 가나요?'],['환불 안내','제작 실패·취소·환불']]) {
+    const button=menus.getByRole('button',{name:label,exact:true});
+    expect(await button.evaluate(e=>getComputedStyle(e).borderTopWidth)).toBe('0px');
+    await button.click();
+    await expect(page.getByRole('heading',{name:heading,exact:true})).toBeInViewport();
+    await page.getByRole('button',{name:'안내 닫기',exact:true}).click();
+    await expect(button).toBeFocused();
+  }
+  for(const width of [360,390,430,1280]) {
+    await page.setViewportSize({width,height:844});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  }
+  await entry.click(); await login(page,unique());
+  await page.getByRole('button',{name:'크레딧 닫기'}).click();
+  expect(await page.getByRole('button',{name:'내 크레딧 5 · 내역',exact:true}).evaluate(e=>parseFloat(getComputedStyle(e).borderRadius))).toBeGreaterThan(20);
+});
+
 test("redesigned account adapts to four widths, restores focus and supports tabs and invite copying", async ({ page, context }) => {
   await page.goto('/');
   const trigger = page.getByRole('button', {name:'내 크레딧 · 로그인'});
