@@ -1,5 +1,13 @@
 # 이어서 작업할 내용
 
+## KOE205 실제 최종 scope 수정 — 2026-11-24
+
+- Supabase 기본 provider가 email/image/nickname을 하드코딩하는 문제 재현. scopes 삭제로 해결되지 않음.
+- src/lib/kakao.ts 공통 옵션에서 queryParams.scope=""로 최종 scope 덮어쓰기. 추가 scopes 사용 안 함. PKCE/state/콜백 보존.
+- scripts/verifyKakaoScope.mjs는 실제 SDK URL→Supabase 302 Location→Kakao 로그인 화면 확인. 최종 scope="", 세 항목 없음, KOE205 없음. 실제 회원 로그인은 별도 대기.
+- 수정 Preview: https://naezzal4zzal-38zkw0hx7-sanghyug-park-s-projects.vercel.app . Supabase에 이 원본의 /?auth=return 추가 필요.
+- SETUP.md의 과거 프로필 동의 활성화 안내를 정정. 새로 활성화할 개인정보 항목 없음. 사용자 직접 가입5·재로그인 중복 방지 검증 남음.
+
 ## 실제 Supabase Preview 연결 확인 — 2026-11-24
 
 - 사용자가 입력한 두 Secret은 그대로 서버에 두고, 공개 키·독립 난수·mock/test 차단 플래그를 해당 브랜치 Preview에 등록했다.

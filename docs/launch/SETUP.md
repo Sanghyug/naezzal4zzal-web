@@ -26,7 +26,7 @@ DB가 재시작 후에도 잔액과 작업을 유지하는 검사, 중복·동�
 4. 해당 REST API 키의 **Kakao Login Client Secret**을 활성화한다.
 5. [Supabase 제공자 설정](https://supabase.com/dashboard/project/cvwikgszywzlvadsvvvq/auth/providers) → Kakao에서 Client ID에 REST API 키, Client Secret에 위 비밀값을 직접 입력한다.
 6. Kakao Enabled와 **Allow users without an email**을 켜고 저장한다. Google은 활성화하지 않는다.
-7. 카카오 동의항목은 profile_nickname, profile_image를 설정한다. account_email은 요청하지 않는다. 앱도 두 프로필 항목만 요청하며 이메일이 가입 조건이 아니다.
+7. 이메일(account_email), 프로필 사진(profile_image), 닉네임(profile_nickname)은 이 앱에서 사용하지 않는다. 카카오 동의항목에서 사용 안 함 상태로 둘 수 있으며, 이번 구현을 위해 활성화할 개인정보 동의항목은 없다. Supabase의 Allow users without an email은 계속 켠다.
 8. Supabase URL Configuration에 최종 테스트 원본 주소의 `/?auth=return`을 정확히 허용한다. 임시로 광범위한 wildcard를 등록하지 않는다.
 
 준비할 자료: Supabase 로그인 계정만 필요하다. 아직 사업자 서류·도메인 구매는 필요하지 않다.
@@ -65,6 +65,13 @@ REST API 키도 Supabase의 Client ID 칸에만 입력하며, 카카오 Secret�
 인증 서버가 확인한 카카오 식별자의 해시는 가입 선물 중복 방지에만 사용한다.
 기존 Google 회원의 유효한 세션은 유지하지만 Google 신규 가입 버튼·흐름은 제공하지 않는다.
 별도 카카오 계정과 기존 계정을 자동 병합하지 않는다.
+
+KOE205 수정: Supabase 기본 Kakao scopes에는 세 항목이 하드코딩되어 있고 options.scopes는 추가만 한다.
+따라서 단순 삭제 대신 `options.queryParams: { scope: "" }`로 최종 provider scope를 빈 값으로 덮어쓴다.
+2026-11-24 실제 프로젝트의 302 Location에서 Kakao `/oauth/authorize?…&scope=&…`를 확인했고
+accounts.kakao.com 로그인 화면(HTTP 200)으로 이동했으며 KOE205는 나타나지 않았다. 전체 state·인가 URL은 로그에 남기지 않는다.
+`node scripts/verifyKakaoScope.mjs <정확한 HTTPS Preview 원본>`으로 실제 SDK→Supabase→Kakao를 재검사한다.
+Supabase 업그레이드 시 이 최종 URL 검사를 다시 한다. 계정 로그인/가입 크레딧 확인을 대체하는 검사는 아니다.
 
 자동 검사: 이메일 없는 회원의 가입·재로그인과 이메일 변경 시 장부 유지, 위조 프로필 거부,
 기존 크레딧·초대 규칙, OAuth 취소 후 원본 사진 바이트·잘라내기·조정·메모·프레임 복원,

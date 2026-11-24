@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { kakaoOAuthOptions } from "./kakao";
 export const launchEnabled = import.meta.env.VITE_LAUNCH_ENABLED === "1";
 const base = import.meta.env.VITE_API_BASE_URL || "";
 export type LaunchJob = {
@@ -219,10 +220,7 @@ export async function kakaoLogin() {
   await flushDraft();
   await refreshConfig();
   if (!client) throw new Error("카카오 로그인 연결을 준비하고 있어요.");
-  const { error } = await client.auth.signInWithOAuth({
-    provider: "kakao",
-    options: { redirectTo: location.origin + "/?auth=return", scopes: "profile_nickname profile_image" },
-  });
+  const { error } = await client.auth.signInWithOAuth(kakaoOAuthOptions(location.origin));
   if (error) throw new Error("카카오 로그인을 시작하지 못했어요. 편집 내용은 보관했어요.");
 }
 export async function logout() {

@@ -14,7 +14,9 @@ async function simulatedKakao(page, alias, cancel) {
   await page.route("**/auth/v1/authorize?**", async (route) => {
     const u = new URL(route.request().url());
     expect(u.searchParams.get("provider")).toBe("kakao");
-    expect(u.searchParams.get("scopes")).not.toContain("account_email");
+    expect(u.searchParams.has("scopes")).toBe(false);
+    expect(u.searchParams.has("scope")).toBe(true);
+    expect(u.searchParams.get("scope")).toBe("");
     expect(u.searchParams.get("code_challenge")).toBeTruthy();
     await route.fulfill({ status: 302, headers: { location: "http://127.0.0.1:5173/?auth=return&" + (cancel ? "error=access_denied&error_description=cancelled" : "code=test-code") } });
   });

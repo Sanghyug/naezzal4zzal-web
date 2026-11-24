@@ -1,5 +1,18 @@
 # Supabase 테스트 연결 — 2026-11-24
 
+## KOE205 수정 Preview (최신)
+
+https://naezzal4zzal-38zkw0hx7-sanghyug-park-s-projects.vercel.app
+
+Supabase Redirect URLs에 추가할 정확한 주소:
+`https://naezzal4zzal-38zkw0hx7-sanghyug-park-s-projects.vercel.app/?auth=return`
+
+최종 Kakao scope를 빈 값으로 덮어써 account_email/profile_image/profile_nickname을 모두 제외한다.
+개인정보 동의항목을 새로 켤 필요 없음. 세 항목은 사용 안 함으로 두며 이메일 없는 사용자 허용은 켠 상태를 유지한다.
+실제 SDK로 Supabase의 Location 헤더를 읽어 scope가 단 하나이며 빈 값임을 검사했고,
+카카오 계정 로그인 페이지 HTTP 200·KOE205 없음 확인. 실제 계정 로그인과 가입 지급은 소유자가 이어서 확인한다.
+결제/영상 mock, 실제 AI 차단 유지. 기존 회원·장부·키·콜백은 변경하지 않는다.
+
 ## 현재 배포 검증 결과
 
 - 테스트 주소: https://naezzal4zzal-b0lcm7ksl-sanghyug-park-s-projects.vercel.app
