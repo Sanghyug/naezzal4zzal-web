@@ -27,6 +27,46 @@ async function simulatedKakao(page, alias, cancel) {
 }
 const unique = () =>
   "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+test("redesigned account adapts to four widths, restores focus and supports tabs and invite copying", async ({ page, context }) => {
+  await page.goto('/');
+  const trigger = page.getByRole('button', {name:'내 크레딧 · 로그인'});
+  await trigger.click();
+  for (const width of [360,390,430,1280]) {
+    await page.setViewportSize({width,height:900});
+    expect(await page.locator('.nz-redesign').evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);
+  }
+  await page.keyboard.press('Escape');
+  await expect(trigger).toBeFocused();
+  await trigger.click();
+  await page.getByRole('button',{name:'지금은 둘러볼게요'}).click();
+  await expect(page.getByRole('dialog',{name:'카카오 로그인 안내'})).toHaveCount(0);
+  await trigger.click();
+  await login(page,unique());
+  await expect(page.getByRole('tab',{name:'크레딧 내역',exact:true})).toHaveAttribute('aria-selected','true');
+  for(const width of [360,390,430,1280]) {
+    await page.setViewportSize({width,height:900});
+    expect(await page.locator('.nz-redesign').evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);
+  }
+  await page.getByRole('tab',{name:'크레딧 내역',exact:true}).focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByRole('tab',{name:'구매 내역',exact:true})).toBeFocused();
+  await expect(page.getByText('아직 구매 내역이 없어요.')).toBeVisible();
+  await page.keyboard.press('Home');
+  await expect(page.getByText('아직 만든 영상이 없어요.')).toBeVisible();
+  await context.grantPermissions(['clipboard-read','clipboard-write']);
+  await page.evaluate(()=>Object.defineProperty(navigator,'share',{configurable:true,value:undefined}));
+  await page.getByRole('button',{name:'친구 초대 링크 공유',exact:true}).click();
+  await expect(page.getByText('초대 링크를 복사했어요.')).toBeVisible();
+  expect(await page.evaluate(()=>navigator.clipboard.readText())).toMatch(/^http:\/\/127\.0\.0\.1:5173\/\?ref=/);
+  await page.evaluate(()=>Object.defineProperty(navigator,'share',{configurable:true,value:async()=>{throw new DOMException('Cancelled','AbortError')}}));
+  await page.getByRole('button',{name:'친구 초대 링크 공유',exact:true}).click();
+  await expect(page.getByText('공유를 취소했어요. 초대 보상은 아직 지급되지 않았어요.')).toBeVisible();
+  await page.getByText('계정 관리',{exact:true}).click();
+  await expect(page.getByText('계정 탈퇴와 서버 자료 삭제',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'크레딧 닫기'}).click();
+  await expect(page.getByRole('button',{name:'내 크레딧 5 · 내역'})).toBeFocused();
+});
 async function upload(page) {
   await page.goto("/");
   await page.getByRole("button", { name: "🖼️ 불러오기" }).waitFor();
@@ -108,9 +148,11 @@ test("anonymous editing and GIF survive login/reload; one-credit creation and do
   });
   await page.reload();
   await page.getByRole("button", { name: "내 크레딧 4 · 내역" }).click();
+  await page.getByRole("tab", { name: "내 영상", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "완성본 다시 저장 · 무료" }),
   ).toBeVisible();
+  await page.getByRole("tab", { name: "내 영상", exact: true }).click();
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "완성본 다시 저장 · 무료" }).click();
   await (await download).saveAs("artifacts/launch/browser-silent.mp4");
@@ -126,7 +168,7 @@ test("mock 3900 payment credits exactly ten; unused cancellation restores paid l
   await page.getByRole("button", { name: "내 크레딧 · 로그인" }).click();
   await login(page, unique());
   await page
-    .getByRole("button", { name: "10크레딧 충전", exact: true })
+    .getByRole("button", { name: "10크레딧 충전하기", exact: true })
     .click();
   await expect(
     page.getByRole("dialog", { name: "10크레딧 결제" }),
@@ -136,7 +178,7 @@ test("mock 3900 payment credits exactly ten; unused cancellation restores paid l
     page.getByRole("button", { name: "내 크레딧 5 · 내역" }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "10크레딧 충전", exact: true })
+    .getByRole("button", { name: "10크레딧 충전하기", exact: true })
     .click();
   await page.getByRole("button", { name: "모의 3,900원 승인" }).click();
   await expect(
@@ -144,6 +186,7 @@ test("mock 3900 payment credits exactly ten; unused cancellation restores paid l
   ).toBeVisible();
   await page.reload();
   await page.getByRole("button", { name: "내 크레딧 15 · 내역" }).click();
+  await page.getByRole("tab", { name: "구매 내역", exact: true }).click();
   await expect(page.getByText("충전 완료", { exact: true })).toHaveCount(1);
   await page
     .getByRole("button", { name: "미사용 구매 취소 / 환불 요청" })

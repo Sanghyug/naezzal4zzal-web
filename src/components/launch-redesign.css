@@ -1,0 +1,125 @@
+@font-face{font-family:NaezzalBody;src:url('/launch/body.woff2') format('woff2');font-display:swap;font-weight:400}
+.nz-account-overlay{font-synthesis:weight}
+@font-face{font-family:NaezzalJua;src:url('/launch/jua.woff2') format('woff2');font-display:swap;font-weight:400}
+.nz-account-overlay{--nz-bg:#fff8fb;--nz-pink:#ff4589;--nz-hot:#ec2b79;--nz-ink:#442521;--nz-lilac:#f7eaff;position:fixed;inset:0;z-index:1000;overflow:auto;overscroll-behavior:contain;background:radial-gradient(ellipse at 50% 25%,#fffdfd 0,#fff5fa 75%);color:var(--nz-ink);font-family:NaezzalBody,'Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;text-align:left}
+.nz-redesign.nz-account{max-width:480px;min-height:100%;width:100%;padding:15px 18px calc(22px + env(safe-area-inset-bottom));margin:0 auto;border:0;background:transparent;color:var(--nz-ink);line-height:1.5;font-family:inherit;box-sizing:border-box}
+.nz-redesign *{box-sizing:border-box}
+.nz-redesign button{font-family:inherit;font-size:15px;font-weight:700;line-height:1.4;cursor:pointer;touch-action:manipulation}
+.nz-account.nz-redesign button{flex:initial;border:0}
+.nz-account.nz-redesign .nz-referral-card>button{border:1px solid #a158d4}
+.nz-account.nz-redesign .nz-history button{border:1px solid #f4b9d3}
+.nz-redesign button:disabled{opacity:.5;cursor:wait}
+.nz-redesign h1,.nz-redesign h2,.nz-login-full h1{font-family:NaezzalJua,'Malgun Gothic',sans-serif;font-weight:400;letter-spacing:-.035em;color:var(--nz-ink)}
+.nz-redesign p{margin:6px 0}
+.nz-brand-header{display:flex;justify-content:space-between;align-items:center;margin:0 0 15px;min-height:42px}
+.nz-brand-header img{width:122px;height:auto;display:block}
+.nz-redesign button.nz-close{font-family:system-ui,sans-serif;font-weight:300;font-size:42px;line-height:1;background:none;color:var(--nz-ink);width:44px;height:44px;margin:0;padding:0;border-radius:50%;display:grid;place-items:center}
+.nz-redesign .nz-login-full{border:0;background:none;padding:0;margin:0;text-align:center}
+.nz-redesign .nz-login-title{font-size:41px;line-height:1.13;margin:20px 0 9px;letter-spacing:-.035em}
+.nz-login-title em{font-style:normal;color:#df135d;font-size:1.15em;position:relative;display:inline-block}
+.nz-login-title em:after{content:'';position:absolute;bottom:-3px;left:-12%;width:124%;height:6px;border-radius:50%;background:#ffb9d4;transform:rotate(-2deg)}
+.nz-login-title em span{position:absolute;right:-24px;top:0;font-size:30px;color:var(--nz-pink);transform:rotate(18deg)}
+.nz-redesign .nz-login-subtitle{font-size:17px;font-weight:600;line-height:1.4;color:#805b58;margin:16px 0 0}
+.nz-login-art{display:block;width:100%;height:auto;mix-blend-mode:darken;margin:0 auto 9px;object-fit:contain}
+.nz-ticket{position:relative;border:1px solid #ffc5db;border-bottom-color:#f498bd;border-radius:27px;background:radial-gradient(ellipse at 30% 20%,#fff9fc,#ffdce9);box-shadow:0 5px 7px #b6647b20,inset 0 1px 0 #fff;isolation:isolate}
+.nz-ticket:before,.nz-ticket:after{content:'';position:absolute;top:45%;width:29px;height:39px;background:var(--nz-bg);border-radius:50%;z-index:1}
+.nz-ticket:before{left:-17px;box-shadow:1px 0 0 #ffc5db}
+.nz-ticket:after{right:-17px;box-shadow:-1px 0 0 #ffc5db}
+.nz-redesign .nz-gift-ticket{margin:6px 14px 21px;padding:9px 23px 10px;display:flex;align-items:center;gap:9px;text-align:center}
+.nz-gift-ticket>svg{width:54px;height:65px;flex-shrink:0;color:var(--nz-hot);transform:rotate(-15deg)}
+.nz-gift-ticket>div{flex:1;min-width:0;border-right:3px dotted #f8a7c7;padding-right:6px}
+.nz-pill{display:inline-block;background:#ffc9e0;padding:2px 15px;border-radius:30px;font-size:14px;font-weight:700;line-height:1.5}
+.nz-gift-ticket strong{display:block;font-family:NaezzalJua,sans-serif;font-weight:400;font-size:29px;line-height:1.2;white-space:nowrap}
+.nz-gift-ticket strong b{font-family:Arial,sans-serif;font-size:54px;font-style:italic;color:var(--nz-hot);line-height:.95;margin:0 4px}
+.nz-gift-ticket small{font-size:10px;color:#95686f;display:block;margin-top:3px}
+.nz-gift-ticket p{border-top:1px solid #f3a9c4;padding-top:4px;font-size:12px;font-weight:600;white-space:nowrap}
+.nz-gift-ticket .nz-gift-closed{font-size:20px;white-space:normal}
+.nz-redesign .nz-login-full button.nz-kakao-login,.nz-login-compact button.nz-kakao-login{background:#fee500;color:#191919;border:0;box-shadow:none;display:flex;align-items:center;justify-content:center;gap:13px;width:100%;min-height:57px;border-radius:17px;font-size:22px;font-weight:800;margin:0;padding:12px}
+.nz-kakao-login svg{width:32px;height:32px;flex-shrink:0}
+.nz-redesign button.nz-browse{background:none;color:#744943;text-decoration:underline;text-underline-offset:4px;margin:6px 0 12px;padding:9px;min-height:44px;font-size:17px;font-weight:500}
+.nz-redesign .nz-free-note{font-size:13px;margin:0 0 4px;letter-spacing:-.03em}
+.nz-policy-links{display:flex;align-items:center;justify-content:center;gap:3px}
+.nz-redesign .nz-policy-links button{background:none;color:#744943;font-size:12px;margin:0;padding:8px 3px;min-height:36px;font-weight:400}
+.nz-demo-field{display:block;font-size:12px;margin-bottom:10px}
+.nz-redesign .nz-page-title h1{font-size:32px;margin:10px 0 0;line-height:1.2}
+.nz-redesign .nz-page-title h1:before,.nz-redesign h2:before{content:'';display:inline-block;width:6px;height:.85em;margin-right:9px;vertical-align:baseline;border-radius:8px;background:linear-gradient(#ff619a,#ed2673)}
+.nz-redesign .nz-page-title p{font-size:16px;margin:3px 0 15px 16px;letter-spacing:-.04em}
+.nz-credit-ticket{padding:12px 13px;margin:0 0 17px;border-radius:25px}
+.nz-ticket-top{display:flex;min-height:112px;align-items:center;justify-content:space-between;padding-left:10px}
+.nz-ticket-top>div:first-child{position:relative;z-index:2;flex:1;min-width:0}
+.nz-ticket-top strong{display:flex;align-items:baseline;gap:6px;font-family:NaezzalJua,sans-serif;font-size:32px;line-height:1.2;white-space:nowrap}
+.nz-ticket-top strong b{font-family:Arial,sans-serif;color:var(--nz-hot);font-size:69px;font-weight:800;font-style:italic;letter-spacing:-.08em;line-height:1.2;margin-right:6px}
+.nz-ticket-top strong>span{position:relative}
+.nz-ticket-top strong>span:after{content:'';position:absolute;bottom:0;left:0;right:0;height:6px;z-index:-1;background:#ffe771;transform:rotate(-3deg);border-radius:50%}
+.nz-ticket-top p{font-size:12px;white-space:nowrap;letter-spacing:-.04em}
+.nz-film-art{position:relative;width:40%;height:117px;flex-shrink:0;margin-right:9px;transform:rotate(-5deg)}
+.nz-film-art i{position:absolute;width:82px;height:63px;left:2px;top:40px;border:8px solid #d3a6e5;border-top:12px dashed #d3a6e5;border-bottom:12px dashed #d3a6e5;background:#fff2fa;box-shadow:0 3px 5px #9f4a7629;transform:rotate(-10deg)}
+.nz-film-art i:nth-child(2){left:46px;top:48px;transform:rotate(14deg)}
+.nz-film-art i:nth-child(3){width:76px;height:86px;left:33px;top:6px;transform:rotate(-9deg);border-color:#f693b5;background:#fff1f6}
+.nz-film-art i{border-style:solid}
+.nz-film-art i:before,.nz-film-art i:after{content:'';position:absolute;left:0;right:0;height:6px;background:repeating-linear-gradient(90deg,#fff9fc 0 5px,transparent 5px 11px)}
+.nz-film-art i:before{top:-9px}.nz-film-art i:after{bottom:-9px}
+.nz-film-art span{position:absolute;left:82px;top:68px;font-size:46px;color:#ff8bb8;-webkit-text-stroke:2px white;filter:drop-shadow(0 2px 2px #d57b8e);transform:rotate(12deg)}
+.nz-film-art b{position:absolute;right:0;top:2px;font-size:39px;color:#ffd764;-webkit-text-stroke:1px white}
+.nz-cost-chips{border-top:2px dotted #f6a5c5;display:flex;gap:7px;margin-top:9px;padding-top:8px}
+.nz-cost-chips>span{background:#fffbfd;border:1px solid white;box-shadow:0 2px 2px #e99ab92b;border-radius:28px;padding:8px 4px;display:flex;align-items:center;justify-content:center;gap:4px;flex:1;font-size:12px;font-weight:700;white-space:nowrap}
+.nz-cost-chips b{color:var(--nz-hot)}
+.nz-cost-chips svg{width:24px;height:24px;color:var(--nz-pink)}
+.nz-redesign h2{font-size:23px;margin:0 0 10px;line-height:1.3}
+.nz-topup-card,.nz-records-card{background:#ffffffdf;padding:13px 13px 12px;border:1px solid white;border-radius:24px;margin:12px 0;box-shadow:0 5px 15px #e7b9cd20}
+.nz-price{display:flex;align-items:center;justify-content:space-around;background:linear-gradient(100deg,#fcecf5,#fff9fc,#fce9f2);border-radius:17px;padding:7px;line-height:1.3}
+.nz-price b,.nz-price strong{font-size:28px;font-family:NaezzalJua,sans-serif;font-weight:400}
+.nz-price b{color:var(--nz-hot);border-right:1px solid #edb6cf;flex:1;text-align:center}
+.nz-price strong{flex:1;text-align:center}
+.nz-redesign .nz-topup-card>p{text-align:center;font-size:13px;margin:4px 0 10px}
+.nz-redesign .nz-topup-card>button{display:block;background:linear-gradient(110deg,#ff397e,#f51f70);color:#fff;border-radius:16px;width:100%;min-height:45px;margin:0;font-size:21px;font-family:NaezzalJua,sans-serif;font-weight:400;padding:6px}
+.nz-test-badge{display:block;width:max-content;max-width:100%;padding:2px 22px;background:#fffdf0;color:#b16500;border:1px solid #d89305;border-radius:30px;font-size:12px;font-weight:700;line-height:1.5;margin:8px auto 0}
+.nz-referral-card{position:relative;background:radial-gradient(ellipse at 50% 15%,#fffaff,#f6e8ff);border:1px solid white;border-radius:24px;padding:13px 19px 9px;margin:12px 0;text-align:center}
+.nz-referral-card .nz-plane{width:53px;height:53px;position:absolute;left:17px;top:12px;color:#ff5b9a;filter:drop-shadow(0 2px 0 white);transform:rotate(-6deg)}
+.nz-redesign .nz-referral-card h2{font-size:22px;margin:0 0 3px 42px}
+.nz-referral-card h2:before{display:none}
+.nz-referral-card h2 em{font-style:normal;color:var(--nz-hot);white-space:nowrap}
+.nz-redesign .nz-referral-card>p{font-size:13px;line-height:1.55;margin:0 0 9px 37px}
+.nz-redesign .nz-referral-card>button{background:#ffffff70;border:1px solid #a158d4;border-radius:25px;width:100%;min-height:40px;padding:5px;color:#8845b6;font-size:19px;font-family:NaezzalJua,sans-serif;font-weight:400;margin:0}
+.nz-referral-counts{display:flex;justify-content:center;align-items:center;font-size:13px;margin:7px 0 0}
+.nz-referral-counts>span{flex:1;white-space:nowrap}
+.nz-referral-counts>span+span{border-left:1px solid #d9badf}
+.nz-referral-counts b{color:var(--nz-hot)}
+.nz-invite-details{text-align:left;font-size:11px;margin:4px 0 0;color:#805286}
+.nz-invite-details summary{text-align:center;cursor:pointer;padding:4px;min-height:28px;text-decoration:underline;text-underline-offset:3px}
+.nz-records-card{padding:10px 10px 2px;margin-top:12px}
+.nz-record-tabs{display:flex;border-bottom:1px solid #e8cddd}
+.nz-redesign .nz-record-tabs button{position:relative;background:none;color:#786563;flex:1;font-size:15px;min-height:44px;margin:0;border-radius:0;padding:8px 2px;font-weight:400}
+.nz-redesign .nz-record-tabs button[aria-selected=true]{color:var(--nz-hot);font-weight:800}
+.nz-record-tabs button[aria-selected=true]:after{content:'';position:absolute;left:3px;right:3px;bottom:-1px;height:3px;background:var(--nz-pink);border-radius:5px}
+.nz-redesign .nz-ledger{padding:11px 2px;align-items:center;line-height:1.4}
+.nz-ledger>span{font-size:17px;font-weight:700;display:block;position:relative;padding-left:45px}
+.nz-ledger>span>svg{color:var(--nz-hot);background:#ffebf3;border-radius:13px;position:absolute;left:0;top:0;width:37px;height:40px;padding:5px}
+.nz-ledger small{font-size:12px;font-weight:400;color:#8d7b78}
+.nz-redesign .nz-ledger>b{font-size:27px;color:var(--nz-hot)}
+.nz-redesign .nz-muted{font-size:10px;color:#947b80;line-height:1.55;margin:8px 3px}
+.nz-ledger-help summary{font-size:11px;color:#947b80;cursor:pointer;padding:10px 3px;min-height:40px}
+.nz-redesign .nz-ledger-help .nz-muted{font-size:13px}
+.nz-redesign .nz-history{margin:8px 0;padding:10px;font-size:13px;border-color:#f4dbe7;box-shadow:none}
+.nz-redesign .nz-history button{font-size:12px;background:#fff0f7;color:#a24170;border:1px solid #f4b9d3;min-height:40px;padding:7px 10px}
+.nz-empty{text-align:center;font-size:14px;color:#8d7777;padding:16px 0}
+.nz-account-footer{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;font-size:13px;padding:5px 0;text-align:center}
+.nz-management{display:inline-block;max-width:100%}
+.nz-management>summary{padding:7px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;list-style:none}
+.nz-management[open]{width:100%;text-align:left;background:white;padding:14px;border-radius:16px}
+.nz-redesign .nz-account-footer>button{background:none;color:var(--nz-ink);font-size:13px;font-weight:400;text-decoration:underline;text-underline-offset:3px;padding:7px;margin:0;min-height:36px}
+.nz-account-footer>span{padding:7px;color:#b0939b}
+.nz-redesign .nz-account-footer>p{width:100%;font-size:11px;margin:0}
+.nz-support{width:100%;font-size:11px;color:#947d85}
+.nz-support summary{cursor:pointer;padding:6px}
+.nz-feedback{background:#fff3d5;border-radius:12px;padding:12px!important;font-size:14px;text-align:center}
+.nz-redesign .nz-checkout{border-color:#ffb7d4;margin:12px 0;text-align:left}
+.nz-redesign .nz-checkout button{min-height:44px;background:var(--nz-hot);color:white;font-size:14px}
+.nz-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.nz-redesign .nz-policy-links button,.nz-redesign .nz-account-footer>button,.nz-invite-details summary,.nz-management>summary{min-height:44px}
+.nz-redesign :is(button,a,input,summary,[tabindex]):focus-visible{outline:3px solid #9849c2;outline-offset:3px}
+.nz-login-compact .nz-kakao-login{font-size:17px!important;min-height:48px!important}
+@media(min-width:600px){.nz-redesign.nz-account{padding-top:22px;padding-left:24px;padding-right:24px}.nz-redesign .nz-login-title{font-size:48px}.nz-brand-header img{width:135px}.nz-redesign .nz-login-subtitle{font-size:20px}.nz-redesign .nz-gift-ticket{padding-top:12px;padding-bottom:12px}.nz-credit-ticket{padding-top:17px;padding-bottom:14px}.nz-ticket-top{min-height:130px}.nz-ticket-top strong{font-size:38px}.nz-ticket-top strong b{font-size:83px}.nz-topup-card,.nz-referral-card{padding-top:18px;padding-bottom:15px}.nz-redesign h2{font-size:26px}.nz-price b,.nz-price strong{font-size:33px}}
+@media(max-width:374px){.nz-redesign.nz-account{padding-left:13px;padding-right:13px}.nz-redesign .nz-login-title{font-size:37px}.nz-gift-ticket>svg{width:42px}.nz-gift-ticket strong{font-size:25px}.nz-gift-ticket strong b{font-size:46px}.nz-gift-ticket p{font-size:11px}.nz-ticket-top strong{font-size:29px}.nz-ticket-top strong b{font-size:62px}.nz-cost-chips>span{font-size:11px;gap:2px}.nz-cost-chips svg{width:20px}.nz-redesign h2{font-size:21px}.nz-referral-card .nz-plane{width:44px;left:10px}.nz-redesign .nz-referral-card h2{font-size:20px;margin-left:29px}.nz-redesign .nz-referral-card>p{margin-left:25px}.nz-price b,.nz-price strong{font-size:26px}}
+@media(prefers-reduced-motion:reduce){.nz-redesign *{scroll-behavior:auto;animation:none;transition:none}}
+@media(max-width:374px){.nz-ticket:before{left:-12px}.nz-ticket:after{right:-12px}}

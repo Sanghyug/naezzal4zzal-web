@@ -1,63 +1,35 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
-import {
-  demoLogin,
-  kakaoLogin,
-  launchApi,
-  logout,
-  refreshAccount,
-  useLaunch,
-  videoFile,
-  flushDraft,
-} from "../lib/launch";
+import { demoLogin, kakaoLogin, launchApi, logout, refreshAccount, useLaunch, videoFile, flushDraft } from "../lib/launch";
 import type { LaunchOrder } from "../lib/launch";
+import LaunchPolicies from "./LaunchPolicies";
+import { LaunchIcon, FilmDecoration } from "./LaunchArtwork";
 import "./launch.css";
-export function LoginPrompt() {
+import "./launch-redesign.css";
+export function LoginPrompt({ onDismiss }: { onDismiss?: () => void }) {
   const { config } = useLaunch();
-  const [alias, setAlias] = useState("tester"),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
-  return (
-    <div className="nz-login">
-      <h3>
-        {config?.giftAvailable
-          ? "로그인하고 무료 5크레딧 받기"
-          : "로그인하고 영상 만들기"}
-      </h3>
-      <p>사진 편집과 기본 GIF는 로그인 없이 계속 쓸 수 있어요.</p>
-      {config?.demo && (
-        <label>
-          체험 계정 이름
-          <input
-            value={alias}
-            onChange={(e) => setAlias(e.target.value)}
-            autoComplete="off"
-          />
-        </label>
-      )}
-      <button
-        className={config?.demo ? undefined : "nz-kakao-login"}
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          setError("");
-          try {
-            if (config?.demo) await demoLogin(alias);
-            else await kakaoLogin();
-          } catch (e) {
-            setError(
-              e instanceof Error ? e.message : "로그인을 다시 확인해주세요.",
-            );
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        {config?.demo ? "모의 계정으로 로그인" : "카카오로 시작하기"}
-      </button>
-      {error && <p role="alert">{error}</p>}
-    </div>
-  );
+  const [alias, setAlias] = useState("tester"), [error, setError] = useState(""), [busy, setBusy] = useState(false), [policy, setPolicy] = useState(false);
+  const pending = useRef(false);
+  if (policy) return <LaunchPolicies onBack={() => setPolicy(false)} />;
+  const full = Boolean(onDismiss);
+  return <div className={full ? "nz-login nz-login-full" : "nz-login nz-login-compact"}>
+    {full ? <><h1 className="nz-login-title">네 컷 사진에<br/><em>생기를!<span aria-hidden="true">ˊˊ</span></em></h1>
+    <p className="nz-login-subtitle">사진 속 그 순간을,<br/>실사와 펜화 영상으로 만나봐요.</p>
+    <img className="nz-login-art" src="/launch/login-illustration.jpg" width="745" height="700" alt="같은 네 컷 사진을 실사와 펜화로 나란히 표현한 예시"/>
+    <div className="nz-gift-ticket nz-ticket">
+      <LaunchIcon name="gift"/><div>{!config ? <p role="status">가입 선물을 확인하고 있어요.</p> : config.giftAvailable ? <><span className="nz-pill">첫 가입 선물</span><strong>무료 <b>5</b>크레딧</strong><small>선착순 100명 · 대상 계정에 한 번</small></> : <strong className="nz-gift-closed">가입 선물 이벤트가 마감됐어요</strong>}
+      <p>실사 1크레딧 · 펜화 3크레딧</p></div>
+    </div></> : <><h3>{config?.giftAvailable ? "로그인하고 무료 5크레딧 받기" : "로그인하고 영상 만들기"}</h3><p>사진 편집과 기본 GIF는 로그인 없이 계속 쓸 수 있어요.</p></>}
+    {config?.demo && <label className="nz-demo-field">체험 계정 이름<input value={alias} onChange={e=>setAlias(e.target.value)} autoComplete="off"/></label>}
+    <button className="nz-kakao-login" disabled={busy || !config} aria-busy={busy} onClick={async()=>{
+      if(pending.current) return; pending.current=true; setBusy(true); setError("");
+      try { if(config?.demo) await demoLogin(alias); else await kakaoLogin(); }
+      catch(e){setError(e instanceof Error ? e.message : "로그인을 다시 확인해주세요.");}
+      finally{pending.current=false;setBusy(false);}
+    }}><LaunchIcon name="chat"/>{busy ? "로그인 준비 중…" : config?.demo ? "모의 계정으로 로그인" : "카카오로 시작하기"}</button>
+    {error && <p role="alert">{error} <button className="nz-text-button" onClick={()=>setError("")}>다시 시도</button></p>}
+    {full && <><button className="nz-browse" onClick={onDismiss}>지금은 둘러볼게요</button><p className="nz-free-note">사진 편집과 기본 움짤은 로그인 없이 무료</p><nav className="nz-policy-links" aria-label="서비스 정책"><button onClick={()=>setPolicy(true)}>이용약관</button><span>·</span><button onClick={()=>setPolicy(true)}>개인정보처리방침</button></nav></>}
+  </div>;
 }
 const names: Record<string, string> = {
   signup_gift: "가입 선물",
@@ -95,7 +67,31 @@ export default function LaunchAccount() {
     [refund, setRefund] = useState(""),
     [reason, setReason] = useState(""),
     [closeText, setCloseText] = useState("");
+  const [tab, setTab] = useState<"videos" | "orders" | "credits">(new URLSearchParams(location.search).has("payment") ? "orders" : "credits");
+  const panel = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if(!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow; document.body.style.overflow="hidden";
+    const scope = purchase ? panel.current?.querySelector<HTMLElement>(".nz-checkout") : panel.current;
+    scope?.querySelector<HTMLButtonElement>("button")?.focus();
+    const keys=(e: KeyboardEvent)=>{
+      if(e.key==="Escape"){ e.preventDefault(); if(purchase) setPurchase(null); else setOpen(false); }
+      if(e.key==="Tab"){
+        const items=Array.from(scope?.querySelectorAll<HTMLElement>('button:not([disabled]),a[href],input:not([disabled]),summary,[tabindex="0"]') || []).filter(x=>x.getClientRects().length);
+        const first=items[0],last=items[items.length-1];
+        if(e.shiftKey && (document.activeElement===first || !scope?.contains(document.activeElement))){e.preventDefault();last?.focus();}
+        else if(!e.shiftKey && document.activeElement===last){e.preventDefault();first?.focus();}
+      }
+    };document.addEventListener("keydown",keys);
+    return ()=>{document.body.style.overflow=overflow;document.removeEventListener("keydown",keys);if(previous?.isConnected)previous.focus();};
+  },[open,purchase]);
   const accountId = account?.user.id;
+  useEffect(() => {
+    if (!open) return;
+    panel.current?.parentElement?.scrollTo(0, 0);
+    panel.current?.querySelector<HTMLButtonElement>(".nz-close")?.focus();
+  }, [accountId, open]);
   const act = async (fn: () => Promise<unknown>) => {
     setBusy(true);
     setMessage("");
@@ -113,52 +109,15 @@ export default function LaunchAccount() {
     const t = setInterval(() => void refreshAccount().catch(() => {}), 15000);
     return () => clearInterval(t);
   }, [open, accountId]);
-  return (
-    <>
-      <div className="nz-bar">
-        <button onClick={() => setOpen((v) => !v)}>
-          {account
-            ? `내 크레딧 ${account.balance.available} · 내역`
-            : "내 크레딧 · 로그인"}
-        </button>
-        {config?.demo && (
-          <span>출시 준비 미리보기 · 실제 결제·AI 비용 없음</span>
-        )}
-      </div>
-      {error && <p className="nz-bar" role="status">{error}</p>}
-      {open && (
-        <section className="nz-account" aria-label="내 크레딧">
-          <div className="nz-heading">
-            <h2>움직이는 추억을 더 만들어요</h2>
-            <button onClick={() => setOpen(false)} aria-label="크레딧 닫기">
-              닫기
-            </button>
-          </div>
-          {!account ? (
-            <LoginPrompt />
-          ) : (
-            <>
-              <div className="nz-balance">
-                <strong>{account.balance.available}크레딧</strong>
-                <span>
-                  사용 가능 · 제작 예약 {account.balance.reserved} · 총 보유{" "}
-                  {account.balance.total}
-                </span>
-              </div>
-              <p>
-                실사 영상 1크레딧 · 펜화 영상 3크레딧
-                <br />
-                보관 중인 같은 완성본은 다시 저장해도 무료예요.
-              </p>
-              <div className="nz-product">
-                <h3>
-                  10크레딧 <strong>3,900원</strong>
-                </h3>
-                <p>
-                  최종 결제금액 · 일회성 충전
-                  <br />
-                  실사 최대 10편 또는 펜화 3편＋실사 1편
-                </p>
+  return <>
+    <div className="nz-bar"><button onClick={()=>setOpen(v=>!v)}>{account ? `내 크레딧 ${account.balance.available} · 내역` : "내 크레딧 · 로그인"}</button>{config?.demo && <span>출시 준비 미리보기 · 실제 결제·AI 비용 없음</span>}</div>
+    {error && <p className="nz-bar" role="status">{error}</p>}
+    {open && <div className="nz-account-overlay"><section ref={panel} className="nz-account nz-redesign" role="dialog" aria-modal="true" aria-label={account ? "내 크레딧" : "카카오 로그인 안내"}>
+      <header className="nz-brand-header"><img src="/launch/logo.png" alt="내짤4짤" width="595" height="190"/><button className="nz-close" aria-label="크레딧 닫기" onClick={()=>setOpen(false)}>×</button></header>
+      {!account ? <LoginPrompt onDismiss={()=>setOpen(false)}/> : <>
+        <div className="nz-page-title"><h1>내 크레딧</h1><p>추억을 더 만들 준비, 됐나요?</p></div>
+        <div className="nz-credit-ticket nz-ticket"><div className="nz-ticket-top"><div><span className="nz-pill">사용 가능한 크레딧</span><strong><b>{account.balance.available}</b><span>크레딧</span></strong><p>제작 예약 {account.balance.reserved}크레딧 · 총 보유 {account.balance.total}</p></div><FilmDecoration/></div><div className="nz-cost-chips"><span><LaunchIcon name="video"/>실사 영상 <b>1크레딧</b></span><span><LaunchIcon name="pen"/>펜화 영상 <b>3크레딧</b></span></div></div>
+        <section className="nz-topup-card"><h2>추억을 더 만들고 싶다면</h2><div className="nz-price"><b>10크레딧</b><strong>3,900원</strong></div><p>필요할 때 한 번씩 충전해요</p>
                 <button
                   disabled={busy || !config?.payments}
                   onClick={() =>
@@ -181,30 +140,13 @@ export default function LaunchAccount() {
                     })
                   }
                 >
-                  10크레딧 충전
+                  10크레딧 충전하기
                 </button>
-                {!config?.payments && <p>결제 연결을 준비하고 있어요.</p>}
-                {config?.paymentMode !== "live" && (
-                  <small>
-                    {config?.paymentMode === "mock"
-                      ? "모의 결제: 실제 돈이 결제되지 않아요."
-                      : "토스 테스트 결제: 실제 돈이 출금되지 않아요."}
-                  </small>
-                )}
-              </div>
-              <h3>친구에게 움직이는 추억을 소개해요</h3>
-              <p>
-                새 친구가 초대 링크로 들어와 기본 GIF를 완성하고 가입 확인까지
-                마치면 나에게 2크레딧이 와요. 친구는 가입 선물 대상이면
-                5크레딧을 받아요.
-              </p>
-              <p>
-                이번 달 {account.invite.monthlyUsed}/
-                {account.invite.monthlyLimit}명 · 보상 대기{" "}
-                {account.invite.waiting}명<br />
-                링크 유효기간:{" "}
-                {new Date(account.invite.expires).toLocaleDateString("ko-KR")}
-              </p>
+
+        {!config?.payments && <p>결제 연결을 준비하고 있어요.</p>}{config?.paymentMode!=="live" && <span className="nz-test-badge">테스트 결제 · 실제 청구 없음</span>}
+        {purchase && accountId && purchase.user===accountId && <Checkout order={purchase} onClose={()=>setPurchase(null)} onDone={()=>{sessionStorage.removeItem("nz-purchase-request:"+accountId);setPurchase(null);setTab("orders");void refreshAccount();}}/>}
+        </section>
+        <section className="nz-referral-card"><LaunchIcon name="plane" className="nz-plane"/><h2>친구와 함께, <em>+2크레딧</em></h2><p>초대받은 새 친구가 가입하고<br/>기본 움짤을 완성하면 선물로 드려요</p>
               <button
                 disabled={!account.invite.enabled}
                 onClick={() =>
@@ -212,19 +154,20 @@ export default function LaunchAccount() {
                     const url =
                       location.origin + "/?ref=" + account.invite.code;
                     try {
-                      if (navigator.share)
+                      if (navigator.share) {
                         await navigator.share({
                           title: "내짤4짤",
                           text: "네 컷 사진으로 움짤을 만들어봐!",
                           url,
                         });
-                      else {
+                        setMessage("초대 링크를 공유했어요. 새 친구의 가입과 GIF 완성 후 보상이 지급돼요.");
+                      } else {
                         await navigator.clipboard.writeText(url);
                         setMessage("초대 링크를 복사했어요.");
                       }
                     } catch (e) {
-                      if (!(e instanceof Error && e.name === "AbortError"))
-                        throw e;
+                      if (e instanceof Error && e.name === "AbortError") setMessage("공유를 취소했어요. 초대 보상은 아직 지급되지 않았어요.");
+                      else { await navigator.clipboard.writeText(url); setMessage("초대 링크를 복사했어요."); }
                     }
                   })
                 }
@@ -233,15 +176,19 @@ export default function LaunchAccount() {
                   ? "친구 초대 링크 공유"
                   : "이번 달 초대 보상 한도 도달"}
               </button>
-              <h3>영상 제작 내역</h3>
-              {account.jobs.length === 0 && <p>아직 만든 영상이 없어요.</p>}
+
+        <div className="nz-referral-counts"><span>이번 달 <b>{account.invite.monthlyUsed}/{account.invite.monthlyLimit}</b>명</span><span>보상 대기 <b>{account.invite.waiting}</b>명</span></div>
+        <details className="nz-invite-details"><summary>초대 안내</summary><p>보상은 초대한 사람에게 지급해요. 새 친구의 가입 확인과 기본 GIF 완성이 모두 필요해요. 자기 초대와 중복 가입은 제외돼요. 한국 시간 월 {account.invite.monthlyLimit}명까지, 링크는 발급 후 30일간 유효해요.</p><p>링크 유효기간: {new Date(account.invite.expires).toLocaleDateString("ko-KR")}</p></details></section>
+        <section className="nz-records-card"><h2>나의 기록</h2><div role="tablist" aria-label="나의 기록" className="nz-record-tabs">{([['videos','내 영상'],['orders','구매 내역'],['credits','크레딧 내역']] as const).map(([key,label],i)=><button key={key} id={"nz-tab-"+key} role="tab" aria-selected={tab===key} aria-controls={"nz-panel-"+key} tabIndex={tab===key?0:-1} onClick={()=>setTab(key)} onKeyDown={e=>{const keys=['videos','orders','credits'] as const;const next=e.key==='ArrowRight'?(i+1)%3:e.key==='ArrowLeft'?(i+2)%3:e.key==='Home'?0:e.key==='End'?2:-1;if(next>=0){e.preventDefault();setTab(keys[next]);document.getElementById('nz-tab-'+keys[next])?.focus();}}}>{label}</button>)}</div>
+        <div role="tabpanel" id={"nz-panel-"+tab} aria-labelledby={"nz-tab-"+tab} tabIndex={0}>
+        {tab==='videos' && <><h3 className="nz-sr-only">영상 제작 내역</h3>              {account.jobs.length === 0 && <p>아직 만든 영상이 없어요.</p>}
               {account.jobs.map((j) => (
                 <article className="nz-history" key={j.id}>
                   <b>
                     {j.style === "memory" ? "실사 영상" : "펜화 영상"} ·{" "}
                     {j.cost}크레딧
                   </b>
-                  <span>{statusNames[j.status] || j.status}</span>
+                  <span>{statusNames[j.status] || j.status}</span><small>{new Date(j.created).toLocaleString("ko-KR")}</small>
                   {j.error && <p>{j.error}</p>}
                   {!["completed", "failed", "review"].includes(j.status) && (
                     <button
@@ -291,10 +238,11 @@ export default function LaunchAccount() {
                   )}
                 </article>
               ))}
-              <h3>구매 내역 · 취소</h3>
-              {account.orders.map((o) => (
+</>}
+        {tab==='orders' && <><h3 className="nz-sr-only">구매 내역 · 취소</h3>{account.orders.length===0 && <p className="nz-empty">아직 구매 내역이 없어요.</p>}              {account.orders.map((o) => (
                 <article className="nz-history" key={o.id}>
-                  <b>10크레딧 · 3,900원</b>
+                  <b>{o.credits}크레딧 · {o.amount.toLocaleString("ko-KR")}원</b>
+                  <time dateTime={new Date(o.created).toISOString()}>{new Date(o.created).toLocaleString("ko-KR")}</time>
                   <span>{statusNames[o.status]}</span>
                   <small>주문 {o.id}</small>
                   {["pending", "confirming", "cancelling"].includes(
@@ -353,12 +301,13 @@ export default function LaunchAccount() {
                   <button onClick={() => setRefund("")}>돌아가기</button>
                 </div>
               )}
-              <h3>크레딧 내역</h3>
+</>}
+        {tab==='credits' && <><h3 className="nz-sr-only">크레딧 내역</h3>              {account.entries.filter(e=>names[e.kind]).length === 0 && <p className="nz-empty">아직 크레딧 내역이 없어요.</p>}
               {account.entries
                 .filter((e) => names[e.kind])
                 .map((e) => (
                   <div className="nz-ledger" key={e.id}>
-                    <span>
+                    <span><LaunchIcon name={e.kind === "signup_gift" || e.kind === "invite_reward" ? "gift" : "video"}/>
                       {names[e.kind]}
                       <small>{new Date(e.at).toLocaleString("ko-KR")}</small>
                     </span>
@@ -368,12 +317,14 @@ export default function LaunchAccount() {
                     </b>
                   </div>
                 ))}
-              <p className="nz-muted">
+              <details className="nz-ledger-help"><summary>크레딧 이용 안내</summary><p className="nz-muted">
                 제작 예약과 사용 확정은 같은 제작의 진행 단계예요. 두 번
                 차감되지 않아요. 무료 크레딧부터 사용하며 구매분은 구매 건별로
                 기록해요.
-              </p>
-              <details>
+              </p></details>
+</>}
+        </div></section>
+        <footer className="nz-account-footer"><details className="nz-management"><summary>계정 관리</summary>              <details>
                 <summary>계정 탈퇴와 서버 자료 삭제</summary>
                 <p>
                   진행 중인 제작·결제가 없고 구매 잔액의 환불이 정리된 뒤 탈퇴할
@@ -401,10 +352,7 @@ export default function LaunchAccount() {
                   계정 탈퇴 요청
                 </button>
               </details>
-              <button onClick={() => void logout()}>로그아웃</button>
-            </>
-          )}
-          <p>
+</details><span aria-hidden="true">|</span><button onClick={()=>void logout()}>로그아웃</button><p>보관 중인 완성 영상은 다시 저장해도 무료예요.</p><details className="nz-support"><summary>문의와 도움말</summary>          <p>
             {config?.contact ? (
               <a
                 href={
@@ -431,24 +379,11 @@ export default function LaunchAccount() {
               비공개 문의 연락처는 공개 출시 전에 연결할 예정이에요.
             </p>
           )}
-          {message && <p role="status">{message}</p>}
-          {purchase && accountId && purchase.user === accountId && (
-            <Checkout
-              order={purchase}
-              onClose={() => setPurchase(null)}
-              onDone={() => {
-                sessionStorage.removeItem(
-                  "nz-purchase-request:" + accountId,
-                );
-                setPurchase(null);
-                void refreshAccount();
-              }}
-            />
-          )}
-        </section>
-      )}
-    </>
-  );
+</details></footer>
+      </>}
+      {message && <p className="nz-feedback" role="status">{message}</p>}
+    </section></div>}
+  </>;
 }
 function Checkout({
   order,
