@@ -1,6 +1,6 @@
-@font-face{font-family:NaezzalBody;src:url('/launch/body.woff2') format('woff2');font-display:swap;font-weight:400}
+@font-face{font-family:NaezzalBody;src:url('/launch/body.ttf') format('truetype');font-display:swap;font-weight:400}
 .nz-account-overlay{font-synthesis:weight}
-@font-face{font-family:NaezzalJua;src:url('/launch/jua.woff2') format('woff2');font-display:swap;font-weight:400}
+@font-face{font-family:NaezzalJua;src:url('/launch/jua.ttf') format('truetype');font-display:swap;font-weight:400}
 .nz-account-overlay{--nz-bg:#fff8fb;--nz-pink:#ff4589;--nz-hot:#ec2b79;--nz-ink:#442521;--nz-lilac:#f7eaff;position:fixed;inset:0;z-index:1000;overflow:auto;overscroll-behavior:contain;background:radial-gradient(ellipse at 50% 25%,#fffdfd 0,#fff5fa 75%);color:var(--nz-ink);font-family:NaezzalBody,'Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;text-align:left}
 .nz-redesign.nz-account{max-width:480px;min-height:100%;width:100%;padding:15px 18px calc(22px + env(safe-area-inset-bottom));margin:0 auto;border:0;background:transparent;color:var(--nz-ink);line-height:1.5;font-family:inherit;box-sizing:border-box}
 .nz-redesign *{box-sizing:border-box}
