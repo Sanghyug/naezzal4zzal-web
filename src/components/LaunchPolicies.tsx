@@ -1,11 +1,15 @@
 import { useLaunch } from "../lib/launch";
+import { BUSINESS, supportMailto } from "../lib/business";
+import BusinessInfo from "./BusinessInfo";
 export default function LaunchPolicies({ onBack, sectionPrefix = "nz-policy" }: { onBack: () => void; sectionPrefix?: string }) {
   const { config } = useLaunch();
   return (
     <article className="nz-account" aria-label="이용과 개인정보 안내">
       <h2>내짤4짤 이용 안내</h2>
-      <p>출시 준비용 안내 · 2026년 11월 23일</p>
+      <p>적용일 · 2026년 11월 24일</p>
       <h3 id={sectionPrefix + "-product"}>상품과 제공 방식</h3>
+      <p>{BUSINESS.name}(대표 {BUSINESS.representative})이 내짤4짤을 운영합니다. 이 안내는 서비스 이용, 크레딧, 환불 및 개인정보 처리에 관한 내용을 담고 있어요.</p>
+      {config && config.paymentMode !== "live" && <p>현재 테스트 운영 중이며 실제 결제금액은 청구되지 않아요. 아래 가격은 유료 판매를 시작할 때 적용할 예정인 상품 안내예요.</p>}
       <p>
         이 서비스 안에서만 사용하는 AI 영상 제작 10크레딧의 최종 결제금액은
         3,900원이에요. 실사 영상 1편은 1, 펜화 영상 1편은 3크레딧이에요.
@@ -37,9 +41,9 @@ export default function LaunchPolicies({ onBack, sectionPrefix = "nz-policy" }: 
       <p>
         전액 미사용이고 제작 예약 중이 아닌 구매는 구매 내역에서 취소를 요청할
         수 있어요. 일부 사용·예약된 구매의 환불은 사용량과 실제 결제액을 확인해
-        개별 안내해요. 이 안내로 법에 따른 소비자의 권리를 제한하지 않아요. 세부
-        환불 조건과 처리 연락처는 PG 계약·사업자 정보 확인 후 공개 출시 전에
-        확정해요.
+        개별 안내해요. 이 안내로 법에 따른 소비자의 권리를 제한하지 않아요.
+        환불 문의는 <a href={supportMailto("내짤4짤 환불 요청")}>{BUSINESS.supportEmail}</a>로 보내주세요.
+        결제대행 계약에 따른 세부 환불 조건은 유료 판매 시작 전에 안내해요.
       </p>
       <h3 id={sectionPrefix + "-privacy"}>어떤 정보가 어디로 가나요?</h3>
       <p>
@@ -74,22 +78,15 @@ export default function LaunchPolicies({ onBack, sectionPrefix = "nz-policy" }: 
         편집을 종료하면 이 임시 보관을 삭제해요. 기존 기기 보관함과 꾸미기 공유
         보상은 기기 안에 저장되며 유료 크레딧으로 바뀌지 않아요.
       </p>
-      <h3>사업자와 문의</h3>
-      <p>
-        예정 상호 밤나무랩 · 대표자 박상혁. 사업자등록번호·주소·통신판매업
-        표시·비공개 고객 연락처는 확인 전이므로 임의로 게시하지 않았어요. 실제
-        판매 공개 전에 검증된 정보와 데이터 보관·탈퇴 정책을 갖춰야 해요.
+      <h3>개인정보 보호책임자와 권리 행사</h3>
+      <p>개인정보 보호책임자는 {BUSINESS.name} 대표 {BUSINESS.representative}입니다.
+        개인정보 열람·정정·삭제·처리정지, 동의 철회 및 계정 탈퇴 관련 문의는
+        <a href={supportMailto("내짤4짤 개인정보 요청")}> {BUSINESS.supportEmail}</a>로 요청할 수 있어요.
+        요청 내용을 확인하고 필요한 경우 본인 확인을 거쳐 처리 결과를 안내해요.
       </p>
-      {config?.contact ? (
-        <p>
-          <a href={"mailto:" + config.contact}>비공개 문의·환불·삭제 요청</a>
-        </p>
-      ) : (
-        <p>
-          비공개 고객 문의 연락처는 연결 준비 중이에요. 공개 오류 문의에는
-          사진·주문번호·연락처를 올리지 마세요.
-        </p>
-      )}
+      <h3>사업자와 문의</h3>
+      <BusinessInfo />
+      <p><a href={supportMailto("내짤4짤 문의·환불·삭제 요청")}>비공개 문의·환불·삭제 요청 보내기</a></p>
       <p>
         <a
           href="https://www.heygen.com/privacy"

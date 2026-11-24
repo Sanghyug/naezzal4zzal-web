@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
 import { runtime } from "../server/launch/runtime.ts";
+import { BUSINESS } from "../src/lib/business.ts";
 import {
   requireRule,
   RuleError,
@@ -86,7 +87,7 @@ export default async function handler(req: Request, res: Response) {
           videoMode: "mock",
           demo: false,
           auth: { url: "", anon: "" },
-          contact: "",
+          contact: BUSINESS.supportEmail,
           businessReady: false,
           configured: false,
           product: PRODUCT,
@@ -137,7 +138,7 @@ export default async function handler(req: Request, res: Response) {
           auth: r.authConfig,
           demo: r.demo,
           product: PRODUCT,
-          contact: process.env.PUBLIC_SUPPORT_EMAIL || "",
+          contact: BUSINESS.supportEmail,
           businessReady: process.env.BUSINESS_DETAILS_VERIFIED === "1",
         });
     const cookies =

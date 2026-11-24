@@ -1,11 +1,14 @@
 import { Capacitor } from "@capacitor/core";
 import { useEffect, useState } from "react";
+import type { ReactNode, Ref } from "react";
 
 type StartScreenProps = {
   onCameraClick: () => void;
   onUploadClick: () => void;
   onGalleryClick: () => void;
   onShareAppClick: () => void;
+  accountRef?: Ref<HTMLDivElement>;
+  footer?: ReactNode;
 };
 
 function StartScreen({
@@ -13,6 +16,8 @@ function StartScreen({
   onUploadClick,
   onGalleryClick,
   onShareAppClick,
+  accountRef,
+  footer,
 }: StartScreenProps) {
   const [installPrompt, setInstallPrompt] = useState<(Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> }) | null>(null);
 
@@ -60,6 +65,7 @@ function StartScreen({
       }}
     >
       <div
+        className="nz-home-card"
         style={{
           backgroundColor: "rgba(255,255,255,0.94)",
           backdropFilter: "blur(8px)",
@@ -111,12 +117,14 @@ function StartScreen({
           움직이는 짤로 간직해보세요 ✨
         </p>
 
+        {accountRef && <div className="nz-home-account" ref={accountRef} />}
+
         <div
           style={{
             display: "flex",
             flexDirection: "column",
             gap: "12px",
-            marginTop: "28px",
+            marginTop: accountRef ? "14px" : "28px",
           }}
         >
           <button
@@ -322,7 +330,10 @@ function StartScreen({
           </a>
         </div>
 
+        {footer}
+
         <div
+          className="nz-home-copyright"
           style={{
             marginTop: "24px",
             textAlign: "center",

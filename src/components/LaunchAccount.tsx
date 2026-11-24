@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { demoLogin, kakaoLogin, launchApi, logout, refreshAccount, useLaunch, videoFile, flushDraft } from "../lib/launch";
 import type { LaunchOrder } from "../lib/launch";
 import LaunchPolicies from "./LaunchPolicies";
 import { LaunchIcon, FilmDecoration } from "./LaunchArtwork";
+import { BUSINESS, supportMailto } from "../lib/business";
 import "./launch.css";
 import "./launch-redesign.css";
 export function LoginPrompt({ onDismiss }: { onDismiss?: () => void }) {
@@ -56,7 +58,7 @@ const statusNames: Record<string, string> = {
   completed: "완성",
   review: "운영자 확인 중",
 };
-export default function LaunchAccount() {
+export default function LaunchAccount({ entryTarget }: { entryTarget?: HTMLElement | null }) {
   const { account, config, error } = useLaunch();
   const [open, setOpen] = useState(
       new URLSearchParams(location.search).has("payment"),
@@ -109,9 +111,12 @@ export default function LaunchAccount() {
     const t = setInterval(() => void refreshAccount().catch(() => {}), 15000);
     return () => clearInterval(t);
   }, [open, accountId]);
-  return <>
+  const entry = <>
     <div className="nz-bar"><button onClick={()=>setOpen(v=>!v)}>{account ? `내 크레딧 ${account.balance.available} · 내역` : "내 크레딧 · 로그인"}</button>{config?.demo && <span>출시 준비 미리보기 · 실제 결제·AI 비용 없음</span>}</div>
     {error && <p className="nz-bar" role="status">{error}</p>}
+  </>;
+  return <>
+    {entryTarget ? createPortal(entry, entryTarget) : entry}
     {open && <div className="nz-account-overlay"><section ref={panel} className="nz-account nz-redesign" role="dialog" aria-modal="true" aria-label={account ? "내 크레딧" : "카카오 로그인 안내"}>
       <header className="nz-brand-header"><img src="/launch/logo.png" alt="내짤4짤" width="595" height="190"/><button className="nz-close" aria-label="크레딧 닫기" onClick={()=>setOpen(false)}>×</button></header>
       {!account ? <LoginPrompt onDismiss={()=>setOpen(false)}/> : <>
@@ -353,32 +358,9 @@ export default function LaunchAccount() {
                 </button>
               </details>
 </details><span aria-hidden="true">|</span><button onClick={()=>void logout()}>로그아웃</button><p>보관 중인 완성 영상은 다시 저장해도 무료예요.</p><details className="nz-support"><summary>문의와 도움말</summary>          <p>
-            {config?.contact ? (
-              <a
-                href={
-                  "mailto:" +
-                  config.contact +
-                  "?subject=" +
-                  encodeURIComponent("내짤4짤 문의·환불")
-                }
-              >
-                문의·환불 요청
-              </a>
-            ) : (
-              <a
-                href="https://github.com/Sanghyug/naezzal4zzal-web/issues"
-                target="_blank"
-                rel="noreferrer"
-              >
-                공개 오류 문의 · 사진·결제정보를 올리지 마세요
-              </a>
-            )}
+            <a href={supportMailto("내짤4짤 문의·환불")}>문의·환불 요청 · {BUSINESS.supportEmail}</a>
           </p>
-          {!config?.contact && (
-            <p className="nz-muted">
-              비공개 문의 연락처는 공개 출시 전에 연결할 예정이에요.
-            </p>
-          )}
+          <p className="nz-muted">밤나무랩에서 문의를 확인해드려요. 비밀번호나 인증 코드는 보내지 마세요.</p>
 </details></footer>
       </>}
       {message && <p className="nz-feedback" role="status">{message}</p>}

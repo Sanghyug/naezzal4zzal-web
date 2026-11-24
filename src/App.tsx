@@ -9,6 +9,7 @@ import GalleryScreen from "./components/GalleryScreen";
 import LaunchAccount from "./components/LaunchAccount";
 import LaunchPolicies from "./components/LaunchPolicies";
 import LaunchOperator from "./components/LaunchOperator";
+import BusinessInfo from "./components/BusinessInfo";
 import { launchEnabled, initializeLaunch, getDraft, clearDraft, appShareUrl } from "./lib/launch";
 import type { EditorDraft } from "./lib/launch";
 
@@ -27,6 +28,7 @@ function App() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [restoredDraft, setRestoredDraft] = useState<EditorDraft | null>(null);
   const [policies, setPolicies] = useState<"product" | "privacy" | "refund" | null>(null);
+  const [homeAccountTarget, setHomeAccountTarget] = useState<HTMLDivElement | null>(null);
   const policyPanelRef = useRef<HTMLDivElement>(null);
   const policyTriggerRef = useRef<HTMLButtonElement | null>(null);
   const openPolicy = (section: "product" | "privacy" | "refund", trigger: HTMLButtonElement) => {
@@ -120,9 +122,19 @@ function App() {
     }
   };
 
+  const footer = <footer className="nz-home-footer">
+    {mode === "start" && <button className="nz-photo-policy" onClick={() => setMode("privacy")}>사진과 개인정보 안내 · 문의</button>}
+    {launchEnabled && <nav aria-label="상품·이용약관·개인정보·환불 안내">
+      <button onClick={e => openPolicy("product", e.currentTarget)}>상품·이용약관</button><span aria-hidden="true">·</span>
+      <button onClick={e => openPolicy("privacy", e.currentTarget)}>개인정보</button><span aria-hidden="true">·</span>
+      <button onClick={e => openPolicy("refund", e.currentTarget)}>환불 안내</button>
+    </nav>}
+    {mode === "start" && <BusinessInfo compact />}
+  </footer>;
+
   return (
     <>
-      {launchEnabled && mode !== "splash" && <LaunchAccount />}
+      {launchEnabled && mode !== "splash" && <LaunchAccount entryTarget={mode === "start" ? homeAccountTarget : null} />}
       {launchEnabled && mode !== "splash" && <LaunchOperator />}
       {launchEnabled && policies && <div className="nz-home-policy-panel" ref={policyPanelRef} tabIndex={-1}><LaunchPolicies sectionPrefix="nz-home-policy" onBack={() => { setPolicies(null); requestAnimationFrame(() => policyTriggerRef.current?.focus()); }} /></div>}
       {mode === "splash" && <SplashScreen />}
@@ -157,16 +169,11 @@ function App() {
           onUploadClick={handleUploadClick}
           onGalleryClick={() => setMode("gallery")}
           onShareAppClick={handleShareApp}
+          accountRef={launchEnabled ? setHomeAccountTarget : undefined}
+          footer={footer}
         />
       )}
-      {mode !== "splash" && <footer className="nz-home-footer">
-        {mode === "start" && <button className="nz-photo-policy" onClick={() => setMode("privacy")}>사진과 개인정보 안내 · 문의</button>}
-        {launchEnabled && <nav aria-label="상품·이용약관·개인정보·환불 안내">
-          <button onClick={e => openPolicy("product", e.currentTarget)}>상품·이용약관</button><span aria-hidden="true">·</span>
-          <button onClick={e => openPolicy("privacy", e.currentTarget)}>개인정보</button><span aria-hidden="true">·</span>
-          <button onClick={e => openPolicy("refund", e.currentTarget)}>환불 안내</button>
-        </nav>}
-      </footer>}
+      {mode !== "splash" && mode !== "start" && footer}
     </>
   );
 }

@@ -1,3 +1,6 @@
+import BusinessInfo from "./BusinessInfo";
+import { BUSINESS, supportMailto } from "../lib/business";
+
 export default function PrivacyScreen({onBack}: {onBack: () => void}) {
   return <main style={{maxWidth: 480, margin: "0 auto", padding: 24, fontFamily: "sans-serif", lineHeight: 1.8, color: "#55424b"}}>
     <h1 style={{fontSize: 24}}>사진과 개인정보 안내</h1>
@@ -15,9 +18,12 @@ export default function PrivacyScreen({onBack}: {onBack: () => void}) {
     <p>‘사진 전송 없이 직접 맞추기’를 선택하고 AI 영상 제작을 시작하지 않으면 사진을 외부로 보내지 않고 기기 안에서 편집하고 GIF를 만들 수 있습니다.</p>
     <h2 style={{fontSize: 18}}>보관과 삭제</h2>
     <p>완성한 GIF·영상과 메모는 이 기기의 앱 또는 브라우저 안에 저장됩니다. 보관함에서 항목을 삭제할 수 있습니다. 앱 삭제, 브라우저 데이터 삭제, 기기 변경 시 사라질 수 있으니 소중한 파일은 ‘기기에 저장하기’로 따로 보관해주세요. 공유를 선택하면 선택한 다른 앱으로 GIF가 전달됩니다.</p>
-    <h2 style={{fontSize: 18}}>문의</h2>
-    <p><a href="https://github.com/Sanghyug/naezzal4zzal-web/issues" target="_blank" rel="noreferrer">내짤4짤 문의 페이지</a>에 오류를 알려주세요. 공개 문의에 개인 사진이나 개인정보를 올리지 마세요.</p>
-    <p>개발 중 안내 · 2026년 11월 22일</p>
+    <h2 style={{fontSize: 18}}>개인정보 보호책임자 및 문의</h2>
+    <p>개인정보 보호책임자: {BUSINESS.name} 대표 {BUSINESS.representative}</p>
+    <p>서비스 문의와 개인정보 열람·정정·삭제·처리정지, 동의 철회 및 계정 탈퇴 요청은 <a href={supportMailto("내짤4짤 개인정보·서비스 문의")}>{BUSINESS.supportEmail}</a>로 보내주세요. 요청 내용을 확인하고 필요한 경우 본인 확인을 거쳐 처리 결과를 안내합니다.</p>
+    <h2 style={{fontSize: 18}}>서비스 운영자</h2>
+    <BusinessInfo />
+    <p>적용일 · 2026년 11월 24일</p>
     <button onClick={onBack} style={{padding: 14, width: "100%"}}>돌아가기</button>
   </main>;
 }
