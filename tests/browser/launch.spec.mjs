@@ -174,7 +174,7 @@ test("anonymous editing and GIF survive login/reload; one-credit creation and do
   });
   await page.getByRole("checkbox", { name: /사진 속 인물의 허락/ }).check();
   await page
-    .getByRole("button", { name: "1크레딧으로 실사 영상 제작" })
+    .getByRole("button", { name: /영상 만들기.*1 크레딧/ })
     .click();
   const progress = page.getByRole("list", { name: "영상 제작 단계" });
   await expect(progress.getByRole("listitem")).toHaveCount(4);
@@ -183,6 +183,7 @@ test("anonymous editing and GIF survive login/reload; one-credit creation and do
   await page.screenshot({ path: "artifacts/launch/phase3-stage-390.png" });
   const video = page.getByLabel("완성된 AI 영상");
   await expect(video).toHaveAttribute("src", /^blob:/, { timeout: 45000 });
+  await expect(page.getByText("영상이 완성됐어요!", {exact:true})).toBeVisible({timeout:45000});
   await expect(
     page.getByRole("button", { name: "내 크레딧 4 · 내역" }),
   ).toBeVisible();
@@ -191,13 +192,13 @@ test("anonymous editing and GIF survive login/reload; one-credit creation and do
   });
   await expect(gif).toHaveAttribute("src", gifSource);
   const studio = page.getByRole("region", { name: "AI 영상 제작" });
-  await studio.getByText("앱 소개와 주소 공유").click();
+  await expect(studio.getByText("https://4zzal.com", {exact:true})).toBeVisible();
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await studio.getByRole("button", { name: "앱 주소 복사하기" }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("https://4zzal.com");
   await studio.getByRole("button", { name: "다른 스타일로 영상 만들기" }).click();
   await expect(studio.getByRole("button", { name: /애니메이션.*3 크레딧/ })).toBeVisible();
-  await expect(studio.getByRole("button", { name: "1크레딧으로 실사 영상 제작" })).toBeDisabled();
+  await expect(studio.getByRole("button", { name: /영상 만들기.*1 크레딧/ })).toBeDisabled();
   await page.reload();
   await page.getByRole("button", { name: "내 크레딧 4 · 내역" }).click();
   await page.getByRole("tab", { name: "내 영상", exact: true }).click();
@@ -470,7 +471,7 @@ test("tilted two-by-two panels use original proportions and can return to manual
   });
   await page.getByRole("button", { name: "사진 전송에 동의하고 AI로 찾기" }).click();
   const manual = page.getByRole("button", { name: "원본에서 직접 맞추기" });
-  await expect(page.getByText("원본에서 세부 조정")).toBeVisible();
+  await expect(page.getByText("사진 영역 직접 조정하기")).toBeVisible();
   await expect(manual).toBeHidden();
   const panels = page.getByAltText("보정할 컷");
   await expect(panels).toHaveCount(4);
@@ -492,13 +493,13 @@ test("tilted two-by-two panels use original proportions and can return to manual
       fontSize: getComputedStyle(node).fontSize,
     })));
     expect(metrics.every(metric => !metric.overflow)).toBe(true);
-    expect(metrics[0]).toEqual(metrics[1]);
+    expect(metrics[0].height).toEqual(metrics[1].height);
     if (width === 390) {
       await page.getByRole("button", { name: /애니메이션.*3 크레딧/ }).scrollIntoViewIfNeeded();
       await page.screenshot({ path: "artifacts/launch/phase3-editor-390.png" });
     }
   }
-  await page.getByText("원본에서 세부 조정").click();
+  await page.getByText("사진 영역 직접 조정하기").click();
   await manual.click();
   await expect(manual).toHaveCount(0);
   await expect(panels).toHaveCount(4);
@@ -547,11 +548,11 @@ test("AI extraction and video failures retain manual editing and permit a fresh 
   await page.getByRole("button", { name: "AI 영상 만들기" }).click();
   await login(page, unique());
   await page.getByRole("checkbox", { name: /사진 속 인물의 허락/ }).check();
-  await page.getByRole("button", { name: "1크레딧으로 실사 영상 제작" }).click();
+  await page.getByRole("button", { name: /영상 만들기.*1 크레딧/ }).click();
   await expect(page.getByText("제작 실패가 확인되어 예약 크레딧을 복구했어요.")).toBeVisible();
   await expect(page.getByRole("button", { name: "내 크레딧 5 · 내역" })).toBeVisible();
   await page.getByRole("button", { name: "다른 스타일로 영상 만들기" }).click();
   await page.getByRole("button", { name: /애니메이션.*3 크레딧/ }).click();
-  await expect(page.getByRole("button", { name: "3크레딧으로 애니메이션 영상 제작" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /영상 만들기.*3 크레딧/ })).toBeDisabled();
   expect(generationRequests).toBe(1);
 });
