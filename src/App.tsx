@@ -44,14 +44,26 @@ function App() {
 
   useEffect(() => {
     if (launchEnabled) void initializeLaunch();
-    const timer = window.setTimeout(async () => {
+    let active = true;
+    let timer: number | undefined;
+    const restore = async () => {
       if (launchEnabled) {
-        try { const draft = await getDraft(); if (draft) { setRestoredDraft(draft); setImageUrl(URL.createObjectURL(draft.original)); setMode("preview"); return; } } catch { /* free creation stays usable */ }
+        try {
+          const draft = await getDraft();
+          if (!active) return;
+          if (draft) {
+            setRestoredDraft(draft);
+            setImageUrl(URL.createObjectURL(draft.original));
+            setMode("preview");
+            return;
+          }
+        } catch { /* Free creation stays usable if browser storage is unavailable. */ }
       }
-      setMode("start");
-    }, 2400);
-
+      if (active) timer = window.setTimeout(() => setMode("start"), 2400);
+    };
+    void restore();
     return () => {
+      active = false;
       window.clearTimeout(timer);
     };
   }, []);
