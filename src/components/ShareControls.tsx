@@ -61,15 +61,16 @@ export default function ShareControls({ url, video = false }: { url: string; vid
       <button onClick={share} disabled={!file || busy} style={{...button,background:"#ff4f87",opacity:!file || busy ? 0.6 : 1}}>{busy ? "공유 중..." : "공유하기"}</button>
       <button onClick={async()=>{if(!file||lock.current)return;lock.current=true;setBusy(true);try{await saveMediaFile(file);}catch{setMessage("파일을 저장하지 못했어요.");}finally{lock.current=false;setBusy(false);}}} disabled={!file || busy} style={{...button,background:"#b88cff"}}>기기에 저장하기</button>
     </div>
-    <details className="nz-share-app">
-      <summary>앱 소개와 주소 공유</summary>
+    <div className="nz-share-app nz-share-visible">
+      <p className="nz-share-brand"><strong>네 컷 사진을 짤과 영상으로!</strong><br/>친구와의 추억을 공유하는 새로운 방법, 내짤4짤</p>
+      <p className="nz-share-address">{officialAppUrl}</p>
       <div>
         <button type="button" onClick={() => void shareIntro()}>소개 메시지 공유하기</button>
         <button type="button" onClick={() => void copyAddress()}>앱 주소 복사하기</button>
       </div>
-      <p>받는 앱에 파일만 전달되면 소개 메시지를 따로 보내세요. 카카오톡 화면에서 열렸다면 주소를 복사해 Safari, Chrome 또는 삼성 인터넷에 붙여넣으세요.</p>
+      <p>카카오톡이 파일과 문구를 함께 받지 않는 경우 소개 메시지를 붙여넣어 주세요. 주소는 Safari, Chrome 또는 삼성 인터넷에서 열 수 있어요.</p>
       {showCopy && <textarea aria-label="복사할 앱 소개 메시지" readOnly value={mediaShareText} onFocus={(event) => event.currentTarget.select()} />}
-    </details>
+    </div>
     {pending && <div style={{padding:12,background:"#fff4f8",borderRadius:14,marginTop:10}}>
       <p style={{fontSize:13,lineHeight:1.6}}>{message}</p>
       <button style={{...button,background:"#ff4f87",width:"100%"}} onClick={()=>{if(!pendingRef.current)return;pendingRef.current=false;setPending(false);reward();}}>친구에게 보냈어요 · 보상 받기</button>
