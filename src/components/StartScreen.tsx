@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import InstallGuide, { useInstallApp } from "./InstallGuide";
 import type { ReactNode, Ref } from "react";
 
 type StartScreenProps = {
@@ -29,36 +30,10 @@ function StartScreen({
   fullscreen,
   onFullscreenClick,
 }: StartScreenProps) {
-  const [installPrompt, setInstallPrompt] = useState<(Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> }) | null>(null);
-
-  useEffect(() => {
-    const handler = (event: Event) => {
-      event.preventDefault();
-      setInstallPrompt(event as Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> });
-    };
-
-    window.addEventListener("beforeinstallprompt", handler);
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handler);
-    };
-  }, []);
-
+  const { installed, install } = useInstallApp();
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
   const handleInstallApp = async () => {
-    if (!installPrompt) {
-      alert(
-        "iPhone의 Safari에서는 공유 버튼 → 홈 화면에 추가를 선택하세요. Android의 Chrome·삼성 인터넷에서는 브라우저 메뉴 → 홈 화면에 추가 또는 앱 설치를 선택하세요.",
-      );
-      return;
-    }
-
-    installPrompt.prompt();
-
-    const result = await installPrompt.userChoice;
-
-    if (result.outcome === "accepted") {
-      setInstallPrompt(null);
-    }
+    if (!(await install())) setShowInstallGuide(true);
   };
 
   return (
@@ -235,7 +210,7 @@ function StartScreen({
               {inviteMessage && <p role="status">{inviteMessage}</p>}
 
             <button
-              hidden={Capacitor.isNativePlatform()}
+              hidden={Capacitor.isNativePlatform() || installed}
               onClick={handleInstallApp}
               style={{
                 width: "100%",
@@ -252,6 +227,7 @@ function StartScreen({
             >
               📱 홈화면에 설치하기
             </button>
+            {showInstallGuide && <InstallGuide onClose={() => setShowInstallGuide(false)} />}
             {fullscreenAvailable && <button type="button" onClick={onFullscreenClick} style={{width:"100%",padding:14,borderRadius:16,border:"1px solid #e5d2f1",background:"#f7f0fc",color:"#7549ae",fontWeight:800,cursor:"pointer"}}>{fullscreen ? "전체화면 닫기" : "전체화면으로 보기"}</button>}
           </div>
         </div>
