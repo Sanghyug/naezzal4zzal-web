@@ -696,7 +696,7 @@ test('completed memory and drawing MP4 save once locally, survive reload, filter
 
 test('fullscreen is offered near install only when supported and copy-guide preserves the referral',async({page,browser})=>{
   await page.goto('/');const full=page.getByRole('button',{name:'전체화면으로 보기'});await full.waitFor();expect(await full.evaluate(e=>!!e.parentElement.textContent.includes('홈화면에 설치하기'))).toBe(true);await full.click();await expect(page.getByRole('button',{name:'전체화면 닫기'})).toBeVisible();await page.getByRole('button',{name:'전체화면 닫기'}).click();
-  const ctx=await browser.newContext();await ctx.addInitScript(()=>Object.defineProperty(document,'fullscreenEnabled',{configurable:true,value:false}));const tab=await ctx.newPage();await tab.goto('http://127.0.0.1:5173');await tab.getByRole('button',{name:'🖼️ 불러오기'}).waitFor();await expect(tab.getByRole('button',{name:'전체화면으로 보기'})).toHaveCount(0);await ctx.close();
+  const ctx=await browser.newContext();await ctx.addInitScript(()=>Object.defineProperty(document,'fullscreenEnabled',{configurable:true,value:false}));const tab=await ctx.newPage();await tab.goto('http://127.0.0.1:5173');await tab.getByRole('button',{name:'🖼️ 불러오기'}).waitFor();await tab.getByRole('button',{name:'전체화면으로 보기'}).click();await expect(tab.getByText(/이 브라우저는 전체화면 전환을 지원하지 않아요/)).toBeVisible();await ctx.close();
   await page.context().grantPermissions(['clipboard-read','clipboard-write']);await page.goto('/?copy=app&ref=phase7-code');await expect(page.getByRole('link',{name:'내짤4짤 시작하기'})).toBeVisible();expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe('http://127.0.0.1:5173/?ref=phase7-code');expect(await page.getByRole('link',{name:'내짤4짤 시작하기'}).getAttribute('href')).toBe('http://127.0.0.1:5173/?ref=phase7-code');
 });
 
@@ -726,4 +726,9 @@ test('install event during splash is retained and invokes native prompt',async({
   await page.getByRole('button',{name:'📱 홈화면에 설치하기'}).click();
   await expect.poll(()=>page.evaluate(()=>window.installCalls)).toBe(1);
   await expect(page.getByRole('dialog',{name:'홈 화면에 내짤4짤 설치하기'})).toHaveCount(0);
+});
+
+test('installed or fullscreen display still exposes home install guidance and fullscreen controls',async({page})=>{
+  await page.addInitScript(()=>{const original=window.matchMedia.bind(window);window.matchMedia=(query)=>{const m=original(query);if(query==='(display-mode: standalone)')Object.defineProperty(m,'matches',{value:true});return m;};});
+  await page.goto('/');await page.getByRole('button',{name:'📱 홈화면에 설치하기'}).click();await expect(page.getByRole('dialog',{name:'홈 화면에 내짤4짤 설치하기'})).toBeVisible();await page.getByRole('button',{name:'닫기',exact:true}).click();await expect(page.getByRole('button',{name:'전체화면으로 보기'})).toBeVisible();
 });
