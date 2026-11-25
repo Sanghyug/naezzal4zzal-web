@@ -145,15 +145,29 @@ function App() {
     }
   };
 
-  const [fullscreen, setFullscreen] = useState(false);
+  const [fullscreen, setFullscreen] = useState(Boolean(document.fullscreenElement));
+  const [fullscreenNotice, setFullscreenNotice] = useState("");
   useEffect(() => {
     const sync = () => setFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener("fullscreenchange", sync);
     return () => document.removeEventListener("fullscreenchange", sync);
   }, []);
-  const toggleFullscreen = () => {
-    const change = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
-    void change.catch(() => {});
+  const toggleFullscreen = async () => {
+    setFullscreenNotice("");
+    try {
+      if (document.fullscreenElement) { await document.exitFullscreen(); return; }
+      if (document.fullscreenEnabled && typeof document.documentElement.requestFullscreen === "function") {
+        await document.documentElement.requestFullscreen();
+        return;
+      }
+      if (matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: fullscreen)").matches) {
+        setFullscreenNotice("이미 앱 화면으로 이용 중이에요. 시스템 상태바는 기기 설정에 따라 표시될 수 있어요.");
+      } else {
+        setFullscreenNotice("이 브라우저는 전체화면 전환을 지원하지 않아요. 홈 화면에 설치하면 주소창 없이 더 넓게 이용할 수 있어요.");
+      }
+    } catch {
+      setFullscreenNotice("전체화면으로 전환할 수 없어요. 홈 화면에 설치하여 이용해 주세요.");
+    }
   };
   const footer = <footer className="nz-home-footer">
     {mode === "start" && <button className="nz-photo-policy" onClick={() => setMode("privacy")}>사진과 개인정보 안내 · 문의</button>}
@@ -209,9 +223,10 @@ function App() {
           inviteGuest={!account}
           accountRef={launchEnabled ? setHomeAccountTarget : undefined}
           footer={footer}
-          fullscreenAvailable={Boolean(document.fullscreenEnabled && typeof document.documentElement.requestFullscreen === "function" && !matchMedia("(display-mode: standalone)").matches)}
+          fullscreenAvailable={Boolean(document.fullscreenEnabled && typeof document.documentElement.requestFullscreen === "function")}
           fullscreen={fullscreen}
           onFullscreenClick={toggleFullscreen}
+          fullscreenNotice={fullscreenNotice}
         />
       )}
       {mode !== "splash" && mode !== "start" && footer}
