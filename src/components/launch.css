@@ -334,3 +334,8 @@ section > button.nz-make-gif { margin-top: 18px; background: #ef367d; }
 .nz-crop-hint { font-size:13px; color:#7549ae; line-height:1.6; }
 .nz-adjustable-cut { display:flex; flex-direction:column; justify-content:space-between; min-width:0; }
 .nz-style-card small { white-space:normal; }
+
+.nz-preview-slot { display:flex; align-items:center; justify-content:center; width:100%; overflow:hidden; border-radius:16px; background:#f8f2f5; }
+.nz-share-visible { background:#fff; border:1px solid #eadce7; border-radius:14px; padding:12px; margin-top:12px; }
+.nz-share-visible .nz-share-brand { margin:0; color:#795664; font-size:12px; line-height:1.6; }
+.nz-share-visible .nz-share-address { font-weight:700; color:#7549ae; margin:5px 0; overflow-wrap:anywhere; }
