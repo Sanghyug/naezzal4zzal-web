@@ -143,3 +143,7 @@
 .nz-home-card>.nz-home-footer nav{max-width:none}
 .nz-home-policy-panel{max-width:480px;margin:0 auto;text-align:left;scroll-margin-top:12px}
 .nz-home-policy-panel h3{scroll-margin-top:18px}
+
+/* Keep the welcome examples within the ticket even on 360px screens. */
+.nz-gift-ticket .nz-welcome-examples{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:5px}
+.nz-gift-ticket .nz-welcome-examples>span{display:block;min-width:0;white-space:normal;font-size:10px;line-height:1.5;padding:6px 3px;overflow-wrap:normal}

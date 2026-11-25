@@ -16,6 +16,9 @@ export type Config = {
   payments: boolean;
   generation: boolean;
   giftLimit: number;
+  memoryReserveUsd: number;
+  drawingReserveUsd: number;
+  extractionReserveUsd: number;
   inviteMonthly: number;
   dailyJobs: number;
   dailyUsd: number;
@@ -26,7 +29,10 @@ export const defaults: Config = {
   invites: true,
   payments: false,
   generation: false,
-  giftLimit: 100,
+  giftLimit: 1000,
+  memoryReserveUsd: 0.16,
+  drawingReserveUsd: 0.22,
+  extractionReserveUsd: 0.05,
   inviteMonthly: 5,
   dailyJobs: 100,
   dailyUsd: 15,
@@ -153,10 +159,14 @@ export type State = {
   >;
   deletedIdentities: string[];
   mockPayments: Record<string, PaymentRecord>;
+  welcomePolicyVersion?: number;
+  telemetry?: import("./telemetry.ts").TelemetryState;
+  usage?: Record<string, import("./costs.ts").UsageRecord>;
   version: number;
 };
 export const initialState = (): State => ({
   config: { ...defaults },
+  welcomePolicyVersion: 2,
   users: {},
   lots: {},
   entries: [],
@@ -340,7 +350,7 @@ export function signup(
   }
   const gifts = s.entries.filter((e) => e.kind === "signup_gift").length;
   if (!prior && s.config.gifts && gifts < s.config.giftLimit)
-    grant(s, id, "free", 5, "signup:" + id, at, "signup_gift");
+    grant(s, id, "free", 4, "signup:" + id, at, "signup_gift");
   reward(s, id, at);
   return u;
 }
@@ -608,14 +618,13 @@ export function reserveJob(
   }
   requireRule(s.config.generation, "영상 제작을 잠시 쉬고 있어요.", 503);
   requireRule(Object.hasOwn(STYLES, style), "영상 종류를 확인해주세요.");
-  const rule = STYLES[style],
+  const rule = {...STYLES[style],reserveUsd:s.config[style === "memory" ? "memoryReserveUsd":"drawingReserveUsd"] ?? STYLES[style].reserveUsd},
     day = dayKst(at),
     today = Object.values(s.jobs).filter((j) => j.day === day),
-    extractCost = (s.rates["extract-cost:" + day]?.count || 0) * 0.05;
+    extractCost = dailyAiCost(s,day);
   requireRule(
     today.length < s.config.dailyJobs &&
-      today.reduce((n, j) => n + j.reserveUsd, 0) +
-        extractCost +
+      extractCost +
         rule.reserveUsd <=
         s.config.dailyUsd,
     "오늘 제작 한도에 도달했어요. 내일 다시 찾아주세요.",
@@ -735,4 +744,12 @@ export function adminGrant(
     (x) => x.kind === "admin_adjustment" && x.cause === "admin:" + key,
   );
   if (e) e.note = reason;
+}
+
+export function dailyAiCost(s:State,day:string){
+ const usage=Object.values(s.usage || {}), dollars=(r:{actualBilledUsd:number|null;estimatedUsd:number|null})=>r.actualBilledUsd ?? r.estimatedUsd ?? 0;
+ const extraction=Math.max((s.rates["extract-cost:"+day]?.count || 0)*(s.config.extractionReserveUsd ?? .05),usage.filter(r=>dayKst(r.at)===day && r.purpose==="extraction").reduce((n,r)=>n+dollars(r),0));
+ const motion=usage.filter(r=>dayKst(r.at)===day && r.purpose==="motion").reduce((n,r)=>n+dollars(r),0);
+ const videos=Object.values(s.jobs).filter(j=>j.day===day).reduce((n,j)=>n+Math.max(j.reserveUsd,s.usage?.["heygen:"+j.id]?.actualBilledUsd ?? 0),0);
+ return extraction+motion+videos;
 }

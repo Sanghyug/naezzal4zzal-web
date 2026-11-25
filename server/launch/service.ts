@@ -1,3 +1,4 @@
+import { reconcileUsage, costReport } from "./costs.ts";
 import { randomUUID } from "node:crypto";
 import type { Store } from "./store.ts";
 import type { Storage } from "./storage.ts";
@@ -53,6 +54,8 @@ export class LaunchService {
   }
   async config() {
     return this.store.tx((s) => ({
+      giftCredits: 4,
+      giftLimit: s.config.giftLimit,
       giftAvailable:
         s.config.gifts &&
         s.entries.filter((e) => e.kind === "signup_gift").length <
@@ -574,6 +577,9 @@ export class LaunchService {
       config?: Partial<Config>;
       jobId?: string;
       outcome?: string;
+      usageId?: string;
+      actualUsd?: number;
+      invoiceReference?: string;
     },
   ) {
     return this.store.tx((s) => {
@@ -606,8 +612,8 @@ export class LaunchService {
             requireRule(
               Number.isFinite(v) &&
                 v >= 0 &&
-                v <= 1000 &&
-                (k === "dailyUsd" || Number.isSafeInteger(v)),
+                v <= (k === "giftLimit" ? 1000000 : 1000) &&
+                (["dailyUsd","memoryReserveUsd","drawingReserveUsd","extractionReserveUsd"].includes(k) || Number.isSafeInteger(v)),
               "설정 범위를 확인해주세요.",
             );
             if (k === "retentionDays")
@@ -615,6 +621,9 @@ export class LaunchService {
           }
         }
         s.config = { ...s.config, ...body.config };
+        entryAudit();
+      } else if (body.action === "reconcileUsage") {
+        reconcileUsage(s, body.usageId || "", Number(body.actualUsd), body.invoiceReference || "", body.reason || "");
         entryAudit();
       } else if (body.action === "releaseConfirmedFailure") {
         const j = s.jobs[body.jobId || ""];
@@ -624,9 +633,12 @@ export class LaunchService {
         );
         settle(s, j.id, false, Date.now());
         entryAudit();
-      } else if (body.action === "inspect")
+      } else if (body.action === "usageExport") return { ...costReport(s), records:Object.values(s.usage || {}) };
+      else if (body.action === "inspect")
         return {
           config: s.config,
+          costs: costReport(s),
+          analytics: { daily:s.telemetry?.daily || {}, droppedFromQueue:s.telemetry?.dropped || 0, pending: Object.values(s.telemetry?.events || {}).filter(e => !e.sent).length, destinationConfigured: Boolean(process.env.POSTHOG_PROJECT_ID && process.env.POSTHOG_4ZZAL_KEY) },
           orders: Object.values(s.orders).map(({ paymentKey: _, ...o }) => {
             void _;
             return o;

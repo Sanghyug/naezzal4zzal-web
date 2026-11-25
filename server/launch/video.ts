@@ -1,3 +1,5 @@
+import { fetchOpenAI } from "./costs.ts";
+import type { Meter } from "./costs.ts";
 import { createHash } from "node:crypto";
 import { imageSize } from "./dimensions.ts";
 import { readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
@@ -102,7 +104,7 @@ export interface VideoProvider {
   status(id: string): Promise<{ status: string; url?: string }>;
   mockFile?(): Promise<Buffer>;
 }
-export function heygenProvider(openai: string, heygen: string): VideoProvider {
+export function heygenProvider(openai: string, heygen: string, record?: Meter): VideoProvider {
   async function api(url: string, body?: unknown, id?: string) {
     const r = await fetch(url, {
       method: body ? "POST" : "GET",
@@ -138,7 +140,7 @@ export function heygenProvider(openai: string, heygen: string): VideoProvider {
             : { type: "array", items: { type: "string" } },
         ]),
       );
-      const r = await fetch("https://api.openai.com/v1/responses", {
+      const r = await fetchOpenAI(record,"motion","https://api.openai.com/v1/responses", {
         method: "POST",
         headers: {
           Authorization: "Bearer " + openai,

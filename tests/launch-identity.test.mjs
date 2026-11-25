@@ -12,7 +12,7 @@ test('Kakao member without email retains credits across login and email changes'
   assert.deepEqual(first, again);
   signup(s, again.id, again.hash, again.created, undefined, at + 1);
   assert.deepEqual(s, before);
-  assert.equal(balance(s, first.id, at).available, 5);
+  assert.equal(balance(s, first.id, at).available, 4);
   const sameEmailOther = verifiedIdentity({ ...kakao, id: 'another', email: 'changed@example.test', identities: [{ provider: 'kakao', id: 'other', identity_data: { sub: 'other' } }] }, 'test-secret');
   assert.notEqual(first.hash, sameEmailOther.hash);
 });

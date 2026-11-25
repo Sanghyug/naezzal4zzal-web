@@ -1,3 +1,4 @@
+import { track, acquisitionSource } from "./analytics";
 import { useSyncExternalStore } from "react";
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -51,6 +52,8 @@ export type LaunchConfig = {
   appUrl?: string;
   aiRestricted?: boolean;
   giftAvailable: boolean;
+  giftCredits?: number;
+  giftLimit?: number;
   invites: boolean;
   inviteMonthly: number;
   retentionDays: number;
@@ -172,6 +175,7 @@ async function initialize() {
     try {
       const visit = await launchApi<{ invited: boolean }>("visit", ref ? { code: ref } : {});
       emit({ invited: visit.invited });
+      track("visit",{source:acquisitionSource(),invited:visit.invited});
     } catch { /* Account recovery does not depend on referral tracking. */ }
     if (state.authenticated) await refreshAccount();
     const payment = params.get("payment");

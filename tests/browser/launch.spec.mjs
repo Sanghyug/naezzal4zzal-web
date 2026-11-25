@@ -49,7 +49,7 @@ test("home credit pill and footer text menus retain policy navigation and focus"
   }
   await entry.click(); await login(page,unique());
   await page.getByRole('button',{name:'크레딧 닫기'}).click();
-  expect(await page.getByRole('button',{name:'내 크레딧 5 · 내역',exact:true}).evaluate(e=>parseFloat(getComputedStyle(e).borderRadius))).toBeGreaterThan(20);
+  expect(await page.getByRole('button',{name:'내 크레딧 4 · 내역',exact:true}).evaluate(e=>parseFloat(getComputedStyle(e).borderRadius))).toBeGreaterThan(20);
 });
 
 test("redesigned account adapts to four widths, restores focus and supports tabs and invite copying", async ({ page, context }) => {
@@ -89,7 +89,7 @@ test("redesigned account adapts to four widths, restores focus and supports tabs
   await page.getByText('계정 관리',{exact:true}).click();
   await expect(page.getByText('계정 탈퇴와 서버 자료 삭제',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'크레딧 닫기'}).click();
-  await expect(page.getByRole('button',{name:'내 크레딧 5 · 내역'})).toBeFocused();
+  await expect(page.getByRole('button',{name:'내 크레딧 4 · 내역'})).toBeFocused();
 });
 async function upload(page, navigate = true) {
   if (navigate) await page.goto("/");
@@ -144,7 +144,7 @@ test("anonymous editing and GIF survive login/reload; one-credit creation and do
     });
   await page.getByRole("button", { name: "AI 영상 만들기" }).click();
   await expect(
-    page.getByText("첫 로그인 시 무료 5크레딧", { exact: true }),
+    page.getByText("처음 만나는 내짤4짤! 웰컴 4크레딧", { exact: true }),
   ).toBeVisible();
   // Leaving the login prompt does not discard photo geometry.
   await page.getByRole("button", { name: "AI 영상 만들기" }).click();
@@ -153,7 +153,7 @@ test("anonymous editing and GIF survive login/reload; one-credit creation and do
   ).toBeEnabled();
   await page.getByRole("button", { name: "AI 영상 만들기" }).click();
   await login(page, unique());
-  await expect(page.getByText(/사용 가능 5크레딧/)).toBeVisible();
+  await expect(page.getByText(/사용 가능 4크레딧/)).toBeVisible();
   await page.reload();
   await expect(page.getByText("편집하던 사진을 복원했어요.")).toBeVisible();
   await expect(page.getByRole("button", { name: "AI 영상 만들기" })).toHaveAttribute("aria-expanded", "true");
@@ -187,7 +187,7 @@ test("anonymous editing and GIF survive login/reload; one-credit creation and do
   await expect(video).toHaveAttribute("src", /^blob:/, { timeout: 45000 });
   await expect(page.getByText("영상이 완성됐어요!", {exact:true})).toBeVisible({timeout:45000});
   await expect(
-    page.getByRole("button", { name: "내 크레딧 4 · 내역" }),
+    page.getByRole("button", { name: "내 크레딧 3 · 내역" }),
   ).toBeVisible();
   await page.screenshot({
     path: "artifacts/launch/phase3-completed-390.png",
@@ -200,7 +200,7 @@ test("anonymous editing and GIF survive login/reload; one-credit creation and do
   await expect(studio.getByRole("button", { name: /애니메이션.*3 크레딧/ })).toBeVisible();
   await expect(studio.getByRole("button", { name: /영상 만들기.*1 크레딧/ })).toBeDisabled();
   await page.reload();
-  await page.getByRole("button", { name: "내 크레딧 4 · 내역" }).click();
+  await page.getByRole("button", { name: "내 크레딧 3 · 내역" }).click();
   await page.getByRole("tab", { name: "내 영상", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "완성본 다시 저장 · 무료" }),
@@ -210,7 +210,7 @@ test("anonymous editing and GIF survive login/reload; one-credit creation and do
   await page.getByRole("button", { name: "완성본 다시 저장 · 무료" }).click();
   await (await download).saveAs("artifacts/launch/browser-silent.mp4");
   await expect(
-    page.getByRole("button", { name: "내 크레딧 4 · 내역" }),
+    page.getByRole("button", { name: "내 크레딧 3 · 내역" }),
   ).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -228,17 +228,17 @@ test("mock 3900 payment credits exactly ten; unused cancellation restores paid l
   ).toBeVisible();
   await page.getByRole("button", { name: "결제 취소하고 돌아가기" }).click();
   await expect(
-    page.getByRole("button", { name: "내 크레딧 5 · 내역" }),
+    page.getByRole("button", { name: "내 크레딧 4 · 내역" }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "10크레딧 충전하기", exact: true })
     .click();
   await page.getByRole("button", { name: "모의 3,900원 승인" }).click();
   await expect(
-    page.getByRole("button", { name: "내 크레딧 15 · 내역" }),
+    page.getByRole("button", { name: "내 크레딧 14 · 내역" }),
   ).toBeVisible();
   await page.reload();
-  await page.getByRole("button", { name: "내 크레딧 15 · 내역" }).click();
+  await page.getByRole("button", { name: "내 크레딧 14 · 내역" }).click();
   await page.getByRole("tab", { name: "구매 내역", exact: true }).click();
   await expect(page.getByText("충전 완료", { exact: true })).toHaveCount(1);
   await page
@@ -249,7 +249,7 @@ test("mock 3900 payment credits exactly ten; unused cancellation restores paid l
     .getByRole("button", { name: "미사용 구매 취소 요청", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "내 크레딧 5 · 내역" }),
+    page.getByRole("button", { name: "내 크레딧 4 · 내역" }),
   ).toBeVisible();
   await expect(page.getByText("취소 완료", { exact: true })).toHaveCount(1);
   await page.screenshot({
@@ -343,13 +343,13 @@ test("simulated KakaoTalk invite GIF then email-less Kakao OAuth rewards inviter
   });
   await friend.getByRole("button", { name: "카카오로 시작하기" }).click();
   await expect(friend.getByText("편집하던 사진을 복원했어요.")).toBeVisible();
-  await expect(friend.getByRole("button", { name: "내 크레딧 5 · 내역" })).toBeVisible();
+  await expect(friend.getByRole("button", { name: "내 크레딧 4 · 내역" })).toBeVisible();
   expect(await friend.evaluate(async () => (await (await import('/src/lib/launch.ts')).getDraft()).gif)).toBe(savedGif);
   await friend.reload();
-  await expect(friend.getByRole("button", { name: "내 크레딧 5 · 내역" })).toBeVisible();
+  await expect(friend.getByRole("button", { name: "내 크레딧 4 · 내역" })).toBeVisible();
   await page.reload();
   await expect(
-    page.getByRole("button", { name: "내 크레딧 7 · 내역" }),
+    page.getByRole("button", { name: "내 크레딧 6 · 내역" }),
   ).toBeVisible();
   await context.close();
 });
@@ -551,7 +551,7 @@ test("AI extraction and video failures retain manual editing and permit a fresh 
   await page.getByRole("checkbox", { name: /사진 속 인물의 허락/ }).check();
   await page.getByRole("button", { name: /영상 만들기.*1 크레딧/ }).click();
   await expect(page.getByText("제작 실패가 확인되어 예약 크레딧을 복구했어요.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "내 크레딧 5 · 내역" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "내 크레딧 4 · 내역" })).toBeVisible();
   await page.getByRole("button", { name: "다른 스타일로 영상 만들기" }).click();
   await page.getByRole("button", { name: /애니메이션.*3 크레딧/ }).click();
   await expect(page.getByRole("button", { name: /영상 만들기.*3 크레딧/ })).toBeDisabled();
@@ -593,7 +593,7 @@ test("photo A restores its job after reload; photo B excludes A while account hi
   await expect(page.getByLabel('완성된 AI 영상')).toHaveCount(0);
   await expect(page.getByRole('button',{name:/영상 만들기.*1 크레딧/})).toBeVisible();
   expect(await page.evaluate(k=>sessionStorage.getItem(k),keys[0])).toBe(job);
-  await page.getByRole('button',{name:'내 크레딧 4 · 내역'}).click();await page.getByRole('tab',{name:'내 영상',exact:true}).click();
+  await page.getByRole('button',{name:'내 크레딧 3 · 내역'}).click();await page.getByRole('tab',{name:'내 영상',exact:true}).click();
   await expect(page.getByRole('button',{name:'완성본 다시 저장 · 무료'})).toBeVisible();
 });
 
@@ -626,7 +626,7 @@ test("completed job waits for playable media and retries failed download without
   await expect(page.getByText('영상이 완성됐어요!',{exact:true})).toBeVisible({timeout:45000});
   expect(await page.getByLabel('완성된 AI 영상').evaluate(v=>v.readyState)).toBeGreaterThanOrEqual(2);
   expect(generates).toBe(1);expect(files).toBeGreaterThanOrEqual(2);
-  await expect(page.getByRole('button',{name:'내 크레딧 2 · 내역'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'내 크레딧 1 · 내역'})).toBeVisible();
   await expect(page.getByRole('button',{name:'소개 문구와 주소 복사',exact:true})).toHaveCount(0);
   await expect(page.getByRole('region',{name:'AI 영상 제작'}).getByText('https://4zzal.com',{exact:true})).toHaveCount(0);
 });
@@ -686,12 +686,12 @@ test('completed memory and drawing MP4 save once locally, survive reload, filter
   await page.addInitScript(()=>{Object.defineProperties(navigator,{canShare:{configurable:true,value:()=>true},share:{configurable:true,value:async data=>{window.lastFileType=data.files?.[0]?.type;window.lastFileText=data.text;}}});});
   await upload(page);await page.evaluate(async()=>{const {getGalleryItems}=await import('/src/lib/galleryStore.ts');await getGalleryItems();const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('naezzal4zzal-gallery',2);r.onsuccess=()=>resolve(r.result);r.onerror=reject;});await new Promise((resolve,reject)=>{const tx=db.transaction('saved-gifs','readwrite');tx.objectStore('saved-gifs').put({id:'phase7-old-gif',gifBlob:new Blob([Uint8Array.from(atob('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'),c=>c.charCodeAt(0))],{type:'image/gif'}),memo:'기존 GIF',styleName:'기존 스타일',createdAt:'2026-11-24T00:00:00Z'});tx.oncomplete=resolve;tx.onerror=reject;});db.close();});
   await page.getByRole('button',{name:'AI 영상 만들기'}).click();await login(page,unique());const studio=page.getByRole('region',{name:'AI 영상 제작'});
-  for(const style of ['memory','drawing']){variant=style;if(style==='drawing')await studio.getByRole('button',{name:/애니메이션.*3 크레딧/}).click();await studio.getByRole('checkbox',{name:/사진 속 인물의 허락/}).check();await studio.getByRole('button',{name:style==='memory'?/영상 만들기.*1 크레딧/:/영상 만들기.*3 크레딧/}).click();await expect(studio.getByText('영상이 완성됐어요!',{exact:true})).toBeVisible({timeout:45000});const save=studio.getByRole('button',{name:'보관함에 저장하기',exact:true});expect(await save.evaluate(e=>getComputedStyle(e).backgroundColor)).toBe('rgb(51, 51, 51)');await save.click();await expect(studio.getByRole('button',{name:'보관함 저장 완료'})).toBeDisabled();await expect(page.getByRole('button',{name:style==='memory'?'내 크레딧 4 · 내역':'내 크레딧 1 · 내역'})).toBeVisible();await page.evaluate(async()=>{const {saveGalleryItem}=await import('/src/lib/galleryStore.ts');const item=await saveGalleryItem(document.querySelector('video[aria-label="완성된 AI 영상"]').src,'동일 영상','실사 영상','video');URL.revokeObjectURL(item.gifUrl);});if(style==='memory')await studio.getByRole('button',{name:'다른 스타일로 영상 만들기'}).click();}
+  for(const style of ['memory','drawing']){variant=style;if(style==='drawing')await studio.getByRole('button',{name:/애니메이션.*3 크레딧/}).click();await studio.getByRole('checkbox',{name:/사진 속 인물의 허락/}).check();await studio.getByRole('button',{name:style==='memory'?/영상 만들기.*1 크레딧/:/영상 만들기.*3 크레딧/}).click();await expect(studio.getByText('영상이 완성됐어요!',{exact:true})).toBeVisible({timeout:45000});const save=studio.getByRole('button',{name:'보관함에 저장하기',exact:true});expect(await save.evaluate(e=>getComputedStyle(e).backgroundColor)).toBe('rgb(51, 51, 51)');await save.click();await expect(studio.getByRole('button',{name:'보관함 저장 완료'})).toBeDisabled();await expect(page.getByRole('button',{name:style==='memory'?'내 크레딧 3 · 내역':'내 크레딧 0 · 내역'})).toBeVisible();await page.evaluate(async()=>{const {saveGalleryItem}=await import('/src/lib/galleryStore.ts');const item=await saveGalleryItem(document.querySelector('video[aria-label="완성된 AI 영상"]').src,'동일 영상','실사 영상','video');URL.revokeObjectURL(item.gifUrl);});if(style==='memory')await studio.getByRole('button',{name:'다른 스타일로 영상 만들기'}).click();}
   expect(generates).toBe(2);await page.getByRole('button',{name:'돌아가기',exact:true}).click();await page.getByRole('button',{name:'💗 내 보관함'}).click();await expect(page.getByRole('tab',{name:'전체',exact:true})).toHaveAttribute('aria-selected','true');await expect(page.getByRole('button',{name:/^실사 영상 ·/})).toHaveCount(1);await expect(page.getByRole('button',{name:/^애니메이션 영상 ·/})).toHaveCount(1);await expect(page.getByRole('button',{name:/^실사 영상 ·/}).locator('img')).toHaveCount(1);await expect(page.getByRole('button',{name:/^애니메이션 영상 ·/}).locator('img')).toHaveCount(1);await expect(page.getByAltText('기존 GIF')).toHaveCount(1);
   await page.getByRole('tab',{name:'움짤',exact:true}).click();await expect(page.getByAltText('기존 GIF')).toBeVisible();await expect(page.getByRole('button',{name:/^실사 영상 ·/})).toHaveCount(0);await page.getByRole('tab',{name:'AI 영상',exact:true}).click();await expect(page.getByAltText('기존 GIF')).toHaveCount(0);
   for(const width of [360,390,430]){await page.setViewportSize({width,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:'artifacts/launch/phase7-gallery-'+width+'.png',fullPage:true});}
   await page.reload();await page.getByRole('button',{name:'💗 내 보관함'}).click();await expect(page.getByRole('tab',{name:'전체',exact:true})).toHaveAttribute('aria-selected','true');
-  await page.route('**/api/launch?action=file&**',r=>r.abort());await page.getByRole('button',{name:/^실사 영상 ·/}).click();const modal=page.getByRole('dialog',{name:'보관한 내짤'});await expect.poll(()=>modal.locator('video').evaluate(v=>v.readyState)).toBeGreaterThanOrEqual(2);await modal.locator('video').evaluate(async v=>{v.muted=true;await v.play();});await modal.getByRole('button',{name:'공유하기',exact:true}).click();expect(await page.evaluate(()=>lastFileType)).toBe('video/mp4');expect(await page.evaluate(()=>lastFileText)).toBeUndefined();const download=page.waitForEvent('download');await modal.getByRole('button',{name:'기기에 저장하기',exact:true}).click();expect((await download).suggestedFilename()).toBe('naezzal4zzal.mp4');await modal.getByRole('button',{name:'삭제',exact:true}).click();await expect(page.getByRole('button',{name:/^실사 영상 ·/})).toHaveCount(0);await expect(page.getByAltText('기존 GIF')).toHaveCount(1);await expect(page.getByRole('button',{name:'내 크레딧 1 · 내역'})).toBeVisible();expect(generates).toBe(2);
+  await page.route('**/api/launch?action=file&**',r=>r.abort());await page.getByRole('button',{name:/^실사 영상 ·/}).click();const modal=page.getByRole('dialog',{name:'보관한 내짤'});await expect.poll(()=>modal.locator('video').evaluate(v=>v.readyState)).toBeGreaterThanOrEqual(2);await modal.locator('video').evaluate(async v=>{v.muted=true;await v.play();});await modal.getByRole('button',{name:'공유하기',exact:true}).click();expect(await page.evaluate(()=>lastFileType)).toBe('video/mp4');expect(await page.evaluate(()=>lastFileText)).toBeUndefined();const download=page.waitForEvent('download');await modal.getByRole('button',{name:'기기에 저장하기',exact:true}).click();expect((await download).suggestedFilename()).toBe('naezzal4zzal.mp4');await modal.getByRole('button',{name:'삭제',exact:true}).click();await expect(page.getByRole('button',{name:/^실사 영상 ·/})).toHaveCount(0);await expect(page.getByAltText('기존 GIF')).toHaveCount(1);await expect(page.getByRole('button',{name:'내 크레딧 0 · 내역'})).toBeVisible();expect(generates).toBe(2);
 });
 
 test('fullscreen is offered near install only when supported and copy-guide preserves the referral',async({page,browser})=>{
@@ -714,9 +714,9 @@ test('installation guide provides Samsung, Chrome and Safari steps',async({page}
   const guide=page.getByRole('dialog',{name:'홈 화면에 내짤4짤 설치하기'});
   await expect(guide).toBeVisible();
   await guide.getByRole('button',{name:'삼성 인터넷',exact:true}).click();
-  await expect(guide.getByText('현재 페이지 추가',{exact:true})).toBeVisible();
+  await expect(guide.getByRole('listitem').filter({hasText:'현재 페이지 추가'})).toBeVisible();
   await guide.getByRole('button',{name:'Safari',exact:true}).click();
-  await expect(guide.getByText('공유 버튼 누르기',{exact:true})).toBeVisible();
+  await expect(guide.getByRole('listitem').filter({hasText:'공유 버튼 누르기'})).toBeVisible();
   await guide.getByRole('button',{name:'닫기',exact:true}).click();
   await expect(guide).toHaveCount(0);
 });
@@ -731,4 +731,19 @@ test('install event during splash is retained and invokes native prompt',async({
 test('installed or fullscreen display still exposes home install guidance and fullscreen controls',async({page})=>{
   await page.addInitScript(()=>{const original=window.matchMedia.bind(window);window.matchMedia=(query)=>{const m=original(query);if(query==='(display-mode: standalone)')Object.defineProperty(m,'matches',{value:true});return m;};});
   await page.goto('/');await page.getByRole('button',{name:'📱 홈화면에 설치하기'}).click();await expect(page.getByRole('dialog',{name:'홈 화면에 내짤4짤 설치하기'})).toBeVisible();await page.getByRole('button',{name:'닫기',exact:true}).click();await expect(page.getByRole('button',{name:'전체화면으로 보기'})).toBeVisible();
+});
+
+test('welcome four offer stays aligned at mobile widths and signup remains four after reload',async({page})=>{
+ await page.goto('/');await page.getByRole('button',{name:'내 크레딧',exact:true}).click();const dialog=page.getByRole('dialog',{name:'내 크레딧',exact:true});
+ await expect(dialog.getByText('처음 만나는 내짤4짤!',{exact:true})).toBeVisible();await expect(dialog.getByText('실사와 애니메이션을 모두 경험해 보세요.',{exact:true})).toBeVisible();
+ await expect(dialog.getByLabel('웰컴 크레딧으로 실사 한 편과 애니메이션 한 편')).toContainText('실사 1편 · 1크레딧');
+ for(const width of [360,390,430]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(await dialog.getByLabel('웰컴 크레딧으로 실사 한 편과 애니메이션 한 편').evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);await dialog.screenshot({path:'artifacts/launch/welcome4-'+width+'.png'});}
+ await login(page,unique());await expect(page.getByRole('button',{name:'내 크레딧 4 · 내역',exact:true})).toBeVisible();await page.reload();await expect(page.getByRole('button',{name:'내 크레딧 4 · 내역',exact:true})).toBeVisible();
+});
+
+test('operator can change welcome cap without changing credits and export cost records',async({page})=>{
+ await page.goto('/?operator=1');await page.getByRole('button',{name:'내 크레딧',exact:true}).click();await login(page,'operator');await page.getByRole('button',{name:'크레딧 닫기'}).click();const panel=page.getByRole('region',{name:'운영 관리'});await panel.getByRole('button',{name:'설정·주문·제작 조회',exact:true}).click();await expect(panel.getByLabel('웰컴 지급 대상 인원')).toHaveValue('1000');
+ await panel.getByLabel('변경·보상 사유').fill('모의 출시 한도 검증');await panel.getByLabel('웰컴 지급 대상 인원').fill('1200');await panel.getByRole('button',{name:'지급·비용 한도 저장',exact:true}).click();await expect.poll(async()=>JSON.parse(await panel.locator('pre').innerText()).config.giftLimit).toBe(1200);await expect(page.getByRole('button',{name:'내 크레딧 4 · 내역',exact:true})).toBeVisible();
+ await panel.getByLabel('웰컴 지급 대상 인원').fill('1000');await panel.getByRole('button',{name:'지급·비용 한도 저장',exact:true}).click();await expect.poll(async()=>JSON.parse(await panel.locator('pre').innerText()).config.giftLimit).toBe(1000);
+ const download=page.waitForEvent('download');await panel.getByRole('button',{name:'전체 원가 기록 내려받기',exact:true}).click();await (await download).saveAs('artifacts/launch/operator-costs.json');const report=JSON.parse(readFileSync('artifacts/launch/operator-costs.json','utf8'));expect(Array.isArray(report.records)).toBe(true);expect(report.records.filter(r=>r.providerId?.startsWith('mock-'))).toHaveLength(0);
 });

@@ -1,3 +1,4 @@
+import { clientMetric, recordMetric, flushMetrics } from "../server/launch/telemetry.ts";
 import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
 import { aiAccountAllowed, aiAccessRestricted, requirePreviewAiAccount } from "../server/launch/preview.ts";
 import { runtime } from "../server/launch/runtime.ts";
@@ -169,10 +170,20 @@ export default async function handler(req: Request, res: Response) {
       typeof authHeader === "string" && authHeader.startsWith("Bearer ")
         ? authHeader.slice(7)
         : "";
+    if (action === "analytics") {
+      requireRule(JSON.stringify(body).length<=1000,"분석 자료 크기를 확인해주세요.",413);
+      requireRule(validVisit, "방문 확인이 필요해요.",401);
+      const metric=clientMetric(body.event,body.properties);
+      requireRule(metric,"분석 항목을 확인해주세요.");
+      await r.service.store.tx(s=>{rate(s,"analytics:"+validVisit,60,60000,Date.now());recordMetric(s,metric.event,validVisit,metric.properties);});
+      await flushMetrics(r.service.store,r.cookieSecret);
+      return res.status(200).json({ok:true});
+    }
     if (action === "maintenance") {
       const key = process.env.CRON_SECRET;
       requireRule(key && equal(token, key), "관리자 확인이 필요해요.", 401);
       await r.service.maintenance();
+      await flushMetrics(r.service.store,r.cookieSecret);
       const pending = await r.service.store.tx((s) =>
         Object.values(s.users)
           .filter((u) => u.deleted && u.authDeletionPending)
@@ -386,6 +397,9 @@ export default async function handler(req: Request, res: Response) {
             requestKey: String(body.requestKey || randomUUID()),
             config: body.config as Partial<Config> | undefined,
             jobId: String(body.jobId || ""),
+            usageId: String(body.usageId || ""),
+            actualUsd: Number(body.actualUsd),
+            invoiceReference: String(body.invoiceReference || ""),
           }),
         );
     }

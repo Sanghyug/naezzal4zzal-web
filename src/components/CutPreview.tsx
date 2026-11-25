@@ -1,3 +1,4 @@
+import { track } from "../lib/analytics";
 import { commonPhotoRatio, containPhoto } from "../lib/photoFrame";
 import ShareControls from "./ShareControls";
 import VideoStudio from "./VideoStudio";
@@ -109,13 +110,14 @@ function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps)
           try {
             const result = await extractCells(enhanced, width, height, controller.signal);
             detected = result.cells;
+            track("photo_extraction",{outcome:detected.length===4 ? "success":"failure"});
             if (result.sourceUrl) {
               const corrected = await loadImage(result.sourceUrl);
               prepared = result.sourceUrl;
               ({ width, height } = corrected);
             }
           }
-          catch { analysisError = "자동 분석을 완료하지 못했어요. 아래 칸을 직접 맞춰주세요."; }
+          catch { track("photo_extraction",{outcome:"failure"}); analysisError = "자동 분석을 완료하지 못했어요. 아래 칸을 직접 맞춰주세요."; }
           finally { window.clearTimeout(timer); }
         }
         if (cancelled) return;
@@ -140,7 +142,7 @@ function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps)
     return () => { cancelled = true; controller.abort(); window.clearTimeout(timer); };
   }, [imageUrl, useAI, initialDraft]);
 
-  const useOriginal = async () => {
+  const restoreOriginalPhoto = async () => {
     try {
       const original = await enhanceImage(imageUrl);
       const { width, height } = await loadImage(original);
@@ -345,6 +347,7 @@ function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps)
       );
       const gif = await createGif(framedImages, speed);
       setGifUrl(gif);
+      track("gif_completed",{style:"gif",outcome:"success"});
     } catch (error) {
       console.error(error);
       alert("움짤을 만드는 중 문제가 생겼어요.");
@@ -717,7 +720,7 @@ function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps)
 
         {sourceUrl && cells.length > 0 && (status === "success" ? (
           <details className="nz-manual-details"><summary><strong>사진이 조금 잘못 맞춰졌나요?</strong><span>사진의 테두리나 잘린 부분을 직접 조정할 수 있어요.</span><b>사진 영역 직접 조정하기</b></summary><p className="nz-crop-hint">↘ 오른쪽 아래 색깔 동그라미를 끌어 사진 영역의 크기를 조절하세요.</p>
-            {rectified && <button onClick={() => void useOriginal()} style={smallButtonStyle}>원본에서 직접 맞추기</button>}
+            {rectified && <button onClick={() => void restoreOriginalPhoto()} style={smallButtonStyle}>원본에서 직접 맞추기</button>}
             <CropSelector sourceUrl={sourceUrl} sourceSize={sourceSize} cells={cells}
               onChange={(next) => { setCells(next); resetAllAdjusts(); }}
               onLayoutChange={changeLayout} />

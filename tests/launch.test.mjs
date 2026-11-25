@@ -256,17 +256,17 @@ test("GIF before signup and signup before GIF both reward exactly once; self/exi
   const v = createVisit(s, code, now),
     r = startRender(s, v.id, now);
   completeRender(s, v.id, r.id, "hash1", undefined, now);
-  assert.equal(balance(s, "owner").available, 5);
+  assert.equal(balance(s, "owner").available, 4);
   user(s, "friend", v.id);
-  assert.equal(balance(s, "owner").available, 7);
+  assert.equal(balance(s, "owner").available, 6);
   user(s, "friend", v.id);
   completeRender(s, v.id, r.id, "hash1", "friend", now);
-  assert.equal(balance(s, "owner").available, 7);
+  assert.equal(balance(s, "owner").available, 6);
   const v2 = createVisit(s, code, now);
   user(s, "friend2", v2.id);
   const r2 = startRender(s, v2.id, now);
   completeRender(s, v2.id, r2.id, "hash2", "friend2", now);
-  assert.equal(balance(s, "owner").available, 9);
+  assert.equal(balance(s, "owner").available, 8);
   assert.throws(() => completeRender(s, v2.id, r.id, "hash1", "friend2", now));
   const self = createVisit(s, code, now);
   user(s, "owner", self.id);
@@ -369,7 +369,7 @@ test("confirmed provider failure releases once, a timeout does not; lease expiry
   assert.equal(balance(s, "a").reserved, 1);
   settle(s, j.id, false, now);
   settle(s, j.id, false, now);
-  assert.equal(balance(s, "a").available, 5);
+  assert.equal(balance(s, "a").available, 4);
 });
 test("real MP4 postprocessing removes the audio stream without paid regeneration; GIF rejects forged flags", async () => {
   const dir = await mkdtemp(path.resolve("artifacts/launch/media-")),
@@ -496,7 +496,7 @@ test("provider-confirmed failure releases reservations exactly once and never ch
   await service.runJob(j.id);
   await service.runJob(j.id);
   assert.equal(submissions, 1);
-  assert.equal((await service.account("a")).balance.available, 5);
+  assert.equal((await service.account("a")).balance.available, 4);
   await assert.rejects(() => service.file("a", j.id));
 });
 test("account closure freezes new spending during deletion; same provider cannot claim another gift for 90 days", async () => {
@@ -550,7 +550,7 @@ test("operator retry is idempotent and changed compensation amount cannot reuse 
     };
   await service.admin("operator", body);
   await service.admin("operator", body);
-  assert.equal((await service.account("a")).balance.available, 7);
+  assert.equal((await service.account("a")).balance.available, 6);
   await assert.rejects(() => service.admin("operator", { ...body, amount: 3 }));
 });
 
@@ -573,11 +573,11 @@ test('first successful GIF, memory or drawing completion rewards an invitee only
     const gif=()=>{const r=startRender(s,visit.id,now);completeRender(s,visit.id,r.id,'unique-gif-'+first,'friend',now);};
     const video=style=>{const j=reserveJob(s,'friend','request-'+style,'fp-'+style,style,now);settle(s,j.id,true,now);settle(s,j.id,true,now);};
     if(first==='gif')gif();else video(first);
-    assert.equal(balance(s,'owner').available,7);
+    assert.equal(balance(s,'owner').available,6);
     if(first!=='memory')video('memory');if(first!=='drawing')video('drawing');if(first!=='gif')gif();
     user(s,'friend',visit.id);
     assert.equal(s.entries.filter(e=>e.kind==='invite_reward').length,1);
-    assert.equal(balance(s,'owner').available,7);
+    assert.equal(balance(s,'owner').available,6);
     assert.equal(Object.keys(s.orders).length,0);
   }
 });
@@ -587,9 +587,9 @@ test('failed and uncompleted AI jobs never reward; monthly five-person cap appli
   const visits=Array.from({length:6},()=>createVisit(s,s.users.owner.inviteCode,now));
   visits.forEach((v,i)=>user(s,'friend'+i,v.id));
   const failed=reserveJob(s,'friend0','failed','failed','memory',now);
-  assert.equal(balance(s,'owner').available,5);settle(s,failed.id,false,now);
-  assert.equal(balance(s,'owner').available,5);
+  assert.equal(balance(s,'owner').available,4);settle(s,failed.id,false,now);
+  assert.equal(balance(s,'owner').available,4);
   visits.forEach((v,i)=>{const style=i%2?'drawing':'memory';const j=reserveJob(s,'friend'+i,'ok','fp',style,now);settle(s,j.id,true,now);});
   assert.equal(s.entries.filter(e=>e.kind==='invite_reward').length,5);
-  assert.equal(balance(s,'owner').available,15);
+  assert.equal(balance(s,'owner').available,14);
 });

@@ -1,3 +1,4 @@
+import { track } from "../lib/analytics";
 import { useEffect, useRef, useState } from "react";
 import { downloadMediaFile, saveMediaFile, shareMediaFile } from "../lib/shareGif";
 import { recordCompletedShare, rewardNames, useShareCount } from "../lib/shareRewards";
@@ -27,6 +28,7 @@ export default function ShareControls({ url, video = false }: { url: string; vid
   const reward = () => {
     try {
       const next = recordCompletedShare();
+      track("media_shared",{style:video ? "video":"gif",outcome:"confirmed"});
       setMessage(next <= rewardNames.length ? "공유 " + next + "회 · " + rewardNames[next - 1] + "가 열렸어요 ✨" : "공유 기록을 저장했어요 💌");
     } catch { setMessage("공유했지만 이 브라우저에 보상 기록을 저장하지 못했어요. 저장 공간 설정을 확인해주세요."); }
   };

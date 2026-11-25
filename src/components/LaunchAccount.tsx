@@ -20,9 +20,9 @@ export function LoginPrompt({ onDismiss }: { onDismiss?: () => void }) {
     <p className="nz-login-subtitle">사진 속 그 순간을,<br/>실사와 애니메이션 영상으로 만나봐요.</p>
     <img className="nz-login-art" src="/launch/login-illustration.jpg" width="745" height="700" alt="같은 네 컷 사진을 실사와 애니메이션로 나란히 표현한 예시"/>
     <div className="nz-gift-ticket nz-ticket">
-      <LaunchIcon name="gift"/><div>{!config ? <p role="status">가입 선물을 확인하고 있어요.</p> : config.giftAvailable ? <><span className="nz-pill">첫 가입 선물</span><strong>무료 <b>5</b>크레딧</strong><small>선착순 100명 · 대상 계정에 한 번</small></> : <strong className="nz-gift-closed">가입 선물 이벤트가 마감됐어요</strong>}
-      <p>실사 1크레딧 · 펜화 3크레딧</p></div>
-    </div></> : <><h3>{config?.giftAvailable ? "첫 로그인 시 무료 5크레딧" : "로그인하고 영상 만들기"}</h3></>}
+      <LaunchIcon name="gift"/><div>{!config ? <p role="status">가입 선물을 확인하고 있어요.</p> : config.giftAvailable ? <><span className="nz-pill">처음 만나는 내짤4짤!</span><strong>웰컴 <b>4</b>크레딧</strong><small>신규 가입 선착순 {(config.giftLimit ?? 1000).toLocaleString("ko-KR")}명 · 한 번만 지급</small></> : <strong className="nz-gift-closed">가입 선물 이벤트가 마감됐어요</strong>}
+      <p>실사와 애니메이션을 모두 경험해 보세요.</p><div className="nz-cost-chips nz-welcome-examples" aria-label="웰컴 크레딧으로 실사 한 편과 애니메이션 한 편"><span>실사 1편 · 1크레딧</span><b>＋</b><span>애니메이션 1편 · 3크레딧</span></div></div>
+    </div></> : <><h3>{config?.giftAvailable ? "처음 만나는 내짤4짤! 웰컴 4크레딧" : "로그인하고 영상 만들기"}</h3></>}
     {config?.demo && <label className="nz-demo-field">체험 계정 이름<input value={alias} onChange={e=>setAlias(e.target.value)} autoComplete="off"/></label>}
     <button className="nz-kakao-login" disabled={busy || (!config?.demo && !config?.auth.url)} aria-busy={busy} onClick={async()=>{
       if(pending.current) return; pending.current=true; setBusy(true); setError("");

@@ -1,3 +1,4 @@
+import { track } from "./lib/analytics";
 import { prepareKakaoShare } from "./lib/kakaoShare";
 import { shareAppInvite } from "./lib/appInvite";
 import KakaoBrowserGuide from "./components/KakaoBrowserGuide";
@@ -116,6 +117,7 @@ function App() {
       URL.revokeObjectURL(imageUrl);
     }
 
+    track("photo_selected",{source:event.target.capture ? "camera":"upload"});
     const url = URL.createObjectURL(file);
     setWorkId(crypto.randomUUID());
     if (launchEnabled) void clearDraft().catch(() => {});

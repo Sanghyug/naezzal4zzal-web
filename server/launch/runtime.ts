@@ -1,3 +1,4 @@
+import { meter } from "./costs.ts";
 import { createHmac, randomBytes } from "node:crypto";
 import { resolve } from "node:path";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -101,7 +102,7 @@ async function createRuntime(): Promise<Runtime> {
     process.env.ENABLE_LIVE_GENERATION === "1" &&
     (Boolean(official) || env === "production" || (previewLive && process.env.ENABLE_PREVIEW_LIVE_GENERATION === "1"));
   const video = liveVideo
-    ? heygenProvider(required("OPENAI_API_KEY"), required("HEYGEN_API_KEY"))
+    ? heygenProvider(required("OPENAI_API_KEY"), required("HEYGEN_API_KEY"), meter(store))
     : mockVideoProvider();
   const service = new LaunchService(store, storage, payments, video, demo, aiAccountAllowed);
   if (previewIntegration && liveVideo) {

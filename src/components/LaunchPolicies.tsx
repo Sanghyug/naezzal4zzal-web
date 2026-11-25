@@ -6,7 +6,7 @@ export default function LaunchPolicies({ onBack, sectionPrefix = "nz-policy" }: 
   return (
     <article className="nz-account" aria-label="이용과 개인정보 안내">
       <h2>내짤4짤 이용 안내</h2>
-      <p>적용일 · 2026년 11월 24일</p>
+      <p>적용일 · 2026년 11월 26일</p>
       <h3 id={sectionPrefix + "-product"}>상품과 제공 방식</h3>
       <p>{BUSINESS.name}(대표 {BUSINESS.representative})이 내짤4짤을 운영합니다. 이 안내는 서비스 이용, 크레딧, 환불 및 개인정보 처리에 관한 내용을 담고 있어요.</p>
       {config && config.paymentMode !== "live" && <p>현재 테스트 운영 중이며 실제 결제금액은 청구되지 않아요. 아래 가격은 유료 판매를 시작할 때 적용할 예정인 상품 안내예요.</p>}
@@ -24,7 +24,7 @@ export default function LaunchPolicies({ onBack, sectionPrefix = "nz-policy" }: 
       </p>
       <h3>무료 선물과 초대</h3>
       <p>
-        가입 선물은 서버에서 대상과 잔여 수량을 확인해 한 계정에 한 번 지급해요.
+        신규 가입 웰컴 선물은 4크레딧이며 최초 {config?.giftLimit ?? 1000}명까지 서버에서 대상과 잔여 수량을 확인해 한 계정에 한 번 지급해요. 운영자가 지급 한도를 조정할 수 있으며, 기존 지급분과 장부는 바뀌지 않아요.
         종료 후에는 지급되지 않아요. 신규 친구의 첫 GIF 또는 AI 영상 정상 완료 검증과 가입
         확인이 모두 충족되어야 초대한 사람에게 2크레딧을 지급해요. 초대한 사람별
         한국 시간 기준 월 {config?.inviteMonthly || 5}명까지이며 운영 상태에
@@ -78,6 +78,7 @@ export default function LaunchPolicies({ onBack, sectionPrefix = "nz-policy" }: 
         편집을 종료하면 이 임시 보관을 삭제해요. 기존 기기 보관함과 꾸미기 공유
         보상은 기기 안에 저장되며 유료 크레딧으로 바뀌지 않아요.
       </p>
+      <h3>서비스 이용 실적 분석</h3><p>방문 경로의 종류, 제작·공유 결과, 크레딧 지급·사용 수량을 기록해요. 전용 PostHog 프로젝트가 연결되면 해시 처리한 무작위 방문 식별자와 정해진 이벤트만 미국 PostHog 분석 서버에 전송해요. 사진·얼굴·영상·이메일·인증정보·전체 방문 주소는 전송하지 않아요. 화면 녹화와 자동 클릭 수집은 사용하지 않아요.</p>
       <h3>개인정보 보호책임자와 권리 행사</h3>
       <p>개인정보 보호책임자는 {BUSINESS.name} 대표 {BUSINESS.representative}입니다.
         개인정보 열람·정정·삭제·처리정지, 동의 철회 및 계정 탈퇴 관련 문의는

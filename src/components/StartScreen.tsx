@@ -1,6 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { useState } from "react";
-import InstallGuide, { useInstallApp } from "./InstallGuide";
+import InstallGuide from "./InstallGuide";
+import { useInstallApp } from "../lib/useInstallApp";
 import type { ReactNode, Ref } from "react";
 
 type StartScreenProps = {

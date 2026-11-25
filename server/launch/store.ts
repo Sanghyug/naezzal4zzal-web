@@ -1,4 +1,5 @@
-import { initialState } from "./domain.ts";
+import { observeChanges } from "./telemetry.ts";
+import { initialState, defaults } from "./domain.ts";
 import type { State } from "./domain.ts";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
@@ -7,7 +8,7 @@ export interface Store {
 }
 // One locked launch state per environment serializes gifts, cross-account invites,
 // credit reservations and refund races. External network calls never hold this lock.
-// Intended for the initial 100-account release; migrate projections before scaling.
+// Serialized ledger: monitor lock time as the release cohort grows.
 export async function sqliteStore(file: string): Promise<Store> {
   const { DatabaseSync } = await import("node:sqlite");
   mkdirSync(dirname(file), { recursive: true });
@@ -26,7 +27,10 @@ export async function sqliteStore(file: string): Promise<Store> {
           .prepare("SELECT body FROM launch_state WHERE id=1")
           .get() as { body: string };
         const s = JSON.parse(row.body) as State;
+        upgradeWelcomePolicy(s);
+        const observe = observeChanges(s);
         const value = fn(s);
+        observe();
         assertState(s);
         db.prepare("UPDATE launch_state SET body=? WHERE id=1").run(
           JSON.stringify(s),
@@ -66,7 +70,10 @@ export async function postgresStore(
         );
         const s = rows[0].body as State;
         const before = s.entries.length;
+        upgradeWelcomePolicy(s);
+        const observe = observeChanges(s);
         const result = fn(s);
+        observe();
         assertState(s);
         await c.query(
           "UPDATE public.launch_state SET body=$2, updated_at=now() WHERE namespace=$1",
@@ -98,4 +105,12 @@ export function assertState(s: State) {
       l.reserved > l.remaining
     )
       throw new Error("Invalid credit ledger");
+}
+
+// One-time settings migration. Never rewrites historical users, lots or entries.
+export function upgradeWelcomePolicy(s: State) {
+  s.config={...defaults,...s.config};
+  if ((s.welcomePolicyVersion || 0) >= 2) return;
+  if (s.config.giftLimit === 100) s.config.giftLimit = 1000;
+  s.welcomePolicyVersion = 2;
 }

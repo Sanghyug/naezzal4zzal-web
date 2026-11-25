@@ -38,7 +38,7 @@ on conflict(id) do update set
 
 -- Existing test ledger is NEVER overwritten or reset.
 insert into public.launch_state(namespace,body)
-values ('test','{"config":{"gifts":true,"invites":true,"payments":true,"generation":true,"giftLimit":100,"inviteMonthly":5,"dailyJobs":100,"dailyUsd":15,"retentionDays":7},"users":{},"lots":{},"entries":[],"orders":{},"jobs":{},"visits":{},"renders":{},"rewarded":{},"rates":{},"cache":{},"deletedIdentities":[],"mockPayments":{},"version":1}'::jsonb)
+values ('test','{"config":{"gifts":true,"invites":true,"payments":true,"generation":true,"giftLimit":1000,"inviteMonthly":5,"dailyJobs":100,"dailyUsd":15,"retentionDays":7},"users":{},"lots":{},"entries":[],"orders":{},"jobs":{},"visits":{},"renders":{},"rewarded":{},"rates":{},"cache":{},"deletedIdentities":[],"mockPayments":{},"version":1}'::jsonb)
 on conflict(namespace) do nothing;
 commit;
 

@@ -1,8 +1,9 @@
+import { meter, fetchOpenAI } from "../server/launch/costs.ts";
 /// <reference types="node" />
 import { validateCells } from "../src/lib/photoGeometry.js";
 import { aiAccessRestricted, requirePreviewAiAccount } from "../server/launch/preview.ts";
 import { runtime } from "../server/launch/runtime.ts";
-import { dayKst, rate, requireRule, RuleError } from "../server/launch/domain.ts";
+import { dayKst, dailyAiCost, rate, requireRule, RuleError } from "../server/launch/domain.ts";
 import { createHmac } from "node:crypto";
 import { imageSize } from "../server/launch/dimensions.ts";
 type Request = { method?: string; body?: { image?: unknown }; headers: Record<string, string | string[] | undefined> };
@@ -42,8 +43,8 @@ export default async function handler(req: Request, res: Response) {
       await r.service.store.tx(s => {
         const now = Date.now(), day = dayKst(now), ip = String(req.headers["x-vercel-forwarded-for"] || req.headers["x-real-ip"] || "unknown");
         rate(s,"extract-rate:"+createHmac("sha256",r.cookieSecret).update(ip).digest("hex"),10,60000,now);
-        const used = Object.values(s.jobs).filter(j=>j.day===day).reduce((n,j)=>n+j.reserveUsd,0)+(s.rates["extract-cost:"+day]?.count||0)*.05;
-        requireRule(used+.05<=s.config.dailyUsd,"오늘 AI 분석 한도에 도달했어요.",429);
+        const used = dailyAiCost(s,day);
+        requireRule(used+s.config.extractionReserveUsd<=s.config.dailyUsd,"오늘 AI 분석 한도에 도달했어요.",429);
         rate(s,"extract-cost:"+day,preview ? 2 : 500,2*86400000,now);
       });
     } catch (error) {
@@ -54,7 +55,7 @@ export default async function handler(req: Request, res: Response) {
   const rect = { type: "object", properties: { x: { type: "number" }, y: { type: "number" }, width: { type: "number" }, height: { type: "number" } }, required: ["x", "y", "width", "height"], additionalProperties: false };
   const point = { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"], additionalProperties: false };
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
+    const response = await fetchOpenAI(process.env.LAUNCH_ENABLED === "1" ? meter((await runtime()).service.store) : undefined,"extraction","https://api.openai.com/v1/responses", {
       method: "POST", signal: AbortSignal.timeout(22000),
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiKey },
       body: JSON.stringify({

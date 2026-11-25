@@ -1,3 +1,4 @@
+import { track } from "./analytics.ts";
 import { tryKakaoAppShare } from "./kakaoShare.ts";
 import { Capacitor } from '@capacitor/core';
 import { Share } from '@capacitor/share';
@@ -14,11 +15,12 @@ export async function shareAppInvite(account: Account | null, appOrigin = offici
   const guidance = !account ? ' 로그인 후 친구를 초대하면 새 친구의 첫 GIF 또는 AI 영상 완성 시 2크레딧을 받을 수 있어요.' : data.url === officialAppUrl ? ' 지금은 유효한 초대 보상 링크가 없어 일반 앱 주소를 공유해요.' : '';
   try {
     if (!Capacitor.isNativePlatform()) {
-      try { if (tryKakaoAppShare(data)) return '카카오톡 공유 화면을 열었어요.' + guidance; } catch { /* Keep the existing share path when the SDK is unavailable. */ }
+      try { if (tryKakaoAppShare(data)) { track("invite_shared",{method:"kakao",outcome:"opened",invited:data.url!==officialAppUrl}); return '카카오톡 공유 화면을 열었어요.' + guidance; } } catch { /* Keep the existing share path when the SDK is unavailable. */ }
     }
     if (Capacitor.isNativePlatform()) await Share.share(data);
     else if (navigator.share) await navigator.share(data);
-    else { await navigator.clipboard.writeText(data.text + '\n\n' + data.url); return '초대 링크와 소개를 복사했어요.' + guidance; }
+    else { await navigator.clipboard.writeText(data.text + '\n\n' + data.url); track("invite_shared",{method:"clipboard",outcome:"success",invited:data.url!==officialAppUrl}); return '초대 링크와 소개를 복사했어요.' + guidance; }
+    track("invite_shared",{method:"web",outcome:"success",invited:data.url!==officialAppUrl});
     return '초대 링크를 공유했어요.' + guidance;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') return '공유를 취소했어요. 초대 보상은 아직 지급되지 않았어요.';
