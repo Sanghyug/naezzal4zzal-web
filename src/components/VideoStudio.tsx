@@ -9,11 +9,11 @@ const base = import.meta.env.VITE_API_BASE_URL || "";
 const jobKey = "naezzal4zzal-video-job";
 const requestKey = "naezzal4zzal-video-request";
 function storedToken() { try { return sessionStorage.getItem(jobKey) || ""; } catch { return ""; } }
-export default function VideoStudio(props: { ready: boolean; getImages: () => Promise<string[]>; memo: string }) {
+export default function VideoStudio(props: { workId: string; ready: boolean; getImages: () => Promise<string[]>; memo: string }) {
   const { account } = useLaunch();
-  const [creditOpen, setCreditOpen] = useState(() => sessionStorage.getItem("nz-video-open") === "1");
+  const [creditOpen, setCreditOpen] = useState(() => sessionStorage.getItem(`nz-video-open:${props.workId}`) === "1");
   return launchEnabled ? <CreditVideoStudio key={account?.user.id || 'guest'} {...props} open={creditOpen} onToggle={() => {
-    sessionStorage.setItem("nz-video-open", creditOpen ? "0" : "1");
+    sessionStorage.setItem(`nz-video-open:${props.workId}`, creditOpen ? "0" : "1");
     setCreditOpen(!creditOpen);
   }} /> : <LegacyVideoStudio {...props} />;
 }
