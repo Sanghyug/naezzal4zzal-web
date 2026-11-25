@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 // This is an OAuth transport simulation, not a real Kakao account/device test.
-async function simulatedKakao(page, alias, cancel) {
+async function simulatedKakao(page, alias, cancel, failExchange = false) {
   await page.route("**/api/launch**", async (route) => {
     if (route.request().method() === "GET" && route.request().url().includes("action=config")) {
       const response = await route.fetch();
@@ -20,7 +20,7 @@ async function simulatedKakao(page, alias, cancel) {
     expect(u.searchParams.get("code_challenge")).toBeTruthy();
     await route.fulfill({ status: 302, headers: { location: "http://127.0.0.1:5173/?auth=return&" + (cancel ? "error=access_denied&error_description=cancelled" : "code=test-code") } });
   });
-  await page.route("**/auth/v1/token?**", (route) => route.fulfill({ json: {
+  await page.route("**/auth/v1/token?**", (route) => failExchange ? route.fulfill({ status: 400, json: { error: "invalid_grant" } }) : route.fulfill({ json: {
     access_token: "test-access-token-for-kakao", refresh_token: "test-refresh-token", token_type: "bearer", expires_in: 3600,
     user: { id: "member-without-email", aud: "authenticated", created_at: new Date().toISOString(), app_metadata: { provider: "kakao" }, user_metadata: {}, identities: [{ provider: "kakao", id: alias }] },
   } }));
@@ -462,4 +462,20 @@ test("tilted two-by-two panels use original proportions and can return to manual
   await manual.click();
   await expect(manual).toHaveCount(0);
   await expect(panels).toHaveCount(4);
+});
+
+test("Kakao callback exchange failure preserves the open video style and edit", async ({ page }) => {
+  await simulatedKakao(page, unique(), false, true);
+  await upload(page);
+  const memo = page.getByRole("textbox").last();
+  await memo.fill("콜백 실패 복원");
+  const open = page.getByRole("button", { name: "🎬 AI 영상 만들기" });
+  await open.click();
+  const drawing = page.getByRole("button", { name: /애니메이션 영상 · 3크레딧/ });
+  await drawing.click();
+  await page.getByRole("button", { name: "카카오로 시작하기" }).click();
+  await expect(page.getByText(/로그인을 확인하지 못했어요/)).toBeVisible({ timeout: 15000 });
+  await expect(open).toHaveAttribute("aria-expanded", "true");
+  await expect(drawing).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("textbox").last()).toHaveValue("콜백 실패 복원");
 });
