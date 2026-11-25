@@ -15,6 +15,7 @@ type StartScreenProps = {
   fullscreenAvailable?: boolean;
   fullscreen?: boolean;
   onFullscreenClick?: () => void;
+  fullscreenNotice?: string;
 };
 
 function StartScreen({
@@ -29,11 +30,12 @@ function StartScreen({
   fullscreenAvailable,
   fullscreen,
   onFullscreenClick,
+  fullscreenNotice,
 }: StartScreenProps) {
   const { installed, install } = useInstallApp();
   const [showInstallGuide, setShowInstallGuide] = useState(false);
   const handleInstallApp = async () => {
-    if (!(await install())) setShowInstallGuide(true);
+    if (installed || !(await install())) setShowInstallGuide(true);
   };
 
   return (
@@ -210,7 +212,7 @@ function StartScreen({
               {inviteMessage && <p role="status">{inviteMessage}</p>}
 
             <button
-              hidden={Capacitor.isNativePlatform() || installed}
+              hidden={Capacitor.isNativePlatform()}
               onClick={handleInstallApp}
               style={{
                 width: "100%",
@@ -228,7 +230,8 @@ function StartScreen({
               📱 홈화면에 설치하기
             </button>
             {showInstallGuide && <InstallGuide onClose={() => setShowInstallGuide(false)} />}
-            {fullscreenAvailable && <button type="button" onClick={onFullscreenClick} style={{width:"100%",padding:14,borderRadius:16,border:"1px solid #e5d2f1",background:"#f7f0fc",color:"#7549ae",fontWeight:800,cursor:"pointer"}}>{fullscreen ? "전체화면 닫기" : "전체화면으로 보기"}</button>}
+            {!Capacitor.isNativePlatform() && <button type="button" onClick={onFullscreenClick} style={{width:"100%",padding:14,borderRadius:16,border:"1px solid #e5d2f1",background:"#f7f0fc",color:"#7549ae",fontWeight:800,cursor:"pointer"}}>{fullscreen && fullscreenAvailable ? "전체화면 닫기" : "전체화면으로 보기"}</button>}
+            {fullscreenNotice && <p role="status" style={{fontSize:13,color:"#795664",lineHeight:1.6}}>{fullscreenNotice}</p>}
           </div>
         </div>
 
