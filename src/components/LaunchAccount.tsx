@@ -5,6 +5,7 @@ import { demoLogin, kakaoLogin, launchApi, logout, refreshAccount, useLaunch, vi
 import type { LaunchOrder } from "../lib/launch";
 import LaunchPolicies from "./LaunchPolicies";
 import { LaunchIcon, FilmDecoration } from "./LaunchArtwork";
+import { shareAppInvite } from "../lib/appInvite";
 import { BUSINESS, supportMailto } from "../lib/business";
 import "./launch.css";
 import "./launch-redesign.css";
@@ -120,7 +121,7 @@ export default function LaunchAccount({ entryTarget }: { entryTarget?: HTMLEleme
     {entryTarget ? createPortal(entry, entryTarget) : entry}
     {open && <div className="nz-account-overlay"><section ref={panel} className="nz-account nz-redesign" role="dialog" aria-modal="true" aria-label="내 크레딧">
       <header className="nz-brand-header"><img src="/launch/logo.png" alt="내짤4짤" width="595" height="190"/><button className="nz-close" aria-label="크레딧 닫기" onClick={()=>setOpen(false)}>×</button></header>
-      {!ready ? <p role="status">로그인을 확인하고 있어요.</p> : !account && authenticated ? <button onClick={() => void act(refreshAccount)}>계정 정보 다시 불러오기</button> : !account ? <LoginPrompt onDismiss={()=>setOpen(false)}/> : <>
+      {!ready ? <p role="status">로그인을 확인하고 있어요.</p> : !account && authenticated ? <button onClick={() => void act(refreshAccount)}>계정 정보 다시 불러오기</button> : !account ? <><LoginPrompt onDismiss={()=>setOpen(false)}/><button onClick={async()=>setMessage(await shareAppInvite(null))}>친구 초대하기</button><p>로그인 후 친구 초대 보상을 받을 수 있어요.</p></> : <>
         <div className="nz-page-title"><h1>내 크레딧</h1><p>추억을 더 만들 준비, 됐나요?</p></div>
         <div className="nz-credit-ticket nz-ticket"><div className="nz-ticket-top"><div><span className="nz-pill">사용 가능한 크레딧</span><strong><b>{account.balance.available}</b><span>크레딧</span></strong><p>제작 예약 {account.balance.reserved}크레딧 · 총 보유 {account.balance.total}</p></div><FilmDecoration/></div><div className="nz-cost-chips"><span><LaunchIcon name="video"/>실사 영상 <b>1크레딧</b></span><span><LaunchIcon name="pen"/>애니메이션 영상 <b>3크레딧</b></span></div></div>
         <section className="nz-topup-card"><h2>추억을 더 만들고 싶다면</h2><div className="nz-price"><b>10크레딧</b><strong>3,900원</strong></div><p>필요할 때 한 번씩 충전해요</p>
@@ -152,39 +153,10 @@ export default function LaunchAccount({ entryTarget }: { entryTarget?: HTMLEleme
         {!config?.payments && <p>결제 연결을 준비하고 있어요.</p>}{(config?.paymentMode==="mock" || config?.paymentMode==="toss-test") && <span className="nz-test-badge">테스트 결제 · 실제 청구 없음</span>}
         {purchase && accountId && purchase.user===accountId && <Checkout order={purchase} onClose={()=>setPurchase(null)} onDone={()=>{sessionStorage.removeItem("nz-purchase-request:"+accountId);setPurchase(null);setTab("orders");void refreshAccount();}}/>}
         </section>
-        <section className="nz-referral-card"><LaunchIcon name="plane" className="nz-plane"/><h2>친구와 함께, <em>+2크레딧</em></h2><p>초대받은 새 친구가 가입하고<br/>기본 움짤을 완성하면 선물로 드려요</p>
-              <button
-                disabled={!account.invite.enabled}
-                onClick={() =>
-                  void act(async () => {
-                    const url =
-                      location.origin + "/?ref=" + account.invite.code;
-                    try {
-                      if (navigator.share) {
-                        await navigator.share({
-                          title: "내짤4짤",
-                          text: "네 컷 사진으로 움짤을 만들어봐!",
-                          url,
-                        });
-                        setMessage("초대 링크를 공유했어요. 새 친구의 가입과 GIF 완성 후 보상이 지급돼요.");
-                      } else {
-                        await navigator.clipboard.writeText(url);
-                        setMessage("초대 링크를 복사했어요.");
-                      }
-                    } catch (e) {
-                      if (e instanceof Error && e.name === "AbortError") setMessage("공유를 취소했어요. 초대 보상은 아직 지급되지 않았어요.");
-                      else { await navigator.clipboard.writeText(url); setMessage("초대 링크를 복사했어요."); }
-                    }
-                  })
-                }
-              >
-                {account.invite.enabled
-                  ? "친구 초대 링크 공유"
-                  : "이번 달 초대 보상 한도 도달"}
-              </button>
-
+        <section className="nz-referral-card"><LaunchIcon name="plane" className="nz-plane"/><h2>친구와 함께, <em>+2크레딧</em></h2><p>초대받은 새 친구가 가입하고<br/>GIF 또는 AI 영상을 처음 완성하면 선물로 드려요</p>
+        <button disabled={busy} onClick={async () => { setBusy(true); try { setMessage(await shareAppInvite(account, config?.appUrl)); } finally { setBusy(false); } }}>친구 초대하기</button>
         <div className="nz-referral-counts"><span>이번 달 <b>{account.invite.monthlyUsed}/{account.invite.monthlyLimit}</b>명</span><span>보상 대기 <b>{account.invite.waiting}</b>명</span></div>
-        <details className="nz-invite-details"><summary>초대 안내</summary><p>보상은 초대한 사람에게 지급해요. 새 친구의 가입 확인과 기본 GIF 완성이 모두 필요해요. 자기 초대와 중복 가입은 제외돼요. 한국 시간 월 {account.invite.monthlyLimit}명까지, 링크는 발급 후 30일간 유효해요.</p><p>링크 유효기간: {new Date(account.invite.expires).toLocaleDateString("ko-KR")}</p></details></section>
+        <details className="nz-invite-details"><summary>초대 안내</summary><p>보상은 초대한 사람에게 지급해요. 새 친구의 가입 확인과 첫 GIF·실사·애니메이션 영상 중 하나의 정상 완성이 필요해요. 친구 한 명당 한 번, 결제 여부와 관계없이 지급해요. 자기 초대와 중복 가입은 제외돼요. 한국 시간 월 {account.invite.monthlyLimit}명까지, 링크는 발급 후 30일간 유효해요.</p><p>링크 유효기간: {new Date(account.invite.expires).toLocaleDateString("ko-KR")}</p></details></section>
         <section className="nz-records-card"><h2>나의 기록</h2><div role="tablist" aria-label="나의 기록" className="nz-record-tabs">{([['videos','내 영상'],['orders','구매 내역'],['credits','크레딧 내역']] as const).map(([key,label],i)=><button key={key} id={"nz-tab-"+key} role="tab" aria-selected={tab===key} aria-controls={"nz-panel-"+key} tabIndex={tab===key?0:-1} onClick={()=>setTab(key)} onKeyDown={e=>{const keys=['videos','orders','credits'] as const;const next=e.key==='ArrowRight'?(i+1)%3:e.key==='ArrowLeft'?(i+2)%3:e.key==='Home'?0:e.key==='End'?2:-1;if(next>=0){e.preventDefault();setTab(keys[next]);document.getElementById('nz-tab-'+keys[next])?.focus();}}}>{label}</button>)}</div>
         <div role="tabpanel" id={"nz-panel-"+tab} aria-labelledby={"nz-tab-"+tab} tabIndex={0}>
         {tab==='videos' && <><h3 className="nz-sr-only">영상 제작 내역</h3>              {account.jobs.length === 0 && <p>아직 만든 영상이 없어요.</p>}

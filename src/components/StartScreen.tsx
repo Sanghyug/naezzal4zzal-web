@@ -7,6 +7,8 @@ type StartScreenProps = {
   onUploadClick: () => void;
   onGalleryClick: () => void;
   onShareAppClick: () => void;
+  inviteMessage?: string;
+  inviteGuest?: boolean;
   accountRef?: Ref<HTMLDivElement>;
   footer?: ReactNode;
 };
@@ -16,6 +18,8 @@ function StartScreen({
   onUploadClick,
   onGalleryClick,
   onShareAppClick,
+  inviteMessage,
+  inviteGuest,
   accountRef,
   footer,
 }: StartScreenProps) {
@@ -219,8 +223,10 @@ function StartScreen({
                 boxShadow: "0 6px 18px rgba(255,111,97,0.12)",
               }}
             >
-              💌 친구와 앱 공유하기
+              친구 초대하기
             </button>
+              {inviteGuest && <p style={{fontSize:13,color:"#795664",lineHeight:1.6}}>로그인 후 친구를 초대하면 새 친구의 첫 GIF 또는 AI 영상 완성 시 2크레딧을 받을 수 있어요.</p>}
+              {inviteMessage && <p role="status">{inviteMessage}</p>}
 
             <button
               hidden={Capacitor.isNativePlatform()}

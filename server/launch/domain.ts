@@ -41,6 +41,7 @@ export type User = {
   inviter?: string;
   rewardPaid?: boolean;
   hasGif?: boolean;
+  hasVideo?: boolean;
   deleted?: boolean;
   closing?: boolean;
   authDeletionPending?: boolean;
@@ -348,7 +349,7 @@ export function reward(s: State, user: string, at: number) {
   if (
     !u ||
     u.rewardPaid ||
-    !u.hasGif ||
+    !(u.hasGif || u.hasVideo) ||
     !u.inviter ||
     u.inviter === user ||
     !s.config.invites
@@ -674,6 +675,10 @@ export function settle(s: State, id: string, success: boolean, at: number) {
   }
   j.billingSettled = true;
   j.status = success ? "completed" : "failed";
+  if (success) {
+    s.users[j.user].hasVideo = true;
+    reward(s, j.user, at);
+  }
   entry(
     s,
     j.user,

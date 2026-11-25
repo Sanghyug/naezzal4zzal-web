@@ -564,3 +564,32 @@ test("public mock configuration cannot reserve credits", async () => {
   );
   assert.equal(await store.tx((s) => Object.keys(s.jobs).length), 0);
 });
+
+
+test('first successful GIF, memory or drawing completion rewards an invitee only once across media and retries', () => {
+  for (const first of ['gif','memory','drawing']) {
+    const s=initialState();s.config.generation=true;user(s,'owner');
+    const visit=createVisit(s,s.users.owner.inviteCode,now);user(s,'friend',visit.id);
+    const gif=()=>{const r=startRender(s,visit.id,now);completeRender(s,visit.id,r.id,'unique-gif-'+first,'friend',now);};
+    const video=style=>{const j=reserveJob(s,'friend','request-'+style,'fp-'+style,style,now);settle(s,j.id,true,now);settle(s,j.id,true,now);};
+    if(first==='gif')gif();else video(first);
+    assert.equal(balance(s,'owner').available,7);
+    if(first!=='memory')video('memory');if(first!=='drawing')video('drawing');if(first!=='gif')gif();
+    user(s,'friend',visit.id);
+    assert.equal(s.entries.filter(e=>e.kind==='invite_reward').length,1);
+    assert.equal(balance(s,'owner').available,7);
+    assert.equal(Object.keys(s.orders).length,0);
+  }
+});
+
+test('failed and uncompleted AI jobs never reward; monthly five-person cap applies to mixed video completions',()=>{
+  const s=initialState();s.config.generation=true;user(s,'owner');
+  const visits=Array.from({length:6},()=>createVisit(s,s.users.owner.inviteCode,now));
+  visits.forEach((v,i)=>user(s,'friend'+i,v.id));
+  const failed=reserveJob(s,'friend0','failed','failed','memory',now);
+  assert.equal(balance(s,'owner').available,5);settle(s,failed.id,false,now);
+  assert.equal(balance(s,'owner').available,5);
+  visits.forEach((v,i)=>{const style=i%2?'drawing':'memory';const j=reserveJob(s,'friend'+i,'ok','fp',style,now);settle(s,j.id,true,now);});
+  assert.equal(s.entries.filter(e=>e.kind==='invite_reward').length,5);
+  assert.equal(balance(s,'owner').available,15);
+});

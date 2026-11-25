@@ -2,9 +2,6 @@ import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
 
-export const officialAppUrl = "https://4zzal.com";
-export const mediaShareText = "네 컷 사진을 짤과 영상으로!\n친구와의 추억을 공유하는 새로운 방법, 내짤4짤\n\n" + officialAppUrl;
-
 export type ShareResult = "shared" | "downloaded" | "unconfirmed";
 export async function shareMediaFile(file: File, text: string): Promise<ShareResult> {
   if (Capacitor.isNativePlatform()) {
@@ -19,7 +16,7 @@ export async function shareMediaFile(file: File, text: string): Promise<ShareRes
     return result.activityType ? "shared" : "unconfirmed";
   }
   const fileData = { files: [file] };
-  const fullData = { ...fileData, title: "내짤4짤", text };
+  const fullData = { ...fileData, title: "내짤4짤", ...(text ? { text } : {}) };
   if (navigator.share && navigator.canShare?.(fileData)) {
     await navigator.share(navigator.canShare(fullData) ? fullData : fileData);
     return "shared";

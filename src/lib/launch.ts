@@ -48,6 +48,7 @@ export type Account = {
   };
 };
 export type LaunchConfig = {
+  appUrl?: string;
   aiRestricted?: boolean;
   giftAvailable: boolean;
   invites: boolean;
@@ -259,11 +260,6 @@ export async function verifyInviteGif(gif: string, renderId: string) {
   if (!state.invited) return;
   await launchApi("renderComplete", { renderId, gif });
   if (state.account) await refreshAccount();
-}
-export function appShareUrl() {
-  return state.account?.invite.enabled
-    ? location.origin + "/?ref=" + state.account.invite.code
-    : location.origin;
 }
 // OAuth returns to a new page: persist the original Blob and all editor settings
 // in IndexedDB, never localStorage URLs which expire across navigation.

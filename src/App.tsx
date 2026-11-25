@@ -1,5 +1,5 @@
-import { Capacitor } from "@capacitor/core";
-import { Share } from "@capacitor/share";
+import { shareAppInvite } from "./lib/appInvite";
+import KakaoBrowserGuide from "./components/KakaoBrowserGuide";
 import PrivacyScreen from "./components/PrivacyScreen";
 import { useEffect, useRef, useState } from "react";
 import StartScreen from "./components/StartScreen";
@@ -10,7 +10,7 @@ import LaunchAccount from "./components/LaunchAccount";
 import LaunchPolicies from "./components/LaunchPolicies";
 import LaunchOperator from "./components/LaunchOperator";
 import BusinessInfo from "./components/BusinessInfo";
-import { launchEnabled, initializeLaunch, getDraft, clearDraft, appShareUrl, isVideoInProgress, launchApi, refreshAccount, useLaunch } from "./lib/launch";
+import { launchEnabled, initializeLaunch, getDraft, clearDraft, isVideoInProgress, launchApi, refreshAccount, useLaunch } from "./lib/launch";
 import type { EditorDraft, LaunchJob } from "./lib/launch";
 
 declare global {
@@ -24,7 +24,8 @@ declare global {
 type AppMode = "splash" | "start" | "preview" | "gallery" | "privacy";
 
 function App() {
-  const { account } = useLaunch();
+  const { account, config } = useLaunch();
+  const [inviteMessage, setInviteMessage] = useState("");
   
   const [mode, setMode] = useState<AppMode>("splash");
   const [workId, setWorkId] = useState("");
@@ -119,26 +120,7 @@ function App() {
     setMode("preview");
   };
 
-  const handleShareApp = async () => {
-    const appUrl = launchEnabled ? appShareUrl() : "https://naezzal4zzal-web.vercel.app";
-
-    try {
-      if (Capacitor.isNativePlatform()) { await Share.share({ title: "내짤4짤", text: "네컷사진을 움직이는 추억으로 만들어보세요.", url: appUrl }); return; }
-      if (navigator.share) {
-        await navigator.share({
-          title: "내짤4짤",
-          text: "친구들과 찍은 네컷 사진을 움직이는 짤로 만들어봐 ✨",
-          url: appUrl,
-        });
-        return;
-      }
-
-      await navigator.clipboard.writeText(appUrl);
-      alert("앱 링크를 복사했어요 💌");
-    } catch (error) {
-      console.error(error);
-    }
-  };
+  const handleShareApp = async () => { setInviteMessage(await shareAppInvite(account, config?.appUrl)); };
 
   const handleReset = () => {
     if (launchEnabled) void clearDraft().catch(() => {});
@@ -184,6 +166,7 @@ function App() {
 
   return (
     <>
+      {mode !== "splash" && <KakaoBrowserGuide />}
       {launchEnabled && mode !== "splash" && <LaunchAccount entryTarget={mode === "start" ? homeAccountTarget : null} />}
       {launchEnabled && mode !== "splash" && <LaunchOperator />}
       {launchEnabled && policies && <div className="nz-home-policy-panel" ref={policyPanelRef} tabIndex={-1}><LaunchPolicies sectionPrefix="nz-home-policy" onBack={() => { setPolicies(null); requestAnimationFrame(() => policyTriggerRef.current?.focus()); }} /></div>}
@@ -219,6 +202,8 @@ function App() {
           onUploadClick={handleUploadClick}
           onGalleryClick={() => setMode("gallery")}
           onShareAppClick={handleShareApp}
+          inviteMessage={inviteMessage}
+          inviteGuest={!account}
           accountRef={launchEnabled ? setHomeAccountTarget : undefined}
           footer={footer}
         />

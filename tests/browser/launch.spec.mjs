@@ -79,11 +79,11 @@ test("redesigned account adapts to four widths, restores focus and supports tabs
   await expect(page.getByText('아직 만든 영상이 없어요.')).toBeVisible();
   await context.grantPermissions(['clipboard-read','clipboard-write']);
   await page.evaluate(()=>Object.defineProperty(navigator,'share',{configurable:true,value:undefined}));
-  await page.getByRole('button',{name:'친구 초대 링크 공유',exact:true}).click();
-  await expect(page.getByText('초대 링크를 복사했어요.')).toBeVisible();
-  expect(await page.evaluate(()=>navigator.clipboard.readText())).toMatch(/^http:\/\/127\.0\.0\.1:5173\/\?ref=/);
+  await page.getByRole('dialog',{name:'내 크레딧'}).getByRole('button',{name:'친구 초대하기',exact:true}).click();
+  await expect(page.getByText('초대 링크와 소개를 복사했어요.')).toBeVisible();
+  expect(await page.evaluate(()=>navigator.clipboard.readText())).toMatch(/http:\/\/127\.0\.0\.1:5173\/\?ref=/);
   await page.evaluate(()=>Object.defineProperty(navigator,'share',{configurable:true,value:async()=>{throw new DOMException('Cancelled','AbortError')}}));
-  await page.getByRole('button',{name:'친구 초대 링크 공유',exact:true}).click();
+  await page.getByRole('dialog',{name:'내 크레딧'}).getByRole('button',{name:'친구 초대하기',exact:true}).click();
   await expect(page.getByText('공유를 취소했어요. 초대 보상은 아직 지급되지 않았어요.')).toBeVisible();
   await page.getByText('계정 관리',{exact:true}).click();
   await expect(page.getByText('계정 탈퇴와 서버 자료 삭제',{exact:true})).toBeVisible();
@@ -166,7 +166,8 @@ test("anonymous editing and GIF survive login/reload; one-credit creation and do
   expect(order).toBe(true);
   await page.evaluate(() => { window.capturedShares = []; Object.defineProperties(navigator, { canShare: { configurable: true, value: () => true }, share: { configurable: true, value: async (data) => { capturedShares.push({ text: data.text, names: data.files?.map(file => file.name) }); } } }); });
   await page.getByRole("region", { name: "움짤 제작" }).getByRole("button", { name: "공유하기", exact: true }).click();
-  expect(await page.evaluate(() => capturedShares[0])).toEqual({ text: "네 컷 사진을 짤과 영상으로!\n친구와의 추억을 공유하는 새로운 방법, 내짤4짤\n\nhttps://4zzal.com", names: ["naezzal4zzal.gif"] });
+  expect((await page.evaluate(() => capturedShares[0])).names).toEqual(["naezzal4zzal.gif"]);
+  expect((await page.evaluate(() => capturedShares[0])).text).toBeUndefined();
   await page.route("**/api/launch", async route => {
     const body = route.request().postDataJSON();
     if (body?.action === "work") await new Promise(resolve => setTimeout(resolve, 3000));
@@ -192,10 +193,8 @@ test("anonymous editing and GIF survive login/reload; one-credit creation and do
   });
   await expect(gif).toHaveAttribute("src", gifSource);
   const studio = page.getByRole("region", { name: "AI 영상 제작" });
-  await expect(studio.getByText("https://4zzal.com", {exact:true})).toBeVisible();
-  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-  await studio.getByRole("button", { name: "앱 주소 복사하기" }).click();
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("https://4zzal.com");
+  await expect(studio.getByRole('button',{name:'앱 주소 복사하기'})).toHaveCount(0);
+  await expect(studio.getByText('https://4zzal.com',{exact:true})).toHaveCount(0);
   await studio.getByRole("button", { name: "다른 스타일로 영상 만들기" }).click();
   await expect(studio.getByRole("button", { name: /애니메이션.*3 크레딧/ })).toBeVisible();
   await expect(studio.getByRole("button", { name: /영상 만들기.*1 크레딧/ })).toBeDisabled();
@@ -288,6 +287,7 @@ test("simulated KakaoTalk invite GIF then email-less Kakao OAuth rewards inviter
     friend = await context.newPage();
   await simulatedKakao(friend, unique(), false);
   await friend.goto("http://127.0.0.1:5173/?ref=" + account.invite.code);
+  await friend.getByRole("button", { name: "카카오톡에서 계속 이용하기" }).click();
   await friend.getByRole("button", { name: "🖼️ 불러오기" }).waitFor();
   const data = await friend.evaluate(() => {
     const c = document.createElement("canvas");
@@ -626,7 +626,39 @@ test("completed job waits for playable media and retries failed download without
   expect(await page.getByLabel('완성된 AI 영상').evaluate(v=>v.readyState)).toBeGreaterThanOrEqual(2);
   expect(generates).toBe(1);expect(files).toBeGreaterThanOrEqual(2);
   await expect(page.getByRole('button',{name:'내 크레딧 2 · 내역'})).toBeVisible();
-  await page.context().grantPermissions(['clipboard-read','clipboard-write']);
-  await page.getByRole('button',{name:'소개 문구와 주소 복사',exact:true}).click();
-  expect((await page.evaluate(()=>navigator.clipboard.readText())).replace(/\r\n/g,'\n')).toBe('네 컷 사진을 짤과 영상으로!\n친구와의 추억을 공유하는 새로운 방법, 내짤4짤\n\nhttps://4zzal.com');
+  await expect(page.getByRole('button',{name:'소개 문구와 주소 복사',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('region',{name:'AI 영상 제작'}).getByText('https://4zzal.com',{exact:true})).toHaveCount(0);
+});
+
+
+test('home and account share identical invitation data for guests and signed-in members without skin rewards',async({page})=>{
+  await page.addInitScript(()=>{window.invitationShares=[];localStorage.setItem('naezzal4zzal-share-count','3');Object.defineProperty(navigator,'share',{configurable:true,value:async data=>invitationShares.push(data)});});
+  await page.goto('/');const home=page.getByRole('button',{name:'친구 초대하기',exact:true});await home.waitFor();await home.click();
+  await expect(page.getByText(/로그인 후 친구를 초대하면 새 친구의 첫 GIF/).first()).toBeVisible();
+  await page.getByRole('button',{name:'내 크레딧',exact:true}).click();let panel=page.getByRole('dialog',{name:'내 크레딧'});
+  await panel.getByRole('button',{name:'친구 초대하기',exact:true}).click();
+  let shares=await page.evaluate(()=>invitationShares);expect(shares[0]).toEqual(shares[1]);expect(shares[0].url).toBe('https://4zzal.com');
+  await login(page,unique());await panel.getByRole('button',{name:'친구 초대하기',exact:true}).click();
+  await panel.getByRole('button',{name:'크레딧 닫기'}).click();await home.click();shares=await page.evaluate(()=>invitationShares);
+  expect(shares[2]).toEqual(shares[3]);expect(shares[2].url).toMatch(/^http:\/\/127\.0\.0\.1:5173\/\?ref=.+/);
+  expect(shares[2].text).toBe('네 컷 사진을 짤과 영상으로!\n친구와의 추억을 공유하는 새로운 방법, 내짤4짤');
+  expect(shares[2].files).toBeUndefined();expect(await page.evaluate(()=>localStorage.getItem('naezzal4zzal-share-count'))).toBe('3');
+  await expect(page.getByRole('dialog',{name:'더 편하게 내짤4짤을 즐겨보세요!'})).toHaveCount(0);
+  for(const width of [360,390,430]){await page.setViewportSize({width,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:'artifacts/launch/phase6-home-'+width+'.png',fullPage:true});}
+});
+
+test('Kakao guide copies the entire invitation URL and external browser recognizes the referral',async({page,browser})=>{
+  await page.goto('/');await page.getByRole('button',{name:'내 크레딧',exact:true}).click();await login(page,unique());
+  const code=await page.evaluate(async()=>{const {launchApi}=await import('/src/lib/launch.ts');return (await launchApi('account')).invite.code;});
+  const ctx=await browser.newContext({userAgent:'Mozilla/5.0 Mobile Safari KAKAOTALK/26',viewport:{width:390,height:844},permissions:['clipboard-read','clipboard-write']});
+  const kakao=await ctx.newPage();await kakao.goto('http://127.0.0.1:5173/?ref='+code+'&campaign=kakao');
+  const guide=kakao.getByRole('dialog',{name:'더 편하게 내짤4짤을 즐겨보세요!'});await guide.waitFor();
+  for(const width of [360,390,430]){await kakao.setViewportSize({width,height:844});expect(await guide.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);await kakao.screenshot({path:'artifacts/launch/phase6-kakao-'+width+'.png'});}
+  await guide.getByRole('button',{name:'앱 주소 복사하기'}).click();const copied=await kakao.evaluate(()=>navigator.clipboard.readText());
+  expect(copied).toBe('http://127.0.0.1:5173/?ref='+code+'&campaign=kakao');
+  await guide.getByRole('button',{name:'카카오톡에서 계속 이용하기'}).click();await expect(guide).toHaveCount(0);await kakao.reload();await kakao.getByRole('button',{name:'🖼️ 불러오기'}).waitFor();await expect(guide).toHaveCount(0);
+  const external=await browser.newContext({viewport:{width:390,height:844}});const tab=await external.newPage();await tab.goto(copied);await tab.getByRole('button',{name:'🖼️ 불러오기'}).waitFor();
+  await expect(tab.getByRole('dialog',{name:'더 편하게 내짤4짤을 즐겨보세요!'})).toHaveCount(0);
+  expect(await tab.evaluate(async()=>{const {launchApi}=await import('/src/lib/launch.ts');return (await launchApi('visit',{code:new URL(location.href).searchParams.get('ref')})).invited;})).toBe(true);
+  await external.close();await ctx.close();
 });

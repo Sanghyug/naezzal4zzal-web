@@ -1,0 +1,8 @@
+.nz-kakao-guide { box-sizing:border-box; width:calc(100% - 32px); max-width:420px; max-height:90dvh; overflow:auto; border:1px solid #f5cddd; border-radius:26px; padding:26px; background:#fff9fc; color:#63495d; text-align:center; box-shadow:0 18px 70px #4c274433; }
+.nz-kakao-guide::backdrop { background:#3d233d66; }
+.nz-kakao-guide-icon { display:inline-grid; place-items:center; width:48px; height:48px; border-radius:16px; background:#f1e6fc; color:#7549ae; font-size:30px; }
+.nz-kakao-guide h2 { font-size:22px; line-height:1.45; word-break:keep-all; }
+.nz-kakao-guide p { font-size:14px; line-height:1.7; word-break:keep-all; }
+.nz-kakao-guide button { width:100%; border:0; border-radius:14px; padding:15px 10px; background:#7549ae; color:white; font-weight:700; font-size:15px; cursor:pointer; }
+.nz-kakao-guide .nz-kakao-continue { margin-top:10px; color:#795664; background:#f5e8f0; }
+.nz-kakao-guide textarea { box-sizing:border-box; width:100%; margin-top:12px; overflow-wrap:anywhere; }
