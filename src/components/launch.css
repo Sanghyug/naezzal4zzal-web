@@ -182,25 +182,101 @@ input:focus-visible {
   }
 }
 
-.nz-video > .nz-video-toggle {
-  width: 100%;
-  padding: 16px;
-  border-radius: 16px;
-  background: #75459a;
-  color: #fff;
-  font-size: 17px;
-  font-weight: 800;
-}
 
-.nz-video .nz-video-styles {
+button.nz-make-button,
+.nz-video-editor > button.nz-make-button {
+  position: relative;
+  display: grid;
+  place-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 58px;
+  border: 0;
+  border-radius: 17px;
+  color: #fff;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+button.nz-make-gif { margin-top: 18px; background: #ef367d; }
+.nz-make-gif small { font-size: 11px; font-weight: 500; margin-top: 2px; }
+.nz-video.nz-video-editor {
+  margin: 11px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.nz-video-editor > button.nz-video-toggle { background: #794eb2; }
+.nz-video-chevron {
+  position: absolute;
+  right: 17px;
+  top: 25px;
+  width: 9px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+[aria-expanded="true"] .nz-video-chevron { transform: rotate(225deg); }
+
+.nz-video-editor .nz-video-styles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0;
+  gap: 10px;
+  min-width: 0;
+  margin: 22px 0 0;
   padding: 0;
   border: 0;
 }
-.nz-video-styles button[aria-pressed="true"] {
-  outline: 2px solid #75459a;
-  outline-offset: -2px;
+.nz-video-styles legend {
+  padding: 0 0 11px;
+  color: #352a39;
+  font-size: 17px;
+  font-weight: 800;
 }
+.nz-video-editor button.nz-style-card {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid #eadcea;
+  border-radius: 16px;
+  background: #fff;
+  color: #a92659;
+  text-align: left;
+}
+.nz-video-editor button.nz-style-drawing { color: #623d95; }
+.nz-video-editor button.nz-style-card[aria-pressed="true"] {
+  border-color: currentColor;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+.nz-style-art {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1.6;
+  border-radius: 10px;
+  background: #fbe4eb url("/launch/login-illustration.jpg") 17% 7% / 310% auto no-repeat;
+}
+.nz-style-drawing .nz-style-art { background-color: #eee5fa; background-position: 87% 11%; }
+.nz-style-card strong { font-size: 15px; white-space: nowrap; }
+.nz-style-card small { color: #6f6071; font-size: 11px; white-space: nowrap; }
+.nz-style-cost {
+  border-radius: 8px;
+  padding: 4px;
+  background: #fbe4eb;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.nz-style-drawing .nz-style-cost { background: #eee5fa; }
+.nz-video-guidance { margin: 15px 0; color: #66566a; font-size: 13px; }
+.nz-video-guidance p { margin: 4px 0; }
+.nz-video-guidance summary { color: #623d95; text-align: right; cursor: pointer; }
+.nz-video-editor .nz-login-compact { background: #fff8df; border-color: #eadca9; text-align: center; }
+.nz-video-editor .nz-login-compact h3 { margin: 0 0 10px; color: #554224; font-size: 15px; }
+.nz-video-editor .nz-login-compact .nz-kakao-login { width: 100%; white-space: nowrap; }

@@ -754,22 +754,9 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
             <button
               onClick={() => setShowGifStyleModal(true)}
               disabled={cells.length !== 4 || isCreatingGif}
-              style={{
-                marginTop: "18px",
-                width: "100%",
-                padding: "16px",
-                borderRadius: "16px",
-                border: "none",
-                backgroundColor: "#ff4f87",
-                color: "white",
-                fontSize: "17px",
-                fontWeight: 800,
-                cursor: "pointer",
-                opacity: cells.length !== 4 || isCreatingGif ? 0.6 : 1,
-                boxShadow: "0 8px 20px rgba(255,79,135,0.28)",
-              }}
+              className="nz-make-button nz-make-gif"
             >
-              {isCreatingGif ? "움짤 만드는 중..." : "움짤 만들기"}
+              {isCreatingGif ? "움짤 만드는 중..." : <><span>움짤 만들기</span><small aria-hidden="true">무료 GIF</small></>}
             </button>
 
             <VideoStudio ready={cells.length === 4 && !!sourceUrl && !isCreatingGif} getImages={renderAdjustedImages} memo={memo} />

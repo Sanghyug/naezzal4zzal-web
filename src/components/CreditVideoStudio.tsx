@@ -159,25 +159,29 @@ export default function CreditVideoStudio({
     }
   }
   return (
-    <section className="nz-video" aria-label="AI 영상 제작">
-      <button className="nz-video-toggle" disabled={!ready} aria-expanded={open} onClick={onToggle}>
-        🎬 AI 영상 만들기
+    <section className="nz-video nz-video-editor" aria-label="AI 영상 제작">
+      <button className="nz-make-button nz-video-toggle" disabled={!ready} aria-expanded={open} onClick={onToggle}>
+        AI 영상 만들기 <span className="nz-video-chevron" aria-hidden="true" />
       </button>
       {open && (
         <>
-          <p>사진 속 인물의 동의를 받아주세요. 완성 영상은 7일간 보관해요.</p>
           {!job && (
             <>
               <fieldset className="nz-video-styles" disabled={busy}>
-                <legend className="nz-sr-only">영상 스타일</legend>
-                {([["memory", "📷 실사 영상 · 1크레딧"], ["drawing", "🎨 애니메이션 영상 · 3크레딧"]] as const).map(([value, label]) => (
-                  <button key={value} type="button" aria-pressed={style === value} onClick={() => {
+                <legend>어떤 영상으로 남길까요?</legend>
+                {([["memory", "실사 영상", "사진 그대로 생생하게", 1], ["drawing", "애니메이션", "그림처럼 특별하게", 3]] as const).map(([value, label, description, credits]) => (
+                  <button key={value} className={`nz-style-card nz-style-${value}`} type="button" aria-pressed={style === value} onClick={() => {
                     setStyle(value);
                     sessionStorage.setItem("nz-video-style", value);
                     setConsent(false);
-                  }}>{label}</button>
+                  }}><span className="nz-style-art" aria-hidden="true" /><strong>{label}</strong><small>{description}</small><span className="nz-style-cost">{credits} 크레딧</span></button>
                 ))}
               </fieldset>
+              <div className="nz-video-guidance">
+                <p>사진 속 인물의 동의를 받고 제작해 주세요.</p>
+                <p>완성 영상은 {config?.retentionDays || 7}일간 보관돼요.</p>
+                <details><summary>이용 안내</summary><p>5초 무음 MP4(480p)로 만들어요. 얼굴과 동작이 원본과 다를 수 있어요. 제작 실패가 확인되면 예약 크레딧을 돌려드려요.</p></details>
+              </div>
               {!authReady ? <p role="status">로그인을 확인하고 있어요.</p> : !account && authenticated ? (
                 <button onClick={() => void refreshAccount().catch(() => setMessage("계정 정보를 다시 불러오지 못했어요."))}>계정 정보 다시 불러오기</button>
               ) : !account ? (
@@ -195,7 +199,6 @@ export default function CreditVideoStudio({
                     )}
                   </p>
                   {!config?.generation && <p role="status">AI 영상 제작을 준비하고 있어요.</p>}
-                  <details><summary>제작 및 사진 전송 안내</summary><p>5초 무음 MP4(480p)로 만들어요. 얼굴과 동작이 원본과 다를 수 있어요. 제작 실패가 확인되면 예약 크레딧을 돌려드려요.</p></details>
                   <label className="nz-consent">
                     <input
                       type="checkbox"
@@ -265,7 +268,7 @@ export default function CreditVideoStudio({
                         const item = await saveGalleryItem(
                           url,
                           memo,
-                          style === "drawing" ? "펜화 영상" : "실사 영상",
+                          style === "drawing" ? "애니메이션 영상" : "실사 영상",
                           "video",
                         );
                         URL.revokeObjectURL(item.gifUrl);

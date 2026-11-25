@@ -13,6 +13,7 @@ export type Identity = { id: string; hash: string; created: number };
 export type Runtime = {
   service: LaunchService;
   demo: boolean;
+  previewIntegration: boolean;
   auth: (token: string) => Promise<Identity>;
   cookieSecret: string;
   authConfig: { url: string; anon: string };
@@ -48,9 +49,18 @@ async function createRuntime(): Promise<Runtime> {
     "HTTPS 서비스 주소가 필요해요.",
     503,
   );
+  const previewLive = process.env.VERCEL_ENV === "preview" && (
+    process.env.ENABLE_LIVE_EXTRACTION === "1" || process.env.ENABLE_PREVIEW_LIVE_GENERATION === "1"
+  );
+  const previewIntegration = process.env.VERCEL_ENV === "preview" && Boolean(process.env.PREVIEW_AI_DB_NAMESPACE);
+  const namespace = previewLive || previewIntegration ? required("PREVIEW_AI_DB_NAMESPACE") : env;
+  if (previewLive || previewIntegration) {
+    requireRule(/^test-[a-z0-9-]{3,40}$/.test(namespace) && process.env.PAYMENT_MODE === "disabled",
+      "AI 검증에는 분리된 테스트 장부와 결제 비활성 설정이 필요해요.", 503);
+  }
   const store = demo
     ? await sqliteStore(resolve("artifacts/launch/demo.sqlite"))
-    : await postgresStore(required("LAUNCH_DATABASE_URL"), env);
+    : await postgresStore(required("LAUNCH_DATABASE_URL"), namespace);
   const storage = demo
     ? localStorage(resolve("artifacts/launch/storage"))
     : supabaseStorage(
@@ -86,11 +96,18 @@ async function createRuntime(): Promise<Runtime> {
   const liveVideo =
     !demo &&
     process.env.ENABLE_LIVE_GENERATION === "1" &&
-    (env === "production" || process.env.ENABLE_PREVIEW_LIVE_GENERATION === "1");
+    (env === "production" || (previewLive && process.env.ENABLE_PREVIEW_LIVE_GENERATION === "1"));
   const video = liveVideo
     ? heygenProvider(required("OPENAI_API_KEY"), required("HEYGEN_API_KEY"))
     : mockVideoProvider();
   const service = new LaunchService(store, storage, payments, video, demo);
+  if (previewIntegration && liveVideo) {
+    await store.tx((s) => {
+      s.config.generation = true;
+      s.config.dailyJobs = Math.min(s.config.dailyJobs, 2);
+      s.config.dailyUsd = Math.min(s.config.dailyUsd, 0.5);
+    });
+  }
   if (demo)
     await store.tx((s) => {
       if (!s.entries.some((e) => e.kind === "demo_initialized")) {
@@ -142,6 +159,7 @@ async function createRuntime(): Promise<Runtime> {
     return verifiedIdentity(data.user, identitySecret, existingMember);
   };
   const deleteIdentity = async (id: string) => {
+    requireRule(!previewIntegration, "통합 검수 화면에서는 로그인 계정을 삭제할 수 없어요.", 403);
     if (!demo) {
       const c = serverSupabase(url, required("SUPABASE_SERVICE_ROLE_KEY"));
       const { error } = await c.auth.admin.deleteUser(id);
@@ -154,6 +172,7 @@ async function createRuntime(): Promise<Runtime> {
   return {
     service,
     demo,
+    previewIntegration,
     auth,
     cookieSecret,
     authConfig: { url, anon },

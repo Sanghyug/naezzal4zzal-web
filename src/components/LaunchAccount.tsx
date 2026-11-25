@@ -21,9 +21,9 @@ export function LoginPrompt({ onDismiss }: { onDismiss?: () => void }) {
     <div className="nz-gift-ticket nz-ticket">
       <LaunchIcon name="gift"/><div>{!config ? <p role="status">가입 선물을 확인하고 있어요.</p> : config.giftAvailable ? <><span className="nz-pill">첫 가입 선물</span><strong>무료 <b>5</b>크레딧</strong><small>선착순 100명 · 대상 계정에 한 번</small></> : <strong className="nz-gift-closed">가입 선물 이벤트가 마감됐어요</strong>}
       <p>실사 1크레딧 · 펜화 3크레딧</p></div>
-    </div></> : <><h3>{config?.giftAvailable ? "로그인하고 무료 5크레딧 받기" : "로그인하고 영상 만들기"}</h3><p>사진 편집과 기본 GIF는 로그인 없이 계속 쓸 수 있어요.</p></>}
+    </div></> : <><h3>{config?.giftAvailable ? "첫 로그인 시 무료 5크레딧" : "로그인하고 영상 만들기"}</h3></>}
     {config?.demo && <label className="nz-demo-field">체험 계정 이름<input value={alias} onChange={e=>setAlias(e.target.value)} autoComplete="off"/></label>}
-    <button className="nz-kakao-login" disabled={busy || !config} aria-busy={busy} onClick={async()=>{
+    <button className="nz-kakao-login" disabled={busy || (!config?.demo && !config?.auth.url)} aria-busy={busy} onClick={async()=>{
       if(pending.current) return; pending.current=true; setBusy(true); setError("");
       try { if(config?.demo) await demoLogin(alias); else await kakaoLogin(); }
       catch(e){setError(e instanceof Error ? e.message : "로그인을 다시 확인해주세요.");}

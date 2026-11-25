@@ -1,7 +1,8 @@
 /// <reference types="node" />
 import { validateCells } from "../src/lib/photoGeometry.js";
+import { requirePreviewAiAccount } from "../server/launch/preview.ts";
 import { runtime } from "../server/launch/runtime.ts";
-import { dayKst, rate, requireRule } from "../server/launch/domain.ts";
+import { dayKst, rate, requireRule, RuleError } from "../server/launch/domain.ts";
 import { createHmac } from "node:crypto";
 import { imageSize } from "../server/launch/dimensions.ts";
 type Request = { method?: string; body?: { image?: unknown }; headers: Record<string, string | string[] | undefined> };
@@ -14,7 +15,7 @@ export default async function handler(req: Request, res: Response) {
   if (typeof origin === "string" && !allowed.includes(origin)) return res.status(403).json({ error: "Origin not allowed" });
   if (typeof origin === "string") { res.setHeader("Access-Control-Allow-Origin", origin); res.setHeader("Vary", "Origin"); }
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   if (process.env.LAUNCH_PREVIEW_SAFE === "1" && process.env.ENABLE_LIVE_EXTRACTION !== "1") return res.status(503).json({ error: "출시 미리보기에서는 실제 AI 분석을 호출하지 않아요. 직접 맞추기로 계속해주세요." });
@@ -23,10 +24,18 @@ export default async function handler(req: Request, res: Response) {
   if (image.length > 4_000_000) return res.status(413).json({ error: "Image too large" });
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return res.status(503).json({ error: "AI is not configured" });
+  const preview = process.env.VERCEL_ENV === "preview";
+  if (preview && process.env.LAUNCH_ENABLED !== "1") return res.status(503).json({ error: "AI 분석을 준비하고 있어요." });
   if (process.env.LAUNCH_ENABLED === "1") {
     try {
       const r = await runtime();
       if (r.demo || process.env.ENABLE_LIVE_EXTRACTION !== "1") return res.status(503).json({error:"테스트 환경에서는 실제 AI 분석을 호출하지 않아요."});
+      if (preview) {
+        const auth = req.headers.authorization;
+        const identity = typeof auth === "string" && auth.startsWith("Bearer ")
+          ? await r.auth(auth.slice(7)) : undefined;
+        requirePreviewAiAccount(identity?.id);
+      }
       const size = imageSize(Buffer.from(image.split(",")[1],"base64"));
       requireRule(size.width <= 1000 && size.height <= 1000,"분석 사진 크기를 확인해주세요.");
       await r.service.store.tx(s => {
@@ -34,9 +43,12 @@ export default async function handler(req: Request, res: Response) {
         rate(s,"extract-rate:"+createHmac("sha256",r.cookieSecret).update(ip).digest("hex"),10,60000,now);
         const used = Object.values(s.jobs).filter(j=>j.day===day).reduce((n,j)=>n+j.reserveUsd,0)+(s.rates["extract-cost:"+day]?.count||0)*.05;
         requireRule(used+.05<=s.config.dailyUsd,"오늘 AI 분석 한도에 도달했어요.",429);
-        rate(s,"extract-cost:"+day,500,2*86400000,now);
+        rate(s,"extract-cost:"+day,preview ? 2 : 500,2*86400000,now);
       });
-    } catch { return res.status(503).json({error:"AI 분석 한도 또는 연결을 확인해주세요. 직접 맞추기는 계속 사용할 수 있어요."}); }
+    } catch (error) {
+      if (error instanceof RuleError) return res.status(error.status).json({ error: error.message });
+      return res.status(503).json({error:"AI 분석 한도 또는 연결을 확인해주세요. 직접 맞추기는 계속 사용할 수 있어요."});
+    }
   }
   const rect = { type: "object", properties: { x: { type: "number" }, y: { type: "number" }, width: { type: "number" }, height: { type: "number" } }, required: ["x", "y", "width", "height"], additionalProperties: false };
   const point = { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"], additionalProperties: false };

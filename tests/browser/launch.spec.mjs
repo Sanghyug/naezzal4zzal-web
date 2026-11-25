@@ -141,21 +141,21 @@ test("anonymous editing and GIF survive login/reload; one-credit creation and do
           .getByPlaceholder("오늘의 기분이나 한 줄을 적어주세요")
           .fill("복원 검증");
     });
-  await page.getByRole("button", { name: "🎬 AI 영상 만들기" }).click();
+  await page.getByRole("button", { name: "AI 영상 만들기" }).click();
   await expect(
-    page.getByText("로그인하고 무료 5크레딧 받기", { exact: true }),
+    page.getByText("첫 로그인 시 무료 5크레딧", { exact: true }),
   ).toBeVisible();
   // Leaving the login prompt does not discard photo geometry.
-  await page.getByRole("button", { name: "🎬 AI 영상 만들기" }).click();
+  await page.getByRole("button", { name: "AI 영상 만들기" }).click();
   await expect(
     page.getByRole("button", { name: "움짤 만들기", exact: true }),
   ).toBeEnabled();
-  await page.getByRole("button", { name: "🎬 AI 영상 만들기" }).click();
+  await page.getByRole("button", { name: "AI 영상 만들기" }).click();
   await login(page, unique());
   await expect(page.getByText(/사용 가능 5크레딧/)).toBeVisible();
   await page.reload();
   await expect(page.getByText("편집하던 사진을 복원했어요.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "🎬 AI 영상 만들기" })).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("button", { name: "AI 영상 만들기" })).toHaveAttribute("aria-expanded", "true");
   await page.getByRole("checkbox", { name: /사진 속 인물의 허락/ }).check();
   await page
     .getByRole("button", { name: "1크레딧으로 실사 영상 제작" })
@@ -333,7 +333,7 @@ test("Kakao cancellation preserves photo bytes and all editor settings in the sa
     return { ...d, at: 0, original: Array.from(new Uint8Array(await d.original.arrayBuffer())) };
   });
   const before = await draft();
-  await page.getByRole("button", { name: "🎬 AI 영상 만들기" }).click();
+  await page.getByRole("button", { name: "AI 영상 만들기" }).click();
   await page.getByRole("button", { name: "카카오로 시작하기" }).click();
   await expect(page.getByText("편집하던 사진을 복원했어요.")).toBeVisible();
   await expect(page.getByText(/카카오 로그인이 취소되었거나/)).toBeVisible();
@@ -450,13 +450,22 @@ test("tilted two-by-two panels use original proportions and can return to manual
   });
   expect(ratio).toBeGreaterThan(1.30);
   expect(ratio).toBeLessThan(1.36);
-  await page.getByRole("button", { name: "🎬 AI 영상 만들기" }).click();
+  await page.getByRole("button", { name: "AI 영상 만들기" }).click();
   for (const width of [360, 390, 430, 1280]) {
     await page.setViewportSize({ width, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const metrics = await page.locator(".nz-make-button, .nz-style-card strong, .nz-style-card small, .nz-style-cost").evaluateAll(nodes => nodes.map(node => ({
+      overflow: node.scrollWidth > node.clientWidth,
+      height: node.getBoundingClientRect().height,
+      width: node.getBoundingClientRect().width,
+      radius: getComputedStyle(node).borderRadius,
+      fontSize: getComputedStyle(node).fontSize,
+    })));
+    expect(metrics.every(metric => !metric.overflow)).toBe(true);
+    expect(metrics[0]).toEqual(metrics[1]);
     if (width === 390) {
-      await page.getByRole("button", { name: /애니메이션 영상 · 3크레딧/ }).scrollIntoViewIfNeeded();
-      await page.screenshot({ path: "artifacts/launch/stabilization-390.png" });
+      await page.getByRole("button", { name: /애니메이션.*3 크레딧/ }).scrollIntoViewIfNeeded();
+      await page.screenshot({ path: "artifacts/launch/stabilization-v2-390.png" });
     }
   }
   await manual.click();
@@ -469,9 +478,9 @@ test("Kakao callback exchange failure preserves the open video style and edit", 
   await upload(page);
   const memo = page.getByRole("textbox").last();
   await memo.fill("콜백 실패 복원");
-  const open = page.getByRole("button", { name: "🎬 AI 영상 만들기" });
+  const open = page.getByRole("button", { name: "AI 영상 만들기" });
   await open.click();
-  const drawing = page.getByRole("button", { name: /애니메이션 영상 · 3크레딧/ });
+  const drawing = page.getByRole("button", { name: /애니메이션.*3 크레딧/ });
   await drawing.click();
   await page.getByRole("button", { name: "카카오로 시작하기" }).click();
   await expect(page.getByText(/로그인을 확인하지 못했어요/)).toBeVisible({ timeout: 15000 });

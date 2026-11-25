@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
+import { requirePreviewAiAccount } from "../server/launch/preview.ts";
 import { runtime } from "../server/launch/runtime.ts";
 import { BUSINESS } from "../src/lib/business.ts";
 import {
@@ -257,6 +258,7 @@ export default async function handler(req: Request, res: Response) {
           ),
         );
     if (action === "closeAccount") {
+      requireRule(!r.previewIntegration, "통합 검수 화면에서는 로그인 계정을 삭제할 수 없어요.", 403);
       requireRule(body.confirm === "탈퇴", "탈퇴를 확인해주세요.");
       const closed = await r.service.store.tx(
         (s) => s.users[identity.id]?.deleted,
@@ -335,7 +337,8 @@ export default async function handler(req: Request, res: Response) {
             String(body.reason || ""),
           ),
         );
-    if (action === "generate")
+    if (action === "generate") {
+      requirePreviewAiAccount(user);
       return res
         .status(202)
         .json(
@@ -347,6 +350,7 @@ export default async function handler(req: Request, res: Response) {
             body.consent,
           ),
         );
+    }
     if (action === "work")
       return res
         .status(200)

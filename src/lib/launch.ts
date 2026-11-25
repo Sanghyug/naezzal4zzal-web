@@ -90,7 +90,7 @@ export const useLaunch = () =>
   );
 let client: SupabaseClient | undefined;
 let initPromise: Promise<void> | undefined;
-async function token() {
+export async function launchAccessToken() {
   if (state.config?.demo) return sessionStorage.getItem("nz-demo-token") || "";
   return (await client?.auth.getSession())?.data.session?.access_token || "";
 }
@@ -98,7 +98,7 @@ export async function launchApi<T = unknown>(
   action: string,
   body: Record<string, unknown> = {},
 ): Promise<T> {
-  const t = await token();
+  const t = await launchAccessToken();
   const r = await fetch(base + "/api/launch", {
     method: "POST",
     credentials: "include",
@@ -119,7 +119,7 @@ export async function refreshConfig() {
   if (r.ok) emit({ config: await r.json() });
 }
 export async function refreshAccount() {
-  if (!(await token())) {
+  if (!(await launchAccessToken())) {
     emit({ account: null, authenticated: false });
     return;
   }
@@ -162,7 +162,7 @@ async function initialize() {
     }
     const params = new URLSearchParams(location.search),
       ref = params.get("ref");
-    emit({ authenticated: Boolean(await token()) });
+    emit({ authenticated: Boolean(await launchAccessToken()) });
     try {
       const visit = await launchApi<{ invited: boolean }>("visit", ref ? { code: ref } : {});
       emit({ invited: visit.invited });
@@ -231,7 +231,7 @@ export async function logout() {
   emit({ account: null, authenticated: false });
 }
 export async function videoFile(id: string) {
-  const t = await token();
+  const t = await launchAccessToken();
   const r = await fetch(
     base + "/api/launch?action=file&jobId=" + encodeURIComponent(id),
     { credentials: "include", headers: { Authorization: "Bearer " + t } },

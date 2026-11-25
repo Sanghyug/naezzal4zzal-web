@@ -1,5 +1,6 @@
 import { refineVerticalCells } from "./refinePhotoCells";
 import { rectifyPhotoCells } from "./rectifyPhotoCells";
+import { launchAccessToken } from "./launch";
 import { loadImage } from "./loadImage";
 import { validateCells, type CellRect } from "./photoGeometry.js";
 
@@ -29,8 +30,9 @@ export async function extractCells(image: string, width: number, height: number,
   }
   const visionImage = canvas.toDataURL("image/jpeg", .94);
   const base = import.meta.env.VITE_API_BASE_URL || "";
+  const token = await launchAccessToken();
   const response = await fetch(`${base}/api/extract-cells`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
+    method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) },
     body: JSON.stringify({ image: visionImage }), signal,
   });
   if (response.status === 503) throw new Error("AI 연결 설정이 아직 완료되지 않았어요. 아래 칸은 직접 맞추기용 임시 배치입니다.");
