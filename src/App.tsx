@@ -1,5 +1,7 @@
+import { prepareKakaoShare } from "./lib/kakaoShare";
 import { shareAppInvite } from "./lib/appInvite";
 import KakaoBrowserGuide from "./components/KakaoBrowserGuide";
+import AppLinkCopyGuide from "./components/AppLinkCopyGuide";
 import PrivacyScreen from "./components/PrivacyScreen";
 import { useEffect, useRef, useState } from "react";
 import StartScreen from "./components/StartScreen";
@@ -49,6 +51,7 @@ function App() {
 
   useEffect(() => {
     if (launchEnabled) void initializeLaunch();
+    prepareKakaoShare();
     let active = true;
     let timer: number | undefined;
     const restore = async () => {
@@ -159,10 +162,9 @@ function App() {
       <button onClick={e => openPolicy("refund", e.currentTarget)}>환불 안내</button>
     </nav>}
     {mode === "start" && <BusinessInfo compact />}
-    {document.fullscreenEnabled && !matchMedia("(display-mode: standalone)").matches && (
-      <button className="nz-photo-policy" type="button" onClick={toggleFullscreen}>{fullscreen ? "전체화면 닫기" : "전체화면"}</button>
-    )}
   </footer>;
+
+  if (new URLSearchParams(location.search).get("copy") === "app") return <AppLinkCopyGuide />;
 
   return (
     <>
@@ -206,6 +208,9 @@ function App() {
           inviteGuest={!account}
           accountRef={launchEnabled ? setHomeAccountTarget : undefined}
           footer={footer}
+          fullscreenAvailable={Boolean(document.fullscreenEnabled && typeof document.documentElement.requestFullscreen === "function" && !matchMedia("(display-mode: standalone)").matches)}
+          fullscreen={fullscreen}
+          onFullscreenClick={toggleFullscreen}
         />
       )}
       {mode !== "splash" && mode !== "start" && footer}

@@ -1,3 +1,4 @@
+import { commonPhotoRatio, containPhoto } from "../lib/photoFrame";
 import ShareControls from "./ShareControls";
 import VideoStudio from "./VideoStudio";
 import { useShareCount } from "../lib/shareRewards";
@@ -191,7 +192,7 @@ function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps)
     setAdjusts(reset);
   };
 
-  const renderAdjustedImages = async (extraScale = 1, extraRotate = 0) => {
+  const renderAdjustedImages = async (extraScale = 1, extraRotate = 0, commonFrame = true) => {
     if (!sourceUrl) return [];
 
     const sourceImage = await loadImage(sourceUrl);
@@ -233,7 +234,16 @@ function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps)
 
       enhanceRenderedCut(canvas);
 
-      rendered.push(canvas.toDataURL("image/png"));
+      if (commonFrame) {
+        const frame = document.createElement('canvas');
+        frame.width = 480;
+        frame.height = Math.max(1, Math.round(480 / commonPhotoRatio(cells)));
+        const context = frame.getContext('2d')!;
+        context.fillStyle = '#ffffff'; context.fillRect(0, 0, frame.width, frame.height);
+        const box = containPhoto(canvas, frame);
+        context.drawImage(canvas, box.x, box.y, box.width, box.height);
+        rendered.push(frame.toDataURL('image/png'));
+      } else rendered.push(canvas.toDataURL("image/png"));
     }
 
     return rendered;
@@ -544,7 +554,9 @@ function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps)
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(photoX, photoY, photoWidth, photoHeight);
 
-      ctx.drawImage(image, photoX, photoY, photoWidth, photoHeight);
+      const box = containPhoto(image, { width: photoWidth, height: photoHeight });
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(photoX, photoY, photoWidth, photoHeight);
+      ctx.drawImage(image, photoX + box.x, photoY + box.y, box.width, box.height);
 
       ctx.drawImage(frameImage, 0, 0, frameImage.width, frameImage.height);
 
@@ -685,7 +697,7 @@ function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps)
                   sourceUrl={sourceUrl}
                   sourceSize={sourceSize}
                   cell={cell}
-                  slotRatio={Math.max(0.4, Math.min(...cells.map(c => c.width / c.height)))}
+                  slotRatio={commonPhotoRatio(cells)}
                   adjust={adjusts[index] ?? { x: 0, y: 0, scale: 1, rotate: 0 }}
                   onChange={(next) => updateAdjust(index, next)}
                   onSizeChange={(size) => {
@@ -943,7 +955,7 @@ function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps)
 
         </section>
 
-        {status !== "error" && <VideoStudio workId={workId} ready={cells.length === 4 && !!sourceUrl && !isCreatingGif} getImages={renderAdjustedImages} memo={memo} />}
+        {status !== "error" && <VideoStudio workId={workId} ready={cells.length === 4 && !!sourceUrl && !isCreatingGif} getImages={() => renderAdjustedImages(1, 0, false)} memo={memo} />}
 
         <div
           style={{
@@ -1072,7 +1084,7 @@ function AdjustableCut({
 
   return (
     <div className="nz-adjustable-cut">
-      <div className="nz-preview-slot" style={{aspectRatio: slotRatio}}>
+      <div className="nz-preview-slot" style={{aspectRatio: slotRatio, background: "#ffffff"}}>
       <div
         ref={frameRef}
         onPointerDown={handlePointerDown}
@@ -1084,10 +1096,10 @@ function AdjustableCut({
           width: "100%",
           maxWidth: `${Math.min(100, (cell.width / cell.height) / slotRatio * 100)}%`,
           aspectRatio: cell.width / cell.height,
-          borderRadius: "16px",
+          borderRadius: 0,
           overflow: "hidden",
-          backgroundColor: "#f5f5f5",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+          backgroundColor: "#ffffff",
+          boxShadow: "none",
           touchAction: "none",
           cursor: "grab",
         }}

@@ -11,6 +11,9 @@ type StartScreenProps = {
   inviteGuest?: boolean;
   accountRef?: Ref<HTMLDivElement>;
   footer?: ReactNode;
+  fullscreenAvailable?: boolean;
+  fullscreen?: boolean;
+  onFullscreenClick?: () => void;
 };
 
 function StartScreen({
@@ -22,6 +25,9 @@ function StartScreen({
   inviteGuest,
   accountRef,
   footer,
+  fullscreenAvailable,
+  fullscreen,
+  onFullscreenClick,
 }: StartScreenProps) {
   const [installPrompt, setInstallPrompt] = useState<(Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> }) | null>(null);
 
@@ -246,6 +252,7 @@ function StartScreen({
             >
               📱 홈화면에 설치하기
             </button>
+            {fullscreenAvailable && <button type="button" onClick={onFullscreenClick} style={{width:"100%",padding:14,borderRadius:16,border:"1px solid #e5d2f1",background:"#f7f0fc",color:"#7549ae",fontWeight:800,cursor:"pointer"}}>{fullscreen ? "전체화면 닫기" : "전체화면으로 보기"}</button>}
           </div>
         </div>
 

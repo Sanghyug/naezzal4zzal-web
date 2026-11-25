@@ -113,10 +113,10 @@ test('completed MP4 plays, downloads, persists in gallery, and shares as a video
  await expect(page.getByRole('button',{name:'기기에 저장하기',exact:true})).toBeEnabled();
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'기기에 저장하기',exact:true}).click();expect((await download).suggestedFilename()).toBe('naezzal4zzal.mp4');
  expect(await page.evaluate(()=>localStorage.getItem('naezzal4zzal-share-count'))).toBeNull();
- await page.getByRole('button',{name:'영상 보관함에 저장하기'}).click();
+ await page.getByRole('button',{name:'보관함에 저장하기'}).click();
  await expect(page.getByRole('button',{name:'보관함 저장 완료'})).toBeDisabled();
  await page.reload();await page.getByRole('button',{name:'💗 내 보관함'}).click();
- await page.locator('video').click();
+ await page.getByRole('button',{name:/^실사 영상 ·/}).click();
  await expect(page.getByRole('button',{name:'공유하기',exact:true})).toBeEnabled();
  await page.getByRole('button',{name:'공유하기',exact:true}).click();
  expect(await page.evaluate(()=>window.sharedVideoType)).toBe('video/mp4');

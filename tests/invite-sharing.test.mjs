@@ -15,3 +15,8 @@ test('Kakao external browser entry preserves invitation and ordinary parameters 
   assert.equal(externalBrowserUrl('https://4zzal.com/?ref=friend&campaign=chat'),'https://4zzal.com/?ref=friend&campaign=chat');
   assert.equal(externalBrowserUrl('https://4zzal.com/?ref=friend&code=private&auth=return#access_token=private'),'https://4zzal.com/?ref=friend');
 });
+
+
+test('Kakao feed keeps the invitation in both start and dedicated copy-guide buttons',async()=>{
+  const {kakaoFeedData}=await import('../src/lib/kakaoShare.ts');const url='https://4zzal.com/?ref=personal-code';const feed=kakaoFeedData({title:'내짤4짤',text:'',url});assert.equal(feed.buttons.length,2);assert.equal(feed.buttons[0].link.mobileWebUrl,url);const guide=new URL(feed.buttons[1].link.mobileWebUrl);assert.equal(guide.searchParams.get('ref'),'personal-code');assert.equal(guide.searchParams.get('copy'),'app');assert.equal(feed.content.imageUrl,'https://4zzal.com/share-card-v7.png');
+});

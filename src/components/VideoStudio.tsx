@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { loadImage } from "../lib/loadImage";
-import { saveGalleryItem } from "../lib/galleryStore";
+import VideoGallerySave from "./VideoGallerySave";
 import ShareControls from "./ShareControls";
 import CreditVideoStudio from "./CreditVideoStudio";
 import { launchEnabled, useLaunch } from "../lib/launch";
@@ -30,8 +30,6 @@ function LegacyVideoStudio({ ready, getImages, memo }: { ready: boolean; getImag
   const fileUrl = useRef("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const lock = useRef(false);
   const pendingRequest = useRef<{ fingerprint: string; id: string } | null>(null);
@@ -100,13 +98,13 @@ function LegacyVideoStudio({ ready, getImages, memo }: { ready: boolean; getImag
       if(!response.ok)throw new Error(result.error||"제작 요청을 확인하지 못했어요. 같은 요청으로 다시 시도해주세요.");
       if(typeof result.token!=="string"||!result.token)throw new Error("접수 결과를 확인하지 못했어요. 같은 요청으로 다시 확인해주세요.");
       try{sessionStorage.setItem(jobKey,result.token);}catch{/* the open screen still keeps the token */}
-      if(active.current){setToken(result.token);setStatus("pending");setSaved(false);setUrl("");}
+      if(active.current){setToken(result.token);setStatus("pending");setUrl("");}
     }catch(error){
       if(active.current)setMessage(error instanceof Error && error.name!=="TimeoutError" ? error.message : "접수 확인이 지연되고 있어요. 다시 누르면 같은 요청을 확인합니다.");
     }finally{lock.current=false;if(active.current)setBusy(false);}
   };
   const newVideo=()=>{
-    if(fileUrl.current)URL.revokeObjectURL(fileUrl.current);fileUrl.current="";setToken("");setStatus("");setUrl("");setSourceUrl("");setMessage("");setSaved(false);setConsent(false);pendingRequest.current=null;
+    if(fileUrl.current)URL.revokeObjectURL(fileUrl.current);fileUrl.current="";setToken("");setStatus("");setUrl("");setSourceUrl("");setMessage("");setConsent(false);pendingRequest.current=null;
     try{sessionStorage.removeItem(jobKey);sessionStorage.removeItem(requestKey);}catch{/* memory state is already reset */}
   };
   return <section aria-label="AI 영상 제작" style={{marginTop:12}}>
@@ -141,11 +139,7 @@ function LegacyVideoStudio({ ready, getImages, memo }: { ready: boolean; getImag
       {sourceUrl && !url && <><video src={sourceUrl} controls playsInline aria-label="완성된 AI 영상" style={{width:"100%",borderRadius:16}} /><a href={sourceUrl} target="_blank" rel="noreferrer">영상 원본 열기 · 파일이 크면 여기서 저장해주세요</a></>}
       {url && <>
         <video src={url} controls playsInline aria-label="완성된 AI 영상" style={{width:"100%",borderRadius:16,marginTop:12}} />
-        <button disabled={saving||saved} onClick={async()=>{
-          if(saving||saved)return;setSaving(true);
-          try{const item=await saveGalleryItem(url,memo,variant==="drawing"?"2D 펜화 5초 영상":"기본 5초 영상","video");URL.revokeObjectURL(item.gifUrl);setSaved(true);setMessage("영상도 내 보관함에 저장했어요 💗");}
-          catch{setMessage("보관함에 저장하지 못했어요. 기기에 저장하거나 다시 시도해주세요.");}finally{setSaving(false);}
-        }} style={{...button,background:"#ff4f87",marginTop:12}}>{saved?"보관함 저장 완료":saving?"저장 중...":"영상 보관함에 저장하기"}</button>
+        <VideoGallerySave key={token} url={url} memo={memo} styleName={variant === "drawing" ? "애니메이션 영상" : "실사 영상"} />
         <ShareControls url={url} video />
       </>}
       {token && ["completed","failed","cancelled","unavailable"].includes(status) && <button onClick={newVideo} style={{...button,background:"#9b8790",marginTop:10}}>새 영상 제작 준비</button>}

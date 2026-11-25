@@ -1,3 +1,4 @@
+import VideoGallerySave from "./VideoGallerySave";
 import { useEffect, useRef, useState } from "react";
 import { isVideoInProgress, launchApi, refreshAccount, useLaunch, videoFile } from "../lib/launch";
 import type { LaunchJob } from "../lib/launch";
@@ -7,6 +8,7 @@ import ShareControls from "./ShareControls";
 export default function CreditVideoStudio({
   ready,
   workId,
+  memo,
   getImages,
   open,
   onToggle,
@@ -266,7 +268,7 @@ export default function CreditVideoStudio({
               {job.error && <p>{job.error}</p>}
               {url && <>
                 <video src={url} controls playsInline preload="auto" onLoadedData={() => { setMediaReady(true); setMediaError(false); }} onCanPlay={() => { setMediaReady(true); setMediaError(false); }} onError={() => { setMediaReady(false); setMediaError(true); }} aria-label="완성된 AI 영상" />
-                {mediaReady && <ShareControls url={url} video />}
+                {mediaReady && <><VideoGallerySave key={job.id} url={url} memo={memo} styleName={job.style === "drawing" ? "애니메이션 영상" : "실사 영상"} /><ShareControls url={url} video /></>}
               </>}
               {job.status === "completed" && job.downloadable && !mediaReady && (mediaError || message) && <button type="button" onClick={() => { if (fileUrl.current) URL.revokeObjectURL(fileUrl.current); fileUrl.current = ""; setUrl(""); setMediaError(false); setMessage(""); setRetryFile(n => n + 1); }}>영상 다시 불러오기 · 무료</button>}
               {((job.status === "completed" && (mediaReady || !job.downloadable)) || ["failed", "unavailable"].includes(job.status)) && (

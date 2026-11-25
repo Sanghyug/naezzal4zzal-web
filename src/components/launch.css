@@ -339,3 +339,8 @@ section > button.nz-make-gif { margin-top: 18px; background: #ef367d; }
 .nz-share-visible { background:#fff; border:1px solid #eadce7; border-radius:14px; padding:12px; margin-top:12px; }
 .nz-share-visible .nz-share-brand { margin:0; color:#795664; font-size:12px; line-height:1.6; }
 .nz-share-visible .nz-share-address { font-weight:700; color:#7549ae; margin:5px 0; overflow-wrap:anywhere; }
+
+.nz-video button.nz-gallery-save { margin-top:14px; width:100%; padding:14px; border-radius:14px; border:none; box-shadow:0 8px 18px rgba(51,51,51,0.18); background:#333; color:white; font-size:16px; font-weight:900; cursor:pointer; }
+.nz-video button.nz-gallery-save:disabled { opacity:.65; cursor:default; }
+
+.nz-preview-slot { box-shadow:0 4px 12px rgba(0,0,0,.06); outline:1px solid #f0e5eb; }

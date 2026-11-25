@@ -16,15 +16,17 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
     null,
   );
   const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "gif" | "video">("all");
+  const filteredItems = items.filter(item => filter === "all" || (item.mediaType || "gif") === filter);
 
   const urlsRef = useRef<string[]>([]);
   const activeRef = useRef(true);
   const loadItems = useCallback(async () => {
     try {
       const savedItems = await getGalleryItems();
-      if (!activeRef.current) { savedItems.forEach(item => URL.revokeObjectURL(item.gifUrl)); return; }
+      if (!activeRef.current) { savedItems.forEach(item => { URL.revokeObjectURL(item.gifUrl); if(item.thumbnailUrl) URL.revokeObjectURL(item.thumbnailUrl); }); return; }
       urlsRef.current.forEach(url => URL.revokeObjectURL(url));
-      urlsRef.current = savedItems.map(item => item.gifUrl);
+      urlsRef.current = savedItems.flatMap(item => item.thumbnailUrl ? [item.gifUrl,item.thumbnailUrl] : [item.gifUrl]);
       setItems(savedItems);
     } catch (error) {
       console.error(error);
@@ -107,7 +109,7 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
         >
           💡 완성한 움짤과 영상은 이 기기에 보관됩니다.
           <br />
-          AI 자동 인식은 OpenAI로, 영상 제작은 HeyGen으로 선택한 사진을 보냅니다.
+          기기에 보관한 영상은 서버 보관 기간 7일이 지나도 이용할 수 있어요.
           <br />
           앱을 삭제하거나 브라우저 데이터를 지우거나 기기를 변경하면 사라질 수 있으니, 소중한
           추억은 반드시 <strong>기기에 저장하기</strong>를 이용해 사진첩 또는
@@ -130,6 +132,10 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
           다시 보고 공유할 수 있어요.
         </p>
 
+        <div role="tablist" aria-label="보관함 필터" style={{display:'flex',gap:8,marginBottom:18}}>
+          {([['all','전체'],['gif','움짤'],['video','AI 영상']] as const).map(([value,label],index)=><button key={value} role="tab" id={'gallery-tab-'+value} aria-selected={filter===value} aria-controls="gallery-items" tabIndex={filter===value?0:-1} onClick={()=>setFilter(value)} onKeyDown={e=>{const values=['all','gif','video'] as const; const next=e.key==='ArrowRight'?(index+1)%3:e.key==='ArrowLeft'?(index+2)%3:e.key==='Home'?0:e.key==='End'?2:-1;if(next>=0){e.preventDefault();setFilter(values[next]);document.getElementById('gallery-tab-'+values[next])?.focus();}}} style={{flex:1,padding:'12px 4px',borderRadius:14,border:'1px solid #edcfe1',background:filter===value?'#7549ae':'#fff7fb',color:filter===value?'white':'#795664',fontWeight:800,cursor:'pointer'}}>{label}</button>)}
+        </div>
+        <div id="gallery-items" role="tabpanel" aria-labelledby={'gallery-tab-'+filter}>
         {isLoading && (
           <div
             style={{
@@ -143,7 +149,7 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
           </div>
         )}
 
-        {!isLoading && items.length === 0 && (
+        {!isLoading && filteredItems.length === 0 && (
           <div
             style={{
               padding: "42px 18px",
@@ -155,24 +161,26 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
               lineHeight: 1.7,
             }}
           >
-            아직 저장된 내짤이 없어요.
+            {filter === "all" ? "아직 저장된 내짤이 없어요." : filter === "video" ? "아직 저장된 AI 영상이 없어요." : "아직 저장된 움짤이 없어요."}
             <br />첫 번째 움직이는 추억을 만들어보세요 ✨
           </div>
         )}
 
-        {!isLoading && items.length > 0 && (
+        {!isLoading && filteredItems.length > 0 && (
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
               gap: "12px",
             }}
           >
-            {items.map((item) => (
+            {filteredItems.map((item) => (
               <button
                 key={item.id}
+                aria-label={item.mediaType === "video" ? `${videoLabel(item)} · ${item.memo}` : undefined}
                 onClick={() => setSelectedItem(item)}
                 style={{
+                  minWidth: 0,
                   padding: 0,
                   border: "none",
                   backgroundColor: "transparent",
@@ -182,6 +190,7 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
               >
                 <div
                   style={{
+                    position: "relative",
                     borderRadius: "20px",
                     overflow: "hidden",
                     backgroundColor: "#fff7fa",
@@ -189,7 +198,10 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
                     boxShadow: "0 6px 16px rgba(255,79,135,0.10)",
                   }}
                 >
-                  {item.mediaType === "video" ? <video src={item.gifUrl} muted playsInline preload="metadata" aria-label={item.memo} style={{width:"100%",display:"block",aspectRatio:"1 / 1.25",objectFit:"cover",background:"#f5f5f5"}} /> : <img
+                  {item.mediaType === "video" ? <div style={{position:'relative',background:'#f5f5f5'}}>
+                    {item.thumbnailUrl ? <img src={item.thumbnailUrl} alt={item.memo} style={{width:'100%',display:'block',aspectRatio:'1 / 1.25',objectFit:'contain'}}/> : <video src={item.gifUrl+'#t=0.05'} muted playsInline preload="metadata" aria-label={item.memo} style={{width:'100%',display:'block',aspectRatio:'1 / 1.25',objectFit:'contain'}}/>}
+                    <span aria-hidden="true" style={{position:'absolute',inset:0,display:'grid',placeItems:'center',pointerEvents:'none'}}><span style={{background:'#0009',borderRadius:'50%',color:'white',padding:'12px 15px',fontSize:20}}>▶</span></span>
+                  </div> : <img
                     src={item.gifUrl}
                     alt={item.memo}
                     style={{
@@ -227,7 +239,7 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
                         fontWeight: 900,
                       }}
                     >
-                      {item.styleName || "기본 GIF"}
+                      {item.mediaType === "video" ? videoLabel(item) : item.styleName || "기본 GIF"}
                     </div>
 
                     <div
@@ -247,6 +259,7 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
           </div>
         )}
 
+        </div>
         <button
           onClick={onBack}
           style={{
@@ -282,10 +295,13 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
           }}
         >
           <div
+            role="dialog" aria-modal="true" aria-label="보관한 내짤"
             onClick={(event) => event.stopPropagation()}
             style={{
               width: "100%",
               maxWidth: "420px",
+              maxHeight: "calc(100dvh - 36px)",
+              overflowY: "auto",
               backgroundColor: "white",
               borderRadius: "28px",
               padding: "18px",
@@ -324,7 +340,7 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
                 fontWeight: 900,
               }}
             >
-              {selectedItem.styleName || "기본 GIF"}
+              {selectedItem.mediaType === "video" ? videoLabel(selectedItem) : selectedItem.styleName || "기본 GIF"}
             </div>
 
             <div
@@ -391,4 +407,5 @@ const modalSoftButtonStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
+function videoLabel(item: SavedNaezzalItem) { return /애니메이션|펜화|drawing/i.test(item.styleName) ? '애니메이션 영상' : '실사 영상'; }
 export default GalleryScreen;
