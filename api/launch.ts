@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
-import { requirePreviewAiAccount } from "../server/launch/preview.ts";
+import { aiAccountAllowed, aiAccessRestricted, requirePreviewAiAccount } from "../server/launch/preview.ts";
 import { runtime } from "../server/launch/runtime.ts";
 import { BUSINESS } from "../src/lib/business.ts";
 import {
@@ -137,6 +137,7 @@ export default async function handler(req: Request, res: Response) {
         .json({
           ...(await r.service.config()),
           auth: r.authConfig,
+          aiRestricted: Boolean(process.env.LAUNCH_OFFICIAL_DOMAIN) && aiAccessRestricted(),
           demo: r.demo,
           product: PRODUCT,
           contact: BUSINESS.supportEmail,
@@ -250,12 +251,12 @@ export default async function handler(req: Request, res: Response) {
       return res
         .status(200)
         .json(
-          await r.service.login(
+          { ...(await r.service.login(
             identity.id,
             identity.hash,
             identity.created,
             validVisit,
-          ),
+          )), aiAllowed: aiAccountAllowed(identity.id) },
         );
     if (action === "closeAccount") {
       requireRule(!r.previewIntegration, "통합 검수 화면에서는 로그인 계정을 삭제할 수 없어요.", 403);
@@ -295,7 +296,7 @@ export default async function handler(req: Request, res: Response) {
         "요청 번호를 확인해주세요.",
       );
     if (action === "account")
-      return res.status(200).json(await r.service.account(user));
+      return res.status(200).json({ ...(await r.service.account(user)), aiAllowed: aiAccountAllowed(user) });
     if (action === "order") {
       requireRule(
         (body.amount === undefined || body.amount === 3900) &&

@@ -25,3 +25,24 @@ test("Preview AI allowlist is checked against the authenticated user ID and defa
     }
   }
 });
+
+test("official AI access is restricted to the configured account until explicitly released", async () => {
+  const { aiAccountAllowed } = await import("../server/launch/preview.ts");
+  const keys = ["LAUNCH_OFFICIAL_DOMAIN", "AI_ALLOWED_USER_IDS", "AI_ACCESS_MODE"];
+  const prior = keys.map(key => process.env[key]);
+  try {
+    process.env.LAUNCH_OFFICIAL_DOMAIN = "4zzal.com";
+    process.env.AI_ALLOWED_USER_IDS = "approved";
+    delete process.env.AI_ACCESS_MODE;
+    assert.equal(aiAccountAllowed(undefined), false);
+    assert.equal(aiAccountAllowed("another-account"), false);
+    assert.equal(aiAccountAllowed("approved"), true);
+    process.env.AI_ACCESS_MODE = "public";
+    assert.equal(aiAccountAllowed("another-account"), true);
+  } finally {
+    keys.forEach((key, index) => {
+      if (prior[index] === undefined) delete process.env[key];
+      else process.env[key] = prior[index];
+    });
+  }
+});

@@ -10,7 +10,7 @@ import { loadImage } from "../lib/loadImage";
 import CropSelector from "./CropSelector";
 import { saveGalleryItem } from "../lib/galleryStore";
 import { launchEnabled, saveDraft, beginInviteRender } from "../lib/launch";
-import type { EditorDraft } from "../lib/launch";
+import { useLaunch, type EditorDraft } from "../lib/launch";
 import InviteCompletion from "./InviteCompletion";
 
 type CutPreviewProps = {
@@ -75,6 +75,8 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
   const unlockedFrames = getUnlockedFrames(shareCount);
   const [selectedFrame, setSelectedFrame] = useState<FrameType>(initialDraft?.selectedFrame || "basic");
 
+  const { config, account } = useLaunch();
+  const [aiNotice, setAiNotice] = useState(false);
   const [useAI, setUseAI] = useState<boolean | null>(initialDraft?.sourceUrl ? false : null);
   const [isSaving, setIsSaving] = useState(false);
   const [savedGif, setSavedGif] = useState<string | null>(null);
@@ -652,7 +654,11 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
           <div style={{ padding: 16, background: "#fff4f8", borderRadius: 16, lineHeight: 1.7 }}>
             <strong>네 컷을 어떻게 찾을까요?</strong>
             <p>AI 자동 인식을 선택하면 이 사진 한 장을 분석 서버와 OpenAI에 보내 사진의 위치를 찾습니다. 메모와 보관함은 보내지 않아요. 전송을 원하지 않으면 직접 맞추기를 선택해주세요.</p>
-            <button onClick={() => setUseAI(true)} style={primarySubButtonStyle}>사진 전송에 동의하고 AI로 찾기</button>
+            <button onClick={() => {
+              if (config?.aiRestricted && !account?.aiAllowed) setAiNotice(true);
+              else setUseAI(true);
+            }} style={primarySubButtonStyle}>사진 전송에 동의하고 AI로 찾기</button>
+            {aiNotice && config?.aiRestricted && !account?.aiAllowed && <p role="status">AI 기능은 현재 출시 준비 중이에요.</p>}
             <button onClick={() => setUseAI(false)} style={secondaryButtonStyle}>사진 전송 없이 직접 맞추기</button>
           </div>
         )}

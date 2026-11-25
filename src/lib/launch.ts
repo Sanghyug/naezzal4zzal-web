@@ -23,6 +23,7 @@ export type LaunchOrder = {
   created: number;
 };
 export type Account = {
+  aiAllowed?: boolean;
   user: { id: string };
   balance: { total: number; available: number; reserved: number; paid: number };
   entries: {
@@ -44,6 +45,7 @@ export type Account = {
   };
 };
 export type LaunchConfig = {
+  aiRestricted?: boolean;
   giftAvailable: boolean;
   invites: boolean;
   inviteMonthly: number;

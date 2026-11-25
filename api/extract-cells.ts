@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { validateCells } from "../src/lib/photoGeometry.js";
-import { requirePreviewAiAccount } from "../server/launch/preview.ts";
+import { aiAccessRestricted, requirePreviewAiAccount } from "../server/launch/preview.ts";
 import { runtime } from "../server/launch/runtime.ts";
 import { dayKst, rate, requireRule, RuleError } from "../server/launch/domain.ts";
 import { createHmac } from "node:crypto";
@@ -11,6 +11,7 @@ export default async function handler(req: Request, res: Response) {
   res.setHeader("Cache-Control", "no-store");
   const origin = req.headers.origin;
   const allowed = (process.env.ALLOWED_ORIGINS || "https://naezzal4zzal-web.vercel.app,capacitor://localhost,https://localhost").split(",").map(v => v.trim());
+  if (process.env.LAUNCH_OFFICIAL_DOMAIN) allowed.push("https://" + process.env.LAUNCH_OFFICIAL_DOMAIN);
   if (process.env.VERCEL_URL) allowed.push("https://" + process.env.VERCEL_URL);
   if (typeof origin === "string" && !allowed.includes(origin)) return res.status(403).json({ error: "Origin not allowed" });
   if (typeof origin === "string") { res.setHeader("Access-Control-Allow-Origin", origin); res.setHeader("Vary", "Origin"); }
@@ -30,7 +31,7 @@ export default async function handler(req: Request, res: Response) {
     try {
       const r = await runtime();
       if (r.demo || process.env.ENABLE_LIVE_EXTRACTION !== "1") return res.status(503).json({error:"테스트 환경에서는 실제 AI 분석을 호출하지 않아요."});
-      if (preview) {
+      if (aiAccessRestricted()) {
         const auth = req.headers.authorization;
         const identity = typeof auth === "string" && auth.startsWith("Bearer ")
           ? await r.auth(auth.slice(7)) : undefined;

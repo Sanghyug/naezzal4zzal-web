@@ -182,11 +182,12 @@ export default function CreditVideoStudio({
                 <p>완성 영상은 {config?.retentionDays || 7}일간 보관돼요.</p>
                 <details><summary>이용 안내</summary><p>5초 무음 MP4(480p)로 만들어요. 얼굴과 동작이 원본과 다를 수 있어요. 제작 실패가 확인되면 예약 크레딧을 돌려드려요.</p></details>
               </div>
+              {config?.aiRestricted && !account?.aiAllowed && <p role="status">AI 기능은 현재 출시 준비 중이에요.</p>}
               {!authReady ? <p role="status">로그인을 확인하고 있어요.</p> : !account && authenticated ? (
                 <button onClick={() => void refreshAccount().catch(() => setMessage("계정 정보를 다시 불러오지 못했어요."))}>계정 정보 다시 불러오기</button>
               ) : !account ? (
                 <LoginPrompt />
-              ) : (
+              ) : config?.aiRestricted && !account.aiAllowed ? null : (
                 <>
                   <p>
                     사용 가능 {account.balance.available}크레딧 · 제작 후{" "}

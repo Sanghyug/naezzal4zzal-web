@@ -35,18 +35,21 @@ export class LaunchService {
   payments: Payments;
   video: VideoProvider;
   private readonly allowMockVideo: boolean;
+  private readonly aiAccountAllowed: (user: string) => boolean;
   constructor(
     store: Store,
     storage: Storage,
     payments: Payments,
     video: VideoProvider,
     allowMockVideo = false,
+    aiAccountAllowed: (user: string) => boolean = () => true,
   ) {
     this.store = store;
     this.storage = storage;
     this.payments = payments;
     this.video = video;
     this.allowMockVideo = allowMockVideo;
+    this.aiAccountAllowed = aiAccountAllowed;
   }
   async config() {
     return this.store.tx((s) => ({
@@ -229,6 +232,7 @@ export class LaunchService {
     images: unknown,
     consent: unknown,
   ) {
+    requireRule(this.aiAccountAllowed(user), "AI 기능은 현재 출시 준비 중이에요.", 403);
     requireRule(this.video.kind === "heygen" || this.allowMockVideo, "AI 영상 제작을 준비하고 있어요.", 503);
     requireRule(consent === true, "사진 전송과 영상 제작 안내에 동의해주세요.");
     validateImages(images);
@@ -252,7 +256,11 @@ export class LaunchService {
     return this.publicJob(j);
   }
   async runJob(id: string) {
-    const job = await this.store.tx((s) => claim(s, id, Date.now()));
+    const job = await this.store.tx((s) => {
+      const pending = s.jobs[id];
+      if (pending && !this.aiAccountAllowed(pending.user)) return null;
+      return claim(s, id, Date.now());
+    });
     if (!job) return;
     const patch = async (data: Partial<Job>) =>
       this.store.tx((s) => {

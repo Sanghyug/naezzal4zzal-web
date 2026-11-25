@@ -8,6 +8,7 @@ import { localStorage, supabaseStorage } from "./storage.ts";
 import { disabledPayments, mockPayments, tossPayments } from "./payments.ts";
 import { mockVideoProvider, heygenProvider } from "./video.ts";
 import { requireRule } from "./domain.ts";
+import { aiAccountAllowed } from "./preview.ts";
 import { verifiedIdentity } from "./identity.ts";
 export type Identity = { id: string; hash: string; created: number };
 export type Runtime = {
@@ -41,7 +42,9 @@ async function createRuntime(): Promise<Runtime> {
     "미리보기는 테스트 DB를 사용해야 해요.",
     503,
   );
-  const baseUrl = process.env.APP_BASE_URL ||
+  const official = process.env.LAUNCH_OFFICIAL_DOMAIN;
+  if (official) requireRule(official === "4zzal.com" && env === "test" && process.env.PAYMENT_MODE === "disabled", "공식 검수 설정을 확인해주세요.", 503);
+  const baseUrl = (official ? "https://" + official : process.env.APP_BASE_URL) ||
     (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}` : "http://127.0.0.1:5173");
   requireRule(
@@ -49,10 +52,10 @@ async function createRuntime(): Promise<Runtime> {
     "HTTPS 서비스 주소가 필요해요.",
     503,
   );
-  const previewLive = process.env.VERCEL_ENV === "preview" && (
+  const previewLive = !official && process.env.VERCEL_ENV === "preview" && (
     process.env.ENABLE_LIVE_EXTRACTION === "1" || process.env.ENABLE_PREVIEW_LIVE_GENERATION === "1"
   );
-  const previewIntegration = process.env.VERCEL_ENV === "preview" && Boolean(process.env.PREVIEW_AI_DB_NAMESPACE);
+  const previewIntegration = !official && process.env.VERCEL_ENV === "preview" && Boolean(process.env.PREVIEW_AI_DB_NAMESPACE);
   const namespace = previewLive || previewIntegration ? required("PREVIEW_AI_DB_NAMESPACE") : env;
   if (previewLive || previewIntegration) {
     requireRule(/^test-[a-z0-9-]{3,40}$/.test(namespace) && process.env.PAYMENT_MODE === "disabled",
@@ -96,11 +99,11 @@ async function createRuntime(): Promise<Runtime> {
   const liveVideo =
     !demo &&
     process.env.ENABLE_LIVE_GENERATION === "1" &&
-    (env === "production" || (previewLive && process.env.ENABLE_PREVIEW_LIVE_GENERATION === "1"));
+    (Boolean(official) || env === "production" || (previewLive && process.env.ENABLE_PREVIEW_LIVE_GENERATION === "1"));
   const video = liveVideo
     ? heygenProvider(required("OPENAI_API_KEY"), required("HEYGEN_API_KEY"))
     : mockVideoProvider();
-  const service = new LaunchService(store, storage, payments, video, demo);
+  const service = new LaunchService(store, storage, payments, video, demo, aiAccountAllowed);
   if (previewIntegration && liveVideo) {
     await store.tx((s) => {
       s.config.generation = true;
