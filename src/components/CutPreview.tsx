@@ -685,6 +685,7 @@ function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps)
                   sourceUrl={sourceUrl}
                   sourceSize={sourceSize}
                   cell={cell}
+                  slotRatio={Math.max(0.4, Math.min(...cells.map(c => c.width / c.height)))}
                   adjust={adjusts[index] ?? { x: 0, y: 0, scale: 1, rotate: 0 }}
                   onChange={(next) => updateAdjust(index, next)}
                   onSizeChange={(size) => {
@@ -971,6 +972,7 @@ type AdjustableCutProps = {
   sourceUrl: string;
   sourceSize: { width: number; height: number };
   cell: CellRect;
+  slotRatio: number;
   adjust: Adjust;
   onChange: (next: Partial<Adjust>) => void;
   onSizeChange: (size: PreviewSize) => void;
@@ -980,6 +982,7 @@ function AdjustableCut({
   sourceUrl,
   sourceSize,
   cell,
+  slotRatio,
   adjust,
   onChange,
   onSizeChange,
@@ -1069,6 +1072,7 @@ function AdjustableCut({
 
   return (
     <div className="nz-adjustable-cut">
+      <div className="nz-preview-slot" style={{aspectRatio: slotRatio}}>
       <div
         ref={frameRef}
         onPointerDown={handlePointerDown}
@@ -1078,6 +1082,7 @@ function AdjustableCut({
         style={{
           position: "relative",
           width: "100%",
+          maxWidth: `${Math.min(100, (cell.width / cell.height) / slotRatio * 100)}%`,
           aspectRatio: cell.width / cell.height,
           borderRadius: "16px",
           overflow: "hidden",
@@ -1105,6 +1110,7 @@ function AdjustableCut({
             pointerEvents: "none",
           }}
         />
+      </div>
       </div>
 
       <div
