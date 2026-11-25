@@ -11,8 +11,11 @@ const requestKey = "naezzal4zzal-video-request";
 function storedToken() { try { return sessionStorage.getItem(jobKey) || ""; } catch { return ""; } }
 export default function VideoStudio(props: { ready: boolean; getImages: () => Promise<string[]>; memo: string }) {
   const { account } = useLaunch();
-  const [creditOpen, setCreditOpen] = useState(false);
-  return launchEnabled ? <CreditVideoStudio key={account?.user.id || 'guest'} {...props} open={creditOpen} onToggle={() => setCreditOpen(v => !v)} /> : <LegacyVideoStudio {...props} />;
+  const [creditOpen, setCreditOpen] = useState(() => sessionStorage.getItem("nz-video-open") === "1");
+  return launchEnabled ? <CreditVideoStudio key={account?.user.id || 'guest'} {...props} open={creditOpen} onToggle={() => {
+    sessionStorage.setItem("nz-video-open", creditOpen ? "0" : "1");
+    setCreditOpen(!creditOpen);
+  }} /> : <LegacyVideoStudio {...props} />;
 }
 function LegacyVideoStudio({ ready, getImages, memo }: { ready: boolean; getImages: () => Promise<string[]>; memo: string }) {
   const [open, setOpen] = useState(false);

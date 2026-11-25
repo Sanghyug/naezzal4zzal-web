@@ -104,7 +104,7 @@ function App() {
   };
 
   const handleReset = () => {
-    if (launchEnabled) void clearDraft();
+    if (launchEnabled) void clearDraft().catch(() => {});
     setRestoredDraft(null);
     if (imageUrl && imageUrl.startsWith("blob:")) {
       URL.revokeObjectURL(imageUrl);

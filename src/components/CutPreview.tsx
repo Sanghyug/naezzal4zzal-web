@@ -53,6 +53,7 @@ type Adjust = {
 
 function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
   const [sourceUrl, setSourceUrl] = useState<string | null>(initialDraft?.sourceUrl || null);
+  const [rectified, setRectified] = useState(initialDraft?.rectified ?? false);
   const [sourceSize, setSourceSize] = useState(initialDraft?.sourceSize || { width: 0, height: 0 });
   const [cells, setCells] = useState<CellRect[]>(initialDraft?.cells || []);
   const [adjusts, setAdjusts] = useState<Adjust[]>(initialDraft?.adjusts || []);
@@ -78,8 +79,8 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [savedGif, setSavedGif] = useState<string | null>(null);
   useEffect(() => {
-    if (launchEnabled) void saveDraft(imageUrl, { sourceUrl, sourceSize, cells, adjusts, memo, selectedFrame, gif: gifUrl, styleName: currentGifStyleName, extractStatus: status, inviteRender }).catch(() => {});
-  }, [imageUrl, sourceUrl, sourceSize, cells, adjusts, memo, selectedFrame, gifUrl, currentGifStyleName, status, inviteRender]);
+    if (launchEnabled) void saveDraft(imageUrl, { sourceUrl, rectified, sourceSize, cells, adjusts, memo, selectedFrame, gif: gifUrl, styleName: currentGifStyleName, extractStatus: status, inviteRender }).catch(() => {});
+  }, [imageUrl, sourceUrl, rectified, sourceSize, cells, adjusts, memo, selectedFrame, gifUrl, currentGifStyleName, status, inviteRender]);
 
   useEffect(() => {
     if (initialDraft?.sourceUrl) return;
@@ -94,19 +95,29 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
         const enhanced = await enhanceImage(imageUrl);
         const image = await loadImage(enhanced);
         if (cancelled) return;
-        const { width, height } = image;
+        let { width, height } = image;
+        let prepared = enhanced;
         let detected: CellRect[] = [];
         let analysisError = "";
         if (useAI) {
           setMessage("AI가 사진 네 장의 테두리를 각각 찾고 있어요.");
           timer = window.setTimeout(() => controller.abort(), 25000);
-          try { detected = await extractCells(enhanced, width, height, controller.signal); }
-          catch (error) { analysisError = error instanceof Error && error.name !== "AbortError" && error.name !== "TypeError" ? error.message : "AI 서버에 연결하지 못했어요. 아래 칸은 AI 인식 결과가 아닌 임시 배치입니다."; }
+          try {
+            const result = await extractCells(enhanced, width, height, controller.signal);
+            detected = result.cells;
+            if (result.sourceUrl) {
+              const corrected = await loadImage(result.sourceUrl);
+              prepared = result.sourceUrl;
+              ({ width, height } = corrected);
+            }
+          }
+          catch { analysisError = "자동 분석을 완료하지 못했어요. 아래 칸을 직접 맞춰주세요."; }
           finally { window.clearTimeout(timer); }
         }
         if (cancelled) return;
         const found = detected.length === 4;
-        setSourceUrl(enhanced);
+        setSourceUrl(prepared);
+        setRectified(prepared !== enhanced);
         setSourceSize({ width, height });
         setCells(found ? detected : createLayoutCells(height / width > 1.8 ? "1x4" : "2x2", width, height));
         const initial = Array.from({ length: 4 }, () => ({ x: 0, y: 0, scale: 1, rotate: 0 }));
@@ -124,6 +135,22 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
     void generateCells();
     return () => { cancelled = true; controller.abort(); window.clearTimeout(timer); };
   }, [imageUrl, useAI, initialDraft]);
+
+  const useOriginal = async () => {
+    try {
+      const original = await enhanceImage(imageUrl);
+      const { width, height } = await loadImage(original);
+      setSourceUrl(original);
+      setRectified(false);
+      setSourceSize({ width, height });
+      setCells(createLayoutCells(height / width > 1.8 ? "1x4" : "2x2", width, height));
+      resetAllAdjusts();
+      setStatus("fallback");
+      setMessage("원본에서 네 컷의 테두리를 직접 맞춰주세요.");
+    } catch {
+      setMessage("원본 사진을 다시 열지 못했어요.");
+    }
+  };
 
   const changeLayout = (layout: PhotoLayout) => {
     setCells(createLayoutCells(layout, sourceSize.width, sourceSize.height));
@@ -180,7 +207,7 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
       if (!ctx) continue;
 
       const targetWidth = 480;
-      const targetHeight = Math.round(targetWidth * (3.4 / 4.3));
+      const targetHeight = Math.max(1, Math.round(targetWidth * cell.height / cell.width));
 
       canvas.width = targetWidth;
       canvas.height = targetHeight;
@@ -189,7 +216,7 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
       ctx.fillRect(0, 0, targetWidth, targetHeight);
 
       const frameWidth = previewSizes[i]?.width || 220;
-      const frameHeight = previewSizes[i]?.height || frameWidth * (3.4 / 4.3);
+      const frameHeight = previewSizes[i]?.height || frameWidth * cell.height / cell.width;
       ctx.save();
       ctx.translate(targetWidth / 2 + adjust.x * targetWidth / frameWidth, targetHeight / 2 + adjust.y * targetHeight / frameHeight);
       ctx.scale(adjust.scale * extraScale, adjust.scale * extraScale);
@@ -630,6 +657,7 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
           </div>
         )}
         {useAI !== null && status === "loading" && <button onClick={() => { setUseAI(false); }} style={smallButtonStyle}>AI 기다리지 않고 직접 맞추기</button>}
+        {rectified && <button onClick={() => void useOriginal()} style={smallButtonStyle}>원본에서 직접 맞추기</button>}
         {sourceUrl && cells.length > 0 && (
           <CropSelector sourceUrl={sourceUrl} sourceSize={sourceSize} cells={cells}
             onChange={(next) => { setCells(next); resetAllAdjusts(); setGifUrl(null); }}
@@ -1069,7 +1097,7 @@ function AdjustableCut({
         style={{
           position: "relative",
           width: "100%",
-          aspectRatio: "4.3 / 3.4",
+          aspectRatio: cell.width / cell.height,
           borderRadius: "16px",
           overflow: "hidden",
           backgroundColor: "#f5f5f5",

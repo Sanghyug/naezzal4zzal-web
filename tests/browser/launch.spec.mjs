@@ -30,7 +30,7 @@ const unique = () =>
 
 test("home credit pill and footer text menus retain policy navigation and focus", async ({page}) => {
   await page.goto('/');
-  const entry=page.getByRole('button',{name:'내 크레딧 · 로그인',exact:true});
+  const entry=page.getByRole('button',{name:'내 크레딧',exact:true});
   await entry.waitFor();
   expect(await entry.evaluate(e=>parseFloat(getComputedStyle(e).borderRadius))).toBeGreaterThan(20);
   const menus=page.getByRole('navigation',{name:'상품·이용약관·개인정보·환불 안내'});
@@ -53,7 +53,7 @@ test("home credit pill and footer text menus retain policy navigation and focus"
 
 test("redesigned account adapts to four widths, restores focus and supports tabs and invite copying", async ({ page, context }) => {
   await page.goto('/');
-  const trigger = page.getByRole('button', {name:'내 크레딧 · 로그인'});
+  const trigger = page.getByRole('button', {name:'내 크레딧'});
   await trigger.click();
   for (const width of [360,390,430,1280]) {
     await page.setViewportSize({width,height:900});
@@ -63,7 +63,7 @@ test("redesigned account adapts to four widths, restores focus and supports tabs
   await expect(trigger).toBeFocused();
   await trigger.click();
   await page.getByRole('button',{name:'지금은 둘러볼게요'}).click();
-  await expect(page.getByRole('dialog',{name:'카카오 로그인 안내'})).toHaveCount(0);
+  await expect(page.getByRole('dialog',{name:'내 크레딧'})).toHaveCount(0);
   await trigger.click();
   await login(page,unique());
   await expect(page.getByRole('tab',{name:'크레딧 내역',exact:true})).toHaveAttribute('aria-selected','true');
@@ -155,7 +155,7 @@ test("anonymous editing and GIF survive login/reload; one-credit creation and do
   await expect(page.getByText(/사용 가능 5크레딧/)).toBeVisible();
   await page.reload();
   await expect(page.getByText("편집하던 사진을 복원했어요.")).toBeVisible();
-  await page.getByRole("button", { name: "🎬 AI 영상 만들기" }).click();
+  await expect(page.getByRole("button", { name: "🎬 AI 영상 만들기" })).toHaveAttribute("aria-expanded", "true");
   await page.getByRole("checkbox", { name: /사진 속 인물의 허락/ }).check();
   await page
     .getByRole("button", { name: "1크레딧으로 실사 영상 제작" })
@@ -188,7 +188,7 @@ test("mock 3900 payment credits exactly ten; unused cancellation restores paid l
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "내 크레딧 · 로그인" }).click();
+  await page.getByRole("button", { name: "내 크레딧" }).click();
   await login(page, unique());
   await page
     .getByRole("button", { name: "10크레딧 충전하기", exact: true })
@@ -232,7 +232,7 @@ test("simulated KakaoTalk invite GIF then email-less Kakao OAuth rewards inviter
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "내 크레딧 · 로그인" }).click();
+  await page.getByRole("button", { name: "내 크레딧" }).click();
   await login(page, unique());
   const ownerToken = await page.evaluate(() =>
     sessionStorage.getItem("nz-demo-token"),
@@ -346,7 +346,7 @@ test("mobile layout does not overflow; forged amount and unauthenticated generat
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "내 크레딧 · 로그인" }).click();
+  await page.getByRole("button", { name: "내 크레딧" }).click();
   await login(page, unique());
   const result = await page.evaluate(async () => {
     const t = sessionStorage.getItem("nz-demo-token");
@@ -415,4 +415,51 @@ test("expired local photo draft is deleted when the app is opened again", async 
     return count;
   });
   expect(count).toBe(0);
+});
+
+test("tilted two-by-two panels use original proportions and can return to manual editing", async ({ page }) => {
+  await page.route("**/api/extract-cells", (route) => {
+    const cells = [[100, 100], [500, 100], [100, 500], [500, 500]].map(([x, y]) => ({ x, y, width: 350, height: 290 }));
+    const corners = cells.map(({ x, y }) => [
+      { x: x + 30, y }, { x: x + 350, y: y + 45 },
+      { x: x + 320, y: y + 290 }, { x, y: y + 240 },
+    ]);
+    return route.fulfill({ json: { layout: "2x2", cells, corners } });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "🖼️ 불러오기" }).waitFor();
+  const image = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 400;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#ac759a";
+    context.fillRect(0, 0, 400, 400);
+    return canvas.toDataURL().split(",")[1];
+  });
+  await page.locator("input[type=file]").nth(1).setInputFiles({
+    name: "tilted.png", mimeType: "image/png", buffer: Buffer.from(image, "base64"),
+  });
+  await page.getByRole("button", { name: "사진 전송에 동의하고 AI로 찾기" }).click();
+  const manual = page.getByRole("button", { name: "원본에서 직접 맞추기" });
+  await expect(manual).toBeVisible();
+  const panels = page.getByAltText("보정할 컷");
+  await expect(panels).toHaveCount(4);
+  const ratio = await panels.first().evaluate((element) => {
+    const { width, height } = element.parentElement.getBoundingClientRect();
+    return width / height;
+  });
+  expect(ratio).toBeGreaterThan(1.30);
+  expect(ratio).toBeLessThan(1.36);
+  await page.getByRole("button", { name: "🎬 AI 영상 만들기" }).click();
+  for (const width of [360, 390, 430, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    if (width === 390) {
+      await page.getByRole("button", { name: /애니메이션 영상 · 3크레딧/ }).scrollIntoViewIfNeeded();
+      await page.screenshot({ path: "artifacts/launch/stabilization-390.png" });
+    }
+  }
+  await manual.click();
+  await expect(manual).toHaveCount(0);
+  await expect(panels).toHaveCount(4);
 });

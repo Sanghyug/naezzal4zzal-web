@@ -5,7 +5,7 @@ import { serverSupabase } from "./supabase.ts";
 import { LaunchService } from "./service.ts";
 import { sqliteStore, postgresStore } from "./store.ts";
 import { localStorage, supabaseStorage } from "./storage.ts";
-import { mockPayments, tossPayments } from "./payments.ts";
+import { disabledPayments, mockPayments, tossPayments } from "./payments.ts";
 import { mockVideoProvider, heygenProvider } from "./video.ts";
 import { requireRule } from "./domain.ts";
 import { verifiedIdentity } from "./identity.ts";
@@ -57,14 +57,14 @@ async function createRuntime(): Promise<Runtime> {
         required("SUPABASE_URL"),
         required("SUPABASE_SERVICE_ROLE_KEY"),
       );
-  const paymentMode = demo ? "mock" : process.env.PAYMENT_MODE || "toss-test";
+  const paymentMode = demo ? "mock" : process.env.PAYMENT_MODE || "disabled";
   requireRule(
-    ["mock", "toss-test", "live"].includes(paymentMode),
+    ["disabled", "mock", "toss-test", "live"].includes(paymentMode),
     "결제 환경을 확인해주세요.",
     503,
   );
   requireRule(
-    env !== "production" || paymentMode === "live",
+    env !== "production" || paymentMode === "live" || paymentMode === "disabled",
     "운영 DB에는 모의·테스트 충전을 연결할 수 없어요.",
     503,
   );
@@ -75,7 +75,9 @@ async function createRuntime(): Promise<Runtime> {
     503,
   );
   const payments =
-    paymentMode === "mock"
+    paymentMode === "disabled"
+      ? disabledPayments()
+      : paymentMode === "mock"
       ? mockPayments(store)
       : tossPayments(
           required("TOSS_SECRET_KEY"),
@@ -83,15 +85,12 @@ async function createRuntime(): Promise<Runtime> {
         );
   const liveVideo =
     !demo &&
-    env === "production" &&
-    paymentMode === "live" &&
-    process.env.LIVE_COMMERCE_APPROVED === "1" &&
-    process.env.ENABLE_LIVE_GENERATION === "1";
+    process.env.ENABLE_LIVE_GENERATION === "1" &&
+    (env === "production" || process.env.ENABLE_PREVIEW_LIVE_GENERATION === "1");
   const video = liveVideo
     ? heygenProvider(required("OPENAI_API_KEY"), required("HEYGEN_API_KEY"))
     : mockVideoProvider();
-  // A test DB/account/payment can never trigger real HeyGen generation.
-  const service = new LaunchService(store, storage, payments, video);
+  const service = new LaunchService(store, storage, payments, video, demo);
   if (demo)
     await store.tx((s) => {
       if (!s.entries.some((e) => e.kind === "demo_initialized")) {

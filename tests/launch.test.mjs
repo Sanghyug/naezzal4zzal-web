@@ -331,6 +331,7 @@ test("video worker lease prevents duplicate external jobs; uncertain timeout kee
     storage,
     mockPayments(store),
     provider,
+    true,
   );
   const images = await fixtureImages();
   const j = await service.createJob("a", "request123", "drawing", images, true);
@@ -444,6 +445,7 @@ test("two same-user same-input jobs coalesce GPT analysis and reuse only that us
       storage,
       mockPayments(store),
       provider,
+      true,
     ),
     images = await fixtureImages(),
     a = await service.createJob("a", "reqfirst", "memory", images, true),
@@ -482,6 +484,7 @@ test("provider-confirmed failure releases reservations exactly once and never ch
     memoryStorage(),
     mockPayments(store),
     provider,
+    true,
   );
   const j = await service.createJob(
     "a",
@@ -549,4 +552,15 @@ test("operator retry is idempotent and changed compensation amount cannot reuse 
   await service.admin("operator", body);
   assert.equal((await service.account("a")).balance.available, 7);
   await assert.rejects(() => service.admin("operator", { ...body, amount: 3 }));
+});
+
+test("public mock configuration cannot reserve credits", async () => {
+  const store = await sqliteStore(":memory:");
+  const service = new LaunchService(store, memoryStorage(), mockPayments(store), { kind: "mock" });
+  assert.equal((await service.config()).generation, false);
+  await assert.rejects(
+    () => service.createJob("a", "mock-blocked", "memory", [], true),
+    { status: 503 },
+  );
+  assert.equal(await store.tx((s) => Object.keys(s.jobs).length), 0);
 });

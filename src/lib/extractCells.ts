@@ -1,8 +1,9 @@
 import { refineVerticalCells } from "./refinePhotoCells";
+import { rectifyPhotoCells } from "./rectifyPhotoCells";
 import { loadImage } from "./loadImage";
 import { validateCells, type CellRect } from "./photoGeometry.js";
 
-export async function extractCells(image: string, width: number, height: number, signal: AbortSignal): Promise<CellRect[]> {
+export async function extractCells(image: string, width: number, height: number, signal: AbortSignal): Promise<{ cells: CellRect[]; sourceUrl?: string }> {
   // A square coordinate plane avoids mixed x/y scales on very tall screenshots.
   const source = await loadImage(image);
   if (signal.aborted) throw new DOMException("Aborted", "AbortError");
@@ -38,10 +39,16 @@ export async function extractCells(image: string, width: number, height: number,
   const result = await response.json();
   const normalized = validateCells(result.cells, 1000, 1000);
   const mapped = validateCells(normalized.map(cell => ({ x: (cell.x - offsetX) / scale, y: (cell.y - offsetY) / scale, width: cell.width / scale, height: cell.height / scale })), width, height);
-  if (mapped.length !== 4 || result.layout !== "1x4") return mapped;
+  if (mapped.length === 4 && (result.layout === "1x4" || result.layout === "2x2")) {
+    const corrected = rectifyPhotoCells(source, result.corners, (point) => ({
+      x: (point.x - offsetX) / scale, y: (point.y - offsetY) / scale,
+    }), result.layout);
+    if (corrected) return corrected;
+  }
+  if (mapped.length !== 4 || result.layout !== "1x4") return { cells: mapped };
   const pixels = document.createElement("canvas"); pixels.width=width; pixels.height=height;
   const pc = pixels.getContext("2d", { willReadFrequently: true });
-  if (!pc) return mapped;
+  if (!pc) return { cells: mapped };
   pc.drawImage(source,0,0,width,height);
-  return refineVerticalCells(pc.getImageData(0,0,width,height).data,width,height,mapped);
+  return { cells: refineVerticalCells(pc.getImageData(0,0,width,height).data,width,height,mapped) };
 }

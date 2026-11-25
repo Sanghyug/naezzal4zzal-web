@@ -50,7 +50,7 @@ export type LaunchConfig = {
   retentionDays: number;
   payments: boolean;
   generation: boolean;
-  paymentMode: "mock" | "toss-test" | "live";
+  paymentMode: "disabled" | "mock" | "toss-test" | "live";
   videoMode: string;
   demo: boolean;
   auth: { url: string; anon: string };
@@ -61,6 +61,7 @@ type Snapshot = {
   config: LaunchConfig | null;
   account: Account | null;
   ready: boolean;
+  authenticated: boolean;
   error: string;
   invited: boolean;
 };
@@ -68,6 +69,7 @@ let state: Snapshot = {
   config: null,
   account: null,
   ready: false,
+  authenticated: false,
   error: "",
   invited: false,
 };
@@ -118,10 +120,11 @@ export async function refreshConfig() {
 }
 export async function refreshAccount() {
   if (!(await token())) {
-    emit({ account: null });
+    emit({ account: null, authenticated: false });
     return;
   }
-  const a = await launchApi<Account>("account");
+  emit({ authenticated: true });
+  const a = await launchApi<Account>(state.account ? "account" : "login");
   emit({ account: a });
 }
 export function initializeLaunch() {
@@ -159,15 +162,12 @@ async function initialize() {
     }
     const params = new URLSearchParams(location.search),
       ref = params.get("ref");
-    const visit = await launchApi<{ invited: boolean }>(
-      "visit",
-      ref ? { code: ref } : {},
-    );
-    emit({ invited: visit.invited });
-    if (await token()) {
-      const a = await launchApi<Account>("login");
-      emit({ account: a });
-    }
+    emit({ authenticated: Boolean(await token()) });
+    try {
+      const visit = await launchApi<{ invited: boolean }>("visit", ref ? { code: ref } : {});
+      emit({ invited: visit.invited });
+    } catch { /* Account recovery does not depend on referral tracking. */ }
+    if (state.authenticated) await refreshAccount();
     const payment = params.get("payment");
     if (payment === "success" && params.get("paymentKey") && state.account) {
       const a = await launchApi<Account>("confirm", {
@@ -213,7 +213,7 @@ export async function demoLogin(alias: string) {
   if (!clean) throw new Error("영문 또는 숫자로 체험 계정 이름을 적어주세요.");
   sessionStorage.setItem("nz-demo-token", "demo-" + clean);
   const account = await launchApi<Account>("login");
-  emit({ account, error: "" });
+  emit({ account, authenticated: true, error: "" });
   await refreshConfig();
 }
 export async function kakaoLogin() {
@@ -228,7 +228,7 @@ export async function logout() {
   sessionStorage.removeItem("nz-credit-request");
   sessionStorage.removeItem("nz-demo-token");
   await client?.auth.signOut();
-  emit({ account: null });
+  emit({ account: null, authenticated: false });
 }
 export async function videoFile(id: string) {
   const t = await token();
@@ -265,6 +265,7 @@ export function appShareUrl() {
 export type EditorDraft = {
   original: Blob;
   sourceUrl: string | null;
+  rectified?: boolean;
   sourceSize: { width: number; height: number };
   cells: { x: number; y: number; width: number; height: number }[];
   adjusts: { x: number; y: number; scale: number; rotate: number }[];
@@ -277,6 +278,7 @@ export type EditorDraft = {
   at: number;
 };
 let draftWrite = Promise.resolve();
+let draftOriginal: { url: string; blob: Promise<Blob> } | undefined;
 function db() {
   return new Promise<IDBDatabase>((resolve, reject) => {
     const r = indexedDB.open("naezzal-launch-draft", 1);
@@ -289,10 +291,16 @@ export function saveDraft(
   originalUrl: string,
   data: Omit<EditorDraft, "original" | "at">,
 ) {
+  if (draftOriginal?.url !== originalUrl) {
+    const blob = fetch(originalUrl).then((response) => response.blob());
+    void blob.catch(() => { if (draftOriginal?.blob === blob) draftOriginal = undefined; });
+    draftOriginal = { url: originalUrl, blob };
+  }
+  const originalBlob = draftOriginal.blob;
   draftWrite = draftWrite
     .catch(() => {})
     .then(async () => {
-      const original = await (await fetch(originalUrl)).blob();
+      const original = await originalBlob;
       const d = await db();
       try {
         await new Promise<void>((resolve, reject) => {
@@ -302,7 +310,7 @@ export function saveDraft(
             "current",
           );
           tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(new Error("편집 보관 실패"));
+          tx.onerror = tx.onabort = () => reject(new Error("편집 보관 실패"));
         });
       } finally {
         d.close();
@@ -330,15 +338,19 @@ export async function getDraft(): Promise<EditorDraft | null> {
     d.close();
   }
 }
-export async function clearDraft() {
-  await draftWrite.catch(() => {});
+export function clearDraft() {
+  draftOriginal = undefined;
+  draftWrite = draftWrite.catch(() => {}).then(deleteDraft);
+  return draftWrite;
+}
+async function deleteDraft() {
   const d = await db();
   try {
     await new Promise<void>((resolve, reject) => {
       const tx = d.transaction("drafts", "readwrite");
       tx.objectStore("drafts").delete("current");
       tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(new Error("편집 삭제 실패"));
+      tx.onerror = tx.onabort = () => reject(new Error("편집 삭제 실패"));
     });
   } finally {
     d.close();

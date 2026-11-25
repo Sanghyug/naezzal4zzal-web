@@ -16,8 +16,8 @@ export function LoginPrompt({ onDismiss }: { onDismiss?: () => void }) {
   const full = Boolean(onDismiss);
   return <div className={full ? "nz-login nz-login-full" : "nz-login nz-login-compact"}>
     {full ? <><h1 className="nz-login-title">네 컷 사진에<br/><em>생기를!<span aria-hidden="true">ˊˊ</span></em></h1>
-    <p className="nz-login-subtitle">사진 속 그 순간을,<br/>실사와 펜화 영상으로 만나봐요.</p>
-    <img className="nz-login-art" src="/launch/login-illustration.jpg" width="745" height="700" alt="같은 네 컷 사진을 실사와 펜화로 나란히 표현한 예시"/>
+    <p className="nz-login-subtitle">사진 속 그 순간을,<br/>실사와 애니메이션 영상으로 만나봐요.</p>
+    <img className="nz-login-art" src="/launch/login-illustration.jpg" width="745" height="700" alt="같은 네 컷 사진을 실사와 애니메이션로 나란히 표현한 예시"/>
     <div className="nz-gift-ticket nz-ticket">
       <LaunchIcon name="gift"/><div>{!config ? <p role="status">가입 선물을 확인하고 있어요.</p> : config.giftAvailable ? <><span className="nz-pill">첫 가입 선물</span><strong>무료 <b>5</b>크레딧</strong><small>선착순 100명 · 대상 계정에 한 번</small></> : <strong className="nz-gift-closed">가입 선물 이벤트가 마감됐어요</strong>}
       <p>실사 1크레딧 · 펜화 3크레딧</p></div>
@@ -56,10 +56,11 @@ const statusNames: Record<string, string> = {
   processing: "제작 중",
   storing: "무음 영상 보관 중",
   completed: "완성",
+  unavailable: "영상 없음",
   review: "운영자 확인 중",
 };
 export default function LaunchAccount({ entryTarget }: { entryTarget?: HTMLElement | null }) {
-  const { account, config, error } = useLaunch();
+  const { account, config, error, ready, authenticated } = useLaunch();
   const [open, setOpen] = useState(
       new URLSearchParams(location.search).has("payment"),
     ),
@@ -112,16 +113,16 @@ export default function LaunchAccount({ entryTarget }: { entryTarget?: HTMLEleme
     return () => clearInterval(t);
   }, [open, accountId]);
   const entry = <>
-    <div className="nz-bar"><button onClick={()=>setOpen(v=>!v)}>{account ? `내 크레딧 ${account.balance.available} · 내역` : "내 크레딧 · 로그인"}</button>{config?.demo && <span>출시 준비 미리보기 · 실제 결제·AI 비용 없음</span>}</div>
+    <div className="nz-bar"><button onClick={()=>setOpen(v=>!v)}>{account ? `내 크레딧 ${account.balance.available} · 내역` : "내 크레딧"}</button>{config?.demo && <span>출시 준비 미리보기 · 실제 결제·AI 비용 없음</span>}</div>
     {error && <p className="nz-bar" role="status">{error}</p>}
   </>;
   return <>
     {entryTarget ? createPortal(entry, entryTarget) : entry}
-    {open && <div className="nz-account-overlay"><section ref={panel} className="nz-account nz-redesign" role="dialog" aria-modal="true" aria-label={account ? "내 크레딧" : "카카오 로그인 안내"}>
+    {open && <div className="nz-account-overlay"><section ref={panel} className="nz-account nz-redesign" role="dialog" aria-modal="true" aria-label="내 크레딧">
       <header className="nz-brand-header"><img src="/launch/logo.png" alt="내짤4짤" width="595" height="190"/><button className="nz-close" aria-label="크레딧 닫기" onClick={()=>setOpen(false)}>×</button></header>
-      {!account ? <LoginPrompt onDismiss={()=>setOpen(false)}/> : <>
+      {!ready ? <p role="status">로그인을 확인하고 있어요.</p> : !account && authenticated ? <button onClick={() => void act(refreshAccount)}>계정 정보 다시 불러오기</button> : !account ? <LoginPrompt onDismiss={()=>setOpen(false)}/> : <>
         <div className="nz-page-title"><h1>내 크레딧</h1><p>추억을 더 만들 준비, 됐나요?</p></div>
-        <div className="nz-credit-ticket nz-ticket"><div className="nz-ticket-top"><div><span className="nz-pill">사용 가능한 크레딧</span><strong><b>{account.balance.available}</b><span>크레딧</span></strong><p>제작 예약 {account.balance.reserved}크레딧 · 총 보유 {account.balance.total}</p></div><FilmDecoration/></div><div className="nz-cost-chips"><span><LaunchIcon name="video"/>실사 영상 <b>1크레딧</b></span><span><LaunchIcon name="pen"/>펜화 영상 <b>3크레딧</b></span></div></div>
+        <div className="nz-credit-ticket nz-ticket"><div className="nz-ticket-top"><div><span className="nz-pill">사용 가능한 크레딧</span><strong><b>{account.balance.available}</b><span>크레딧</span></strong><p>제작 예약 {account.balance.reserved}크레딧 · 총 보유 {account.balance.total}</p></div><FilmDecoration/></div><div className="nz-cost-chips"><span><LaunchIcon name="video"/>실사 영상 <b>1크레딧</b></span><span><LaunchIcon name="pen"/>애니메이션 영상 <b>3크레딧</b></span></div></div>
         <section className="nz-topup-card"><h2>추억을 더 만들고 싶다면</h2><div className="nz-price"><b>10크레딧</b><strong>3,900원</strong></div><p>필요할 때 한 번씩 충전해요</p>
                 <button
                   disabled={busy || !config?.payments}
@@ -148,7 +149,7 @@ export default function LaunchAccount({ entryTarget }: { entryTarget?: HTMLEleme
                   10크레딧 충전하기
                 </button>
 
-        {!config?.payments && <p>결제 연결을 준비하고 있어요.</p>}{config?.paymentMode!=="live" && <span className="nz-test-badge">테스트 결제 · 실제 청구 없음</span>}
+        {!config?.payments && <p>결제 연결을 준비하고 있어요.</p>}{(config?.paymentMode==="mock" || config?.paymentMode==="toss-test") && <span className="nz-test-badge">테스트 결제 · 실제 청구 없음</span>}
         {purchase && accountId && purchase.user===accountId && <Checkout order={purchase} onClose={()=>setPurchase(null)} onDone={()=>{sessionStorage.removeItem("nz-purchase-request:"+accountId);setPurchase(null);setTab("orders");void refreshAccount();}}/>}
         </section>
         <section className="nz-referral-card"><LaunchIcon name="plane" className="nz-plane"/><h2>친구와 함께, <em>+2크레딧</em></h2><p>초대받은 새 친구가 가입하고<br/>기본 움짤을 완성하면 선물로 드려요</p>
@@ -190,7 +191,7 @@ export default function LaunchAccount({ entryTarget }: { entryTarget?: HTMLEleme
               {account.jobs.map((j) => (
                 <article className="nz-history" key={j.id}>
                   <b>
-                    {j.style === "memory" ? "실사 영상" : "펜화 영상"} ·{" "}
+                    {j.style === "memory" ? "실사 영상" : "애니메이션 영상"} ·{" "}
                     {j.cost}크레딧
                   </b>
                   <span>{statusNames[j.status] || j.status}</span><small>{new Date(j.created).toLocaleString("ko-KR")}</small>

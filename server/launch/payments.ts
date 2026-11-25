@@ -2,10 +2,17 @@ import { requireRule } from "./domain.ts";
 import type { Order, PaymentRecord } from "./domain.ts";
 import type { Store } from "./store.ts";
 export interface Payments {
-  kind: "mock" | "toss-test" | "live";
+  kind: "disabled" | "mock" | "toss-test" | "live";
   lookup(o: Order): Promise<PaymentRecord | null>;
   confirm(o: Order): Promise<PaymentRecord>;
   cancel(o: Order): Promise<PaymentRecord>;
+}
+export function disabledPayments(): Payments {
+  const unavailable = async () => {
+    requireRule(false, "크레딧 충전을 준비하고 있어요.", 503);
+    throw new Error("Payments disabled");
+  };
+  return { kind: "disabled", lookup: unavailable, confirm: unavailable, cancel: unavailable };
 }
 export function mockPayments(store: Store): Payments {
   return {

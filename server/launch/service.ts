@@ -34,16 +34,19 @@ export class LaunchService {
   storage: Storage;
   payments: Payments;
   video: VideoProvider;
+  private readonly allowMockVideo: boolean;
   constructor(
     store: Store,
     storage: Storage,
     payments: Payments,
     video: VideoProvider,
+    allowMockVideo = false,
   ) {
     this.store = store;
     this.storage = storage;
     this.payments = payments;
     this.video = video;
+    this.allowMockVideo = allowMockVideo;
   }
   async config() {
     return this.store.tx((s) => ({
@@ -54,8 +57,8 @@ export class LaunchService {
       invites: s.config.invites,
       inviteMonthly: s.config.inviteMonthly,
       retentionDays: s.config.retentionDays,
-      payments: s.config.payments,
-      generation: s.config.generation,
+      payments: s.config.payments && this.payments.kind !== "disabled",
+      generation: s.config.generation && (this.video.kind === "heygen" || this.allowMockVideo),
       paymentMode: this.payments.kind,
       videoMode: this.video.kind,
     }));
@@ -118,10 +121,11 @@ export class LaunchService {
     return this.store.tx((s) => this.accountState(s, user));
   }
   publicJob(j: Job) {
+    const hiddenMock = !this.allowMockVideo && j.providerId?.startsWith("mock-");
     return {
       id: j.id,
       style: j.style,
-      status: j.status,
+      status: hiddenMock && j.status === "completed" ? "unavailable" : j.status,
       cost: j.cost,
       created: j.created,
       expires: j.expires,
@@ -129,6 +133,7 @@ export class LaunchService {
       downloadable:
         j.status === "completed" &&
         Boolean(j.output) &&
+        !hiddenMock &&
         Boolean(j.expires && j.expires > Date.now()),
     };
   }
@@ -162,6 +167,7 @@ export class LaunchService {
     );
   }
   async order(user: string, key: string) {
+    requireRule(this.payments.kind !== "disabled", "크레딧 충전을 준비하고 있어요.", 503);
     return this.store.tx((s) => newOrder(s, user, key, Date.now()));
   }
   async confirm(user: string, id: string, key: string, amount: number) {
@@ -223,6 +229,7 @@ export class LaunchService {
     images: unknown,
     consent: unknown,
   ) {
+    requireRule(this.video.kind === "heygen" || this.allowMockVideo, "AI 영상 제작을 준비하고 있어요.", 503);
     requireRule(consent === true, "사진 전송과 영상 제작 안내에 동의해주세요.");
     validateImages(images);
     const fingerprint = sha(ANALYSIS_VERSION + "|" + images.join("|"));
@@ -255,6 +262,15 @@ export class LaunchService {
       });
     const inputKey = job.user + "/" + id + ".json";
     try {
+      if (!this.allowMockVideo && (job.providerId?.startsWith("mock-") || (this.video.kind === "mock" && !job.submittedAt))) {
+        await this.store.tx((s) => {
+          requireRule(s.jobs[id].lease === job.lease, "다른 작업자가 확인 중이에요.", 409);
+          settle(s, id, false, Date.now());
+        });
+        await this.storage.remove("launch-inputs", inputKey).catch(() => {});
+        return;
+      }
+      if (this.video.kind === "mock" && !this.allowMockVideo) return;
       let providerId = job.providerId;
       if (!providerId) {
         // Unknown submissions are retried only under the SAME provider idempotency key,
@@ -376,17 +392,21 @@ export class LaunchService {
       });
       await this.storage.remove("launch-inputs", inputKey).catch(() => {});
     } catch {
-      // Timeouts/download failures/unknown upstream outcomes do NOT restore credits.
-      // The persisted phase and provider ID let the next request or scheduler resume.
-      await this.store.tx((s) => {
+      const failedBeforeSubmission = await this.store.tx((s) => {
         const j = s.jobs[id];
-        if (
-          j.lease === job.lease &&
-          !["completed", "failed", "review"].includes(j.status)
-        )
-          j.error =
-            "연결 또는 파일 준비가 지연되고 있어요. 새 제작 없이 같은 작업을 확인합니다.";
+        if (j.lease !== job.lease || ["completed", "failed", "review"].includes(j.status)) return false;
+        if (j.status === "analyzing" && !j.submittedAt) {
+          const cacheId = j.user + ":" + j.fingerprint + ":" + ANALYSIS_VERSION;
+          if (s.cache[cacheId]?.pending && s.cache[cacheId]?.owner === id) delete s.cache[cacheId];
+          settle(s, id, false, Date.now());
+          j.error = "사진 분석을 완료하지 못했어요.";
+          return true;
+        }
+        // Keep the reservation after an uncertain submission or download failure.
+        j.error = "연결 또는 파일 준비가 지연되고 있어요. 새 제작 없이 같은 작업을 확인합니다.";
+        return false;
       });
+      if (failedBeforeSubmission) await this.storage.remove("launch-inputs", inputKey).catch(() => {});
     } finally {
       await this.store.tx((s) => {
         const j = s.jobs[id];
@@ -401,6 +421,7 @@ export class LaunchService {
     const j = await this.store.tx((s) => structuredClone(jobFor(s, user, id)));
     requireRule(
       j.status === "completed" &&
+        (this.allowMockVideo || !j.providerId?.startsWith("mock-")) &&
         j.output &&
         j.expires &&
         j.expires > Date.now(),

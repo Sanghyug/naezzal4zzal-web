@@ -5,7 +5,7 @@ export function previewEntryRedirect(href: string, canonicalOrigin: string | und
   const current = new URL(href), target = new URL(canonicalOrigin);
   if (target.protocol !== "https:" || current.protocol !== "https:" ||
       !current.hostname.endsWith(".vercel.app") || current.origin === target.origin) return null;
-  if (current.searchParams.has("code") || current.searchParams.get("auth") === "return" ||
+  if (current.searchParams.has("code") || current.searchParams.has("error") || current.searchParams.get("auth") === "return" ||
       new URLSearchParams(current.hash.slice(1)).has("error")) return null;
   return target.origin + current.pathname + current.search + current.hash;
 }

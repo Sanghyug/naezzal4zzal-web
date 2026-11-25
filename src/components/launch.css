@@ -181,3 +181,26 @@ input:focus-visible {
     padding: 12px;
   }
 }
+
+.nz-video > .nz-video-toggle {
+  width: 100%;
+  padding: 16px;
+  border-radius: 16px;
+  background: #75459a;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.nz-video .nz-video-styles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.nz-video-styles button[aria-pressed="true"] {
+  outline: 2px solid #75459a;
+  outline-offset: -2px;
+}
