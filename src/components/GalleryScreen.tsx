@@ -338,7 +338,7 @@ function GalleryScreen({ onBack }: GalleryScreenProps) {
               {formatDate(selectedItem.createdAt)}
             </div>
 
-            <ShareControls key={selectedItem.id} url={selectedItem.gifUrl} text={selectedItem.memo} video={selectedItem.mediaType === "video"} />
+            <ShareControls key={selectedItem.id} url={selectedItem.gifUrl} video={selectedItem.mediaType === "video"} />
 
             <div
               style={{

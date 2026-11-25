@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { launchApi, refreshAccount, useLaunch, videoFile } from "../lib/launch";
+import { isVideoInProgress, launchApi, refreshAccount, useLaunch, videoFile } from "../lib/launch";
 import type { LaunchJob } from "../lib/launch";
 import { LoginPrompt } from "./LaunchAccount";
 import { loadImage } from "../lib/loadImage";
-import { saveGalleryItem } from "../lib/galleryStore";
 import ShareControls from "./ShareControls";
 export default function CreditVideoStudio({
   ready,
   getImages,
-  memo,
   open,
   onToggle,
 }: {
@@ -31,14 +29,16 @@ export default function CreditVideoStudio({
     [selectedId, setSelectedId] = useState(
       () => sessionStorage.getItem("nz-credit-job") || "",
     ),
-    [url, setUrl] = useState(""),
-    [saved, setSaved] = useState(false);
+    [url, setUrl] = useState("");
   const lock = useRef(false),
     fileUrl = useRef("");
+  const section = useRef<HTMLElement>(null);
   const cost = style === "drawing" ? 3 : 1;
-  const job = account?.jobs.find((j) => j.id === selectedId) || localJob;
+  const trackedId = selectedId || account?.jobs.find(isVideoInProgress)?.id;
+  const job = localJob?.id === trackedId ? localJob : account?.jobs.find((j) => j.id === trackedId);
+  const inProgress = Boolean(job && isVideoInProgress(job));
+  const shouldWork = Boolean(inProgress || (job?.status === "completed" && job.downloadable && !url));
   const jobId = job?.id,
-    jobStatus = job?.status,
     userId = account?.user.id;
   useEffect(
     () => () => {
@@ -47,7 +47,7 @@ export default function CreditVideoStudio({
     [],
   );
   useEffect(() => {
-    if (!open || !jobId || !userId) return;
+    if (!shouldWork || !jobId || !userId) return;
     let stopped = false,
       timer: ReturnType<typeof setTimeout>;
     let running = false;
@@ -58,13 +58,16 @@ export default function CreditVideoStudio({
       try {
         const next = await launchApi<LaunchJob>("work", { jobId: id });
         if (stopped) return;
+        setSelectedId(next.id);
         setJob(next);
-        if (next.status === "completed" && next.downloadable) {
+        if (next.status === "completed") {
+          if (!next.downloadable) return;
           if (!fileUrl.current) {
             const blob = await videoFile(id);
             if (stopped) return;
             fileUrl.current = URL.createObjectURL(blob);
             setUrl(fileUrl.current);
+            setMessage("");
           }
           await refreshAccount();
           return;
@@ -85,17 +88,28 @@ export default function CreditVideoStudio({
       }
       if (!stopped) timer = setTimeout(() => void check(), 6000);
     };
-    if (!["failed", "review", "unavailable"].includes(jobStatus || "") && !url) void check();
+    void check();
     return () => {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [open, jobId, userId, jobStatus, url]);
+  }, [jobId, userId, shouldWork]);
+  useEffect(() => {
+    if (!jobId || !userId || !inProgress) return;
+    let active = true;
+    const timer = window.setInterval(() => {
+      void launchApi<LaunchJob>("jobStatus", { jobId }).then(next => {
+        if (active) setJob(current => current?.id === next.id && ["completed", "failed", "review", "unavailable"].includes(current.status) ? current : next);
+      }).catch(() => {});
+    }, 2500);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [jobId, userId, inProgress]);
   async function start() {
     if (lock.current || !account || !consent) return;
     lock.current = true;
     setBusy(true);
-    setMessage("사진을 준비하고 있어요.");
+    setMessage("");
+    section.current?.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
     try {
       const cuts = await getImages();
       const images = await Promise.all(
@@ -146,9 +160,7 @@ export default function CreditVideoStudio({
       sessionStorage.setItem("nz-credit-job", j.id);
       setSelectedId(j.id);
       setJob(j);
-      setSaved(false);
-      setMessage("제작을 접수했어요.");
-      await refreshAccount();
+      void refreshAccount().catch(() => {});
     } catch (e) {
       setMessage(
         e instanceof Error ? e.message : "제작 요청을 다시 확인해주세요.",
@@ -159,13 +171,14 @@ export default function CreditVideoStudio({
     }
   }
   return (
-    <section className="nz-video nz-video-editor" aria-label="AI 영상 제작">
+    <section ref={section} className="nz-video nz-video-editor" aria-label="AI 영상 제작">
       <button className="nz-make-button nz-video-toggle" disabled={!ready} aria-expanded={open} onClick={onToggle}>
         AI 영상 만들기 <span className="nz-video-chevron" aria-hidden="true" />
       </button>
       {open && (
         <>
-          {!job && (
+          {(busy || inProgress || (job?.status === "completed" && job.downloadable && !url)) && <VideoProgress status={job?.status} style={job?.style || style} />}
+          {!job && !busy && (
             <>
               <fieldset className="nz-video-styles" disabled={busy}>
                 <legend>어떤 영상으로 남길까요?</legend>
@@ -237,63 +250,21 @@ export default function CreditVideoStudio({
           )}
           {job && (
             <>
-              <p role="status">
-                {job.status === "unavailable"
-                  ? "저장할 수 있는 영상이 없어요."
-                  : job.status === "completed"
-                  ? "영상이 완성됐어요."
-                  : job.status === "failed"
-                    ? "제작 실패가 확인되어 예약 크레딧을 복구했어요."
-                    : job.status === "review"
-                      ? "운영자가 접수 상태를 확인하고 있어요. 새 제작을 누르지 마세요."
-                      : "영상을 만들고 있어요. 화면을 닫아도 내 크레딧의 제작 내역에서 이어서 확인할 수 있어요."}
-              </p>
+              {job.status === "completed" && <h3 role="status">영상이 완성됐어요!</h3>}
+              {job.status === "completed" && !job.downloadable && <p>영상 보관 기간이 지났어요.</p>}
+              {job.status === "failed" && <p role="status">제작 실패가 확인되어 예약 크레딧을 복구했어요.</p>}
+              {job.status === "review" && <p role="status">운영자가 접수 상태를 확인하고 있어요. 새 제작을 누르지 마세요.</p>}
+              {job.status === "unavailable" && <p role="status">저장할 수 있는 영상이 없어요.</p>}
               {job.error && <p>{job.error}</p>}
-              {url && (
-                <>
-                  <video
-                    src={url}
-                    controls
-                    playsInline
-                    aria-label="완성된 AI 영상"
-                  />
-                  <ShareControls
-                    url={url}
-                    text={memo || "내짤4짤의 움직이는 추억"}
-                    video
-                  />
-                  <button
-                    disabled={saved}
-                    onClick={async () => {
-                      try {
-                        const item = await saveGalleryItem(
-                          url,
-                          memo,
-                          style === "drawing" ? "애니메이션 영상" : "실사 영상",
-                          "video",
-                        );
-                        URL.revokeObjectURL(item.gifUrl);
-                        setSaved(true);
-                      } catch (e) {
-                        setMessage(
-                          e instanceof Error
-                            ? e.message
-                            : "보관함 저장을 확인해주세요.",
-                        );
-                      }
-                    }}
-                  >
-                    {saved ? "보관함 저장 완료" : "이 기기 보관함에 저장"}
-                  </button>
-                  <p>
-                    서비스 보관 기간 {config?.retentionDays || 7}일 · 같은
-                    완성본 다시 저장은 무료예요.
-                  </p>
-                </>
-              )}
+              {url && <>
+                <video src={url} controls playsInline aria-label="완성된 AI 영상" />
+                <ShareControls url={url} video />
+              </>}
               {["completed", "failed", "unavailable"].includes(job.status) && (
-                <button
+                <button className="nz-video-restart"
                   onClick={() => {
+                    section.current?.scrollIntoView({ block: "start" });
+                    setMessage("");
                     sessionStorage.removeItem("nz-credit-job");
                     sessionStorage.removeItem("nz-credit-request");
                     if (fileUrl.current) URL.revokeObjectURL(fileUrl.current);
@@ -304,9 +275,10 @@ export default function CreditVideoStudio({
                     setConsent(false);
                   }}
                 >
-                  새 영상 선택 · 별도 크레딧 사용
+                  다른 스타일로 영상 만들기
                 </button>
               )}
+              {job.status === "completed" && <p>완성 영상은 {config?.retentionDays || 7}일간 보관돼요.</p>}
             </>
           )}
           {message && <p role="status">{message}</p>}
@@ -314,4 +286,23 @@ export default function CreditVideoStudio({
       )}
     </section>
   );
+}
+
+const phases = ["사진 분석", "영상 생성", "마무리", "완성"];
+function VideoProgress({ status, style }: { status?: string; style: LaunchJob["style"] }) {
+  const active = status === "completed" ? 3 : status === "storing" ? 2 : status === "submitting" || status === "processing" ? 1 : 0;
+  const complete = status === "completed";
+  return <div className="nz-video-progress" role="status">
+    {!complete && <>
+      <div className="nz-video-orbit" aria-hidden="true"><span /><span /><span /></div>
+      <h3>사진 속 인물들이 움직이고 있어요!</h3>
+      <p>AI 영상을 만드는 중이에요.</p>
+    </>}
+    <ol aria-label="영상 제작 단계">
+      {phases.map((label, index) => <li key={label} data-phase={style === "drawing" && index === 0 ? "skipped" : complete || index < active ? "done" : index === active ? "active" : "waiting"} aria-current={index === active ? "step" : undefined}>
+        <span aria-hidden="true" />{label}{style === "drawing" && index === 0 && <small className="nz-sr-only"> 생략</small>}
+      </li>)}
+    </ol>
+    {!complete && <p>화면을 닫아도 내 크레딧의 제작 내역에서 확인할 수 있어요.</p>}
+  </div>;
 }

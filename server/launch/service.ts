@@ -249,6 +249,9 @@ export class LaunchService {
       );
     return this.publicJob(job);
   }
+  async jobStatus(user: string, id: string) {
+    return this.store.tx((s) => this.publicJob(jobFor(s, user, id)));
+  }
   async work(user: string, id: string) {
     await this.store.tx((s) => jobFor(s, user, id));
     await this.runJob(id);

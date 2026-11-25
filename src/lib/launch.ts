@@ -14,6 +14,9 @@ export type LaunchJob = {
   error?: string;
   downloadable: boolean;
 };
+export function isVideoInProgress(job: LaunchJob) {
+  return ["reserved", "analyzing", "submitting", "processing", "storing"].includes(job.status);
+}
 export type LaunchOrder = {
   id: string;
   user: string;

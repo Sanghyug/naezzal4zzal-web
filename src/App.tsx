@@ -10,8 +10,8 @@ import LaunchAccount from "./components/LaunchAccount";
 import LaunchPolicies from "./components/LaunchPolicies";
 import LaunchOperator from "./components/LaunchOperator";
 import BusinessInfo from "./components/BusinessInfo";
-import { launchEnabled, initializeLaunch, getDraft, clearDraft, appShareUrl } from "./lib/launch";
-import type { EditorDraft } from "./lib/launch";
+import { launchEnabled, initializeLaunch, getDraft, clearDraft, appShareUrl, isVideoInProgress, launchApi, refreshAccount, useLaunch } from "./lib/launch";
+import type { EditorDraft, LaunchJob } from "./lib/launch";
 
 declare global {
   interface Window {
@@ -24,6 +24,8 @@ declare global {
 type AppMode = "splash" | "start" | "preview" | "gallery" | "privacy";
 
 function App() {
+  const { account } = useLaunch();
+  const activeVideoId = account?.jobs.find(isVideoInProgress)?.id;
   const [mode, setMode] = useState<AppMode>("splash");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [restoredDraft, setRestoredDraft] = useState<EditorDraft | null>(null);
@@ -67,6 +69,24 @@ function App() {
       window.clearTimeout(timer);
     };
   }, []);
+
+  useEffect(() => {
+    if (!launchEnabled || mode === "preview" || !activeVideoId) return;
+    let stopped = false;
+    let timer: number;
+    async function advance() {
+      try {
+        const job = await launchApi<LaunchJob>("work", { jobId: activeVideoId });
+        if (!isVideoInProgress(job)) {
+          await refreshAccount();
+          return;
+        }
+      } catch { /* Resume the same request after a transient network error. */ }
+      if (!stopped) timer = window.setTimeout(() => void advance(), 6000);
+    }
+    void advance();
+    return () => { stopped = true; window.clearTimeout(timer); };
+  }, [mode, activeVideoId]);
 
   const handleCameraClick = () => {
     cameraInputRef.current?.click();
@@ -134,6 +154,16 @@ function App() {
     }
   };
 
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    const sync = () => setFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
+  const toggleFullscreen = () => {
+    const change = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    void change.catch(() => {});
+  };
   const footer = <footer className="nz-home-footer">
     {mode === "start" && <button className="nz-photo-policy" onClick={() => setMode("privacy")}>사진과 개인정보 안내 · 문의</button>}
     {launchEnabled && <nav aria-label="상품·이용약관·개인정보·환불 안내">
@@ -142,6 +172,9 @@ function App() {
       <button onClick={e => openPolicy("refund", e.currentTarget)}>환불 안내</button>
     </nav>}
     {mode === "start" && <BusinessInfo compact />}
+    {document.fullscreenEnabled && !matchMedia("(display-mode: standalone)").matches && (
+      <button className="nz-photo-policy" type="button" onClick={toggleFullscreen}>{fullscreen ? "전체화면 닫기" : "전체화면"}</button>
+    )}
   </footer>;
 
   return (

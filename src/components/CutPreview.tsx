@@ -647,7 +647,7 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
             fontWeight: 600,
           }}
         >
-          {useAI === null ? "자동으로 찾거나, 직접 테두리를 맞출 수 있어요." : message}
+          {useAI === null ? "자동으로 찾거나, 직접 테두리를 맞출 수 있어요." : status !== "success" || initialDraft ? message : null}
         </div>
 
         {useAI === null && (
@@ -663,10 +663,9 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
           </div>
         )}
         {useAI !== null && status === "loading" && <button onClick={() => { setUseAI(false); }} style={smallButtonStyle}>AI 기다리지 않고 직접 맞추기</button>}
-        {rectified && <button onClick={() => void useOriginal()} style={smallButtonStyle}>원본에서 직접 맞추기</button>}
-        {sourceUrl && cells.length > 0 && (
+        {status !== "success" && sourceUrl && cells.length > 0 && (
           <CropSelector sourceUrl={sourceUrl} sourceSize={sourceSize} cells={cells}
-            onChange={(next) => { setCells(next); resetAllAdjusts(); setGifUrl(null); }}
+            onChange={(next) => { setCells(next); resetAllAdjusts(); }}
             onLayoutChange={changeLayout} />
         )}
         {sourceUrl && cells.length > 0 && (
@@ -698,20 +697,17 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
               ))}
             </div>
 
-            <div
-              style={{
-                marginTop: "12px",
-                textAlign: "center",
-                color: "#aaa",
-                fontSize: "12px",
-                lineHeight: 1.5,
-                fontWeight: 600,
-              }}
-            >
-              각 컷을 손가락으로 밀어서 위치를 맞춰주세요.
-            </div>
           </>
         )}
+
+        {sourceUrl && cells.length > 0 && (status === "success" ? (
+          <details className="nz-manual-details"><summary>원본에서 세부 조정</summary>
+            {rectified && <button onClick={() => void useOriginal()} style={smallButtonStyle}>원본에서 직접 맞추기</button>}
+            <CropSelector sourceUrl={sourceUrl} sourceSize={sourceSize} cells={cells}
+              onChange={(next) => { setCells(next); resetAllAdjusts(); }}
+              onLayoutChange={changeLayout} />
+          </details>
+        ) : null)}
 
         {status === "error" && (
           <button onClick={onBack} style={secondaryButtonStyle}>
@@ -757,30 +753,6 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
             >
               {memo.length}/80
             </div>
-            <button
-              onClick={() => setShowGifStyleModal(true)}
-              disabled={cells.length !== 4 || isCreatingGif}
-              className="nz-make-button nz-make-gif"
-            >
-              {isCreatingGif ? "움짤 만드는 중..." : <><span>움짤 만들기</span><small aria-hidden="true">무료 GIF</small></>}
-            </button>
-
-            <VideoStudio ready={cells.length === 4 && !!sourceUrl && !isCreatingGif} getImages={renderAdjustedImages} memo={memo} />
-
-            <div
-              style={{
-                marginTop: "12px",
-                display: "flex",
-                justifyContent: "center",
-                gap: "8px",
-                flexWrap: "wrap",
-              }}
-            >
-              <button onClick={resetAllAdjusts} style={smallButtonStyle}>
-                위치 초기화
-              </button>
-            </div>
-
             {showGifStyleModal && (
               <div
                 onClick={() => setShowGifStyleModal(false)}
@@ -912,6 +884,16 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
           </>
         )}
 
+        <section aria-label="움짤 제작">
+          {status !== "error" && (
+            <button
+              onClick={() => setShowGifStyleModal(true)}
+              disabled={cells.length !== 4 || isCreatingGif}
+              className="nz-make-button nz-make-gif"
+            >
+              {isCreatingGif ? "움짤 만드는 중..." : <><span>움짤 만들기</span><small aria-hidden="true">무료 GIF</small></>}
+            </button>
+          )}
         {gifUrl && (
           <div
             style={{
@@ -944,7 +926,7 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
               {isSaving ? "저장 중..." : "보관함에 저장하기"}
             </button>
 
-            <ShareControls url={gifUrl} text={memo || "내짤4짤에서 만든 움직이는 추억"} />
+            <ShareControls url={gifUrl} />
             {launchEnabled && <InviteCompletion key={gifUrl} gif={gifUrl} renderId={inviteRender} />}
 
             <button
@@ -955,6 +937,10 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
             </button>
           </div>
         )}
+
+        </section>
+
+        {status !== "error" && <VideoStudio ready={cells.length === 4 && !!sourceUrl && !isCreatingGif} getImages={renderAdjustedImages} memo={memo} />}
 
         <div
           style={{

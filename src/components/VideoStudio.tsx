@@ -146,7 +146,7 @@ function LegacyVideoStudio({ ready, getImages, memo }: { ready: boolean; getImag
           try{const item=await saveGalleryItem(url,memo,variant==="drawing"?"2D 펜화 5초 영상":"기본 5초 영상","video");URL.revokeObjectURL(item.gifUrl);setSaved(true);setMessage("영상도 내 보관함에 저장했어요 💗");}
           catch{setMessage("보관함에 저장하지 못했어요. 기기에 저장하거나 다시 시도해주세요.");}finally{setSaving(false);}
         }} style={{...button,background:"#ff4f87",marginTop:12}}>{saved?"보관함 저장 완료":saving?"저장 중...":"영상 보관함에 저장하기"}</button>
-        <ShareControls url={url} text={memo||"내짤4짤에서 만든 움직이는 추억"} video />
+        <ShareControls url={url} video />
       </>}
       {token && ["completed","failed","cancelled","unavailable"].includes(status) && <button onClick={newVideo} style={{...button,background:"#9b8790",marginTop:10}}>새 영상 제작 준비</button>}
       <button onClick={()=>setOpen(false)} style={{...button,background:"#c1aebc",marginTop:10}}>영상 화면 접기</button>

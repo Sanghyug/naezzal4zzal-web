@@ -37,7 +37,7 @@ function StartScreen({
   const handleInstallApp = async () => {
     if (!installPrompt) {
       alert(
-        "브라우저 메뉴(⋮)에서 '홈 화면에 추가' 또는 '앱 설치'를 선택해주세요.",
+        "iPhone의 Safari에서는 공유 버튼 → 홈 화면에 추가를 선택하세요. Android의 Chrome·삼성 인터넷에서는 브라우저 메뉴 → 홈 화면에 추가 또는 앱 설치를 선택하세요.",
       );
       return;
     }

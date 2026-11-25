@@ -156,19 +156,48 @@ test("anonymous editing and GIF survive login/reload; one-credit creation and do
   await page.reload();
   await expect(page.getByText("편집하던 사진을 복원했어요.")).toBeVisible();
   await expect(page.getByRole("button", { name: "AI 영상 만들기" })).toHaveAttribute("aria-expanded", "true");
+  await page.getByRole("button", { name: "움짤 만들기", exact: true }).click();
+  await page.getByRole("button", { name: "헐레벌떡 GIF", exact: true }).click();
+  await page.getByRole("button", { name: /기본 핑크 프레임/ }).click();
+  const gif = page.getByAltText("완성된 움짤");
+  await expect(gif).toBeVisible({ timeout: 30000 });
+  const gifSource = await gif.getAttribute("src");
+  const order = await gif.evaluate(node => Boolean(node.compareDocumentPosition(document.querySelector('.nz-video-editor')) & Node.DOCUMENT_POSITION_FOLLOWING));
+  expect(order).toBe(true);
+  await page.evaluate(() => { window.capturedShares = []; Object.defineProperties(navigator, { canShare: { configurable: true, value: () => true }, share: { configurable: true, value: async (data) => { capturedShares.push({ text: data.text, names: data.files?.map(file => file.name) }); } } }); });
+  await page.getByRole("region", { name: "움짤 제작" }).getByRole("button", { name: "공유하기", exact: true }).click();
+  expect(await page.evaluate(() => capturedShares[0])).toEqual({ text: "네 컷 사진을 짤과 영상으로!\n친구와의 추억을 공유하는 새로운 방법, 내짤4짤\n\nhttps://4zzal.com", names: ["naezzal4zzal.gif"] });
+  await page.route("**/api/launch", async route => {
+    const body = route.request().postDataJSON();
+    if (body?.action === "work") await new Promise(resolve => setTimeout(resolve, 3000));
+    return route.continue();
+  });
   await page.getByRole("checkbox", { name: /사진 속 인물의 허락/ }).check();
   await page
     .getByRole("button", { name: "1크레딧으로 실사 영상 제작" })
     .click();
+  const progress = page.getByRole("list", { name: "영상 제작 단계" });
+  await expect(progress.getByRole("listitem")).toHaveCount(4);
+  await expect(page.getByText("사진 속 인물들이 움직이고 있어요!")).toBeVisible();
+  await progress.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "artifacts/launch/phase3-stage-390.png" });
   const video = page.getByLabel("완성된 AI 영상");
   await expect(video).toHaveAttribute("src", /^blob:/, { timeout: 45000 });
   await expect(
     page.getByRole("button", { name: "내 크레딧 4 · 내역" }),
   ).toBeVisible();
   await page.screenshot({
-    path: "artifacts/launch/preview-video.png",
-    fullPage: true,
+    path: "artifacts/launch/phase3-completed-390.png",
   });
+  await expect(gif).toHaveAttribute("src", gifSource);
+  const studio = page.getByRole("region", { name: "AI 영상 제작" });
+  await studio.getByText("앱 소개와 주소 공유").click();
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await studio.getByRole("button", { name: "앱 주소 복사하기" }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("https://4zzal.com");
+  await studio.getByRole("button", { name: "다른 스타일로 영상 만들기" }).click();
+  await expect(studio.getByRole("button", { name: /애니메이션.*3 크레딧/ })).toBeVisible();
+  await expect(studio.getByRole("button", { name: "1크레딧으로 실사 영상 제작" })).toBeDisabled();
   await page.reload();
   await page.getByRole("button", { name: "내 크레딧 4 · 내역" }).click();
   await page.getByRole("tab", { name: "내 영상", exact: true }).click();
@@ -441,7 +470,8 @@ test("tilted two-by-two panels use original proportions and can return to manual
   });
   await page.getByRole("button", { name: "사진 전송에 동의하고 AI로 찾기" }).click();
   const manual = page.getByRole("button", { name: "원본에서 직접 맞추기" });
-  await expect(manual).toBeVisible();
+  await expect(page.getByText("원본에서 세부 조정")).toBeVisible();
+  await expect(manual).toBeHidden();
   const panels = page.getByAltText("보정할 컷");
   await expect(panels).toHaveCount(4);
   const ratio = await panels.first().evaluate((element) => {
@@ -465,9 +495,10 @@ test("tilted two-by-two panels use original proportions and can return to manual
     expect(metrics[0]).toEqual(metrics[1]);
     if (width === 390) {
       await page.getByRole("button", { name: /애니메이션.*3 크레딧/ }).scrollIntoViewIfNeeded();
-      await page.screenshot({ path: "artifacts/launch/stabilization-v2-390.png" });
+      await page.screenshot({ path: "artifacts/launch/phase3-editor-390.png" });
     }
   }
+  await page.getByText("원본에서 세부 조정").click();
   await manual.click();
   await expect(manual).toHaveCount(0);
   await expect(panels).toHaveCount(4);
@@ -487,4 +518,40 @@ test("Kakao callback exchange failure preserves the open video style and edit", 
   await expect(open).toHaveAttribute("aria-expanded", "true");
   await expect(drawing).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("textbox").last()).toHaveValue("콜백 실패 복원");
+});
+
+test("AI extraction and video failures retain manual editing and permit a fresh style choice", async ({ page }) => {
+  let generationRequests = 0;
+  await page.route("**/api/extract-cells", route => route.fulfill({ status: 503, json: { error: "offline" } }));
+  await page.route("**/api/launch", route => {
+    if (route.request().postDataJSON()?.action !== "generate") return route.continue();
+    generationRequests++;
+    return route.fulfill({ json: { id: "failed-ui-fixture", status: "failed", style: "memory", cost: 1, downloadable: false } });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "🖼️ 불러오기" }).waitFor();
+  const bytes = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 400;
+    canvas.height = 1200;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#d88caf";
+    context.fillRect(0, 0, 400, 1200);
+    return canvas.toDataURL().split(",")[1];
+  });
+  await page.locator("input[type=file]").nth(1).setInputFiles({
+    name: "fallback.png", mimeType: "image/png", buffer: Buffer.from(bytes, "base64"),
+  });
+  await page.getByRole("button", { name: "사진 전송에 동의하고 AI로 찾기" }).click();
+  await expect(page.getByRole("region", { name: "원본에서 네 컷 테두리 맞추기" })).toBeVisible();
+  await page.getByRole("button", { name: "AI 영상 만들기" }).click();
+  await login(page, unique());
+  await page.getByRole("checkbox", { name: /사진 속 인물의 허락/ }).check();
+  await page.getByRole("button", { name: "1크레딧으로 실사 영상 제작" }).click();
+  await expect(page.getByText("제작 실패가 확인되어 예약 크레딧을 복구했어요.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "내 크레딧 5 · 내역" })).toBeVisible();
+  await page.getByRole("button", { name: "다른 스타일로 영상 만들기" }).click();
+  await page.getByRole("button", { name: /애니메이션.*3 크레딧/ }).click();
+  await expect(page.getByRole("button", { name: "3크레딧으로 애니메이션 영상 제작" })).toBeDisabled();
+  expect(generationRequests).toBe(1);
 });

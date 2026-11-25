@@ -183,7 +183,7 @@ input:focus-visible {
 }
 
 
-button.nz-make-button,
+section > button.nz-make-button,
 .nz-video-editor > button.nz-make-button {
   position: relative;
   display: grid;
@@ -200,7 +200,7 @@ button.nz-make-button,
   line-height: 1.15;
   white-space: nowrap;
 }
-button.nz-make-gif { margin-top: 18px; background: #ef367d; }
+section > button.nz-make-gif { margin-top: 18px; background: #ef367d; }
 .nz-make-gif small { font-size: 11px; font-weight: 500; margin-top: 2px; }
 .nz-video.nz-video-editor {
   margin: 11px 0 0;
@@ -280,3 +280,31 @@ button.nz-make-gif { margin-top: 18px; background: #ef367d; }
 .nz-video-editor .nz-login-compact { background: #fff8df; border-color: #eadca9; text-align: center; }
 .nz-video-editor .nz-login-compact h3 { margin: 0 0 10px; color: #554224; font-size: 15px; }
 .nz-video-editor .nz-login-compact .nz-kakao-login { width: 100%; white-space: nowrap; }
+
+.nz-manual-details { margin-top: 12px; }
+.nz-manual-details > summary { color: #623d95; cursor: pointer; }
+.nz-video-editor { scroll-margin-top: calc(12px + env(safe-area-inset-top)); }
+.nz-video-progress { margin-top: 14px; padding: 18px 12px; border-radius: 18px; background: #f0e6fb; color: #492877; text-align: center; }
+.nz-video-progress h3 { margin: 8px 0; color: inherit; }
+.nz-video-progress p { margin: 6px 0; font-size: 13px; }
+.nz-video-progress ol { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 5px; list-style: none; padding: 0; margin: 16px 0; }
+.nz-video-progress li { font-size: 12px; white-space: nowrap; }
+.nz-video-progress li > span { display: block; height: 7px; margin-bottom: 6px; border-radius: 6px; background: #d9c7ef; }
+.nz-video-progress [data-phase="done"] > span { background: #7849b3; }
+.nz-video-progress [data-phase="active"] { font-weight: 800; }
+.nz-video-progress [data-phase="active"] > span { background: #7849b3; animation: nz-stage-pulse 1.6s ease-in-out infinite alternate; }
+.nz-video-progress [data-phase="skipped"] { opacity: .65; }
+.nz-video-orbit { display: flex; justify-content: center; gap: 7px; height: 18px; align-items: center; }
+.nz-video-orbit span { width: 8px; height: 8px; background: #7849b3; border-radius: 50%; animation: nz-orbit 1.4s ease-in-out infinite alternate; }
+.nz-video-orbit span:nth-child(2) { animation-delay: .18s; }
+.nz-video-orbit span:nth-child(3) { animation-delay: .36s; }
+.nz-video-editor button.nz-video-restart { width: 100%; min-height: 48px; margin-top: 12px; background: #7141a6; color: white; }
+@keyframes nz-stage-pulse { from { opacity: .6; } to { opacity: 1; } }
+@keyframes nz-orbit { from { transform: translateY(4px); } to { transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .nz-video-progress [data-phase="active"] > span, .nz-video-orbit span { animation: none; } }
+
+.nz-share-app { margin-top: 10px; text-align: left; font-size: 13px; color: #604566; }
+.nz-share-app summary { cursor: pointer; padding: 8px 0; }
+.nz-share-app > div { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+.nz-share-app p { line-height: 1.55; }
+.nz-share-app textarea { width: 100%; box-sizing: border-box; min-height: 92px; }

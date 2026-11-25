@@ -352,6 +352,8 @@ export default async function handler(req: Request, res: Response) {
           ),
         );
     }
+    if (action === "jobStatus")
+      return res.status(200).json(await r.service.jobStatus(user, String(body.jobId)));
     if (action === "work")
       return res
         .status(200)
