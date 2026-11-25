@@ -78,7 +78,34 @@ export function rectifyPhotoCells(
     const x = gap + (cells.length % cols) * stepX;
     const y = gap + Math.floor(cells.length / cols) * stepY;
     context.putImageData(panel, x, y);
-    cells.push({ x, y, width, height });
+    const ratios = panels.map(p => p.height / p.width).sort((a,b) => a-b);
+    const typical = (ratios[1] + ratios[2]) / 2;
+    let trimmedHeight = height;
+    if (height / width > typical * 1.08) {
+      const expected = Math.round(width * typical);
+      const stats = (row: number) => {
+        const means = [0,0,0]; let sq = 0, n = 0;
+        for (let px = Math.floor(width*.08); px < width*.92; px += 2) {
+          const k = (row*width+px)*4;
+          const v = (panel.data[k]+panel.data[k+1]+panel.data[k+2])/3;
+          sq += v*v; n++;
+          for(let c=0;c<3;c++) means[c]+=panel.data[k+c];
+        }
+        const m=means.map(v=>v/n), avg=m.reduce((a,b)=>a+b,0)/3;
+        return {m, sd:Math.sqrt(Math.max(0,sq/n-avg*avg))};
+      };
+      let best = {row:height, score:0};
+      for(let row=Math.max(4,Math.round(expected*.96));row<=Math.min(height-6,Math.round(expected*1.06));row++){
+        const before=stats(row-3), after=stats(row+3);
+        const diff=before.m.reduce((s,v,i)=>s+Math.abs(v-after.m[i]),0)/3;
+        if(after.sd<12 && before.sd>after.sd+8 && diff>15 && diff>best.score) best={row,score:diff};
+      }
+      if(best.score>0){
+        const tail=stats(Math.floor((best.row+height)/2));
+        if(tail.sd<15) trimmedHeight=best.row;
+      }
+    }
+    cells.push({ x, y, width, height: trimmedHeight });
   }
   return { sourceUrl: output.toDataURL("image/jpeg", 0.95), cells };
 }
