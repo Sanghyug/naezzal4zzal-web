@@ -308,3 +308,29 @@ section > button.nz-make-gif { margin-top: 18px; background: #ef367d; }
 .nz-share-app > div { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
 .nz-share-app p { line-height: 1.55; }
 .nz-share-app textarea { width: 100%; box-sizing: border-box; min-height: 92px; }
+
+/* Phase 4: separate free GIF and AI creation surfaces. */
+.nz-gif-section { margin-top: 24px; padding: 14px; border: 1px solid #f4cedd; border-radius: 22px; background: #fff7fa; }
+.nz-gif-section > button.nz-make-gif { margin-top: 12px; }
+.nz-video.nz-video-editor { margin-top: 28px; padding: 14px; border: 1px solid #dfccec; border-radius: 22px; background: #f3ebfc; }
+.nz-production-heading { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; text-align: left; color: #bd3268; }
+.nz-production-heading > span { flex: 0 0 40px; height: 40px; display:grid; place-items:center; border-radius: 12px; background: #fde4ed; font-size: 23px; }
+.nz-production-heading > div { flex: 1; min-width: 0; }
+.nz-production-heading h3, .nz-video .nz-production-heading h3 { margin:0; font-size: 17px; line-height:1.4; color:inherit; }
+.nz-production-heading p, .nz-video .nz-production-heading p { margin: 3px 0 0; font-size: 12px; line-height:1.5; color:#826b80; }
+.nz-production-heading > small { font-size:12px; font-weight:800; }
+.nz-video .nz-production-heading { color:#7549ae; }
+.nz-video .nz-production-heading > span { background:#e5d5f6; }
+.nz-video-editor button.nz-video-create { display:grid; place-content:center; gap:4px; width:100%; min-height:64px; margin:14px 0 0; border:0; border-radius:16px; background:#7549ae; color:#fff; text-align:center; }
+.nz-video-create strong { font-size:19px; font-weight:800; }
+.nz-video-create small { font-size:13px; color:#f2e7ff; }
+.nz-video-editor button.nz-video-create:disabled { background:#d8c8e9; color:#79658e; opacity:1; }
+.nz-video-create:disabled small { color:#79658e; }
+.nz-manual-details { padding:12px; background:#f6effb; border-radius:14px; border:1px solid #e6d6f1; }
+.nz-manual-details > summary { list-style:none; display:grid; gap:5px; }
+.nz-manual-details > summary::-webkit-details-marker { display:none; }
+.nz-manual-details > summary span { font-size:12px; color:#82718d; }
+.nz-manual-details > summary b { display:block; padding:10px; text-align:center; border:1px solid #d7bfe9; border-radius:10px; background:white; font-size:13px; }
+.nz-crop-hint { font-size:13px; color:#7549ae; line-height:1.6; }
+.nz-adjustable-cut { display:flex; flex-direction:column; justify-content:space-between; min-width:0; }
+.nz-style-card small { white-space:normal; }
