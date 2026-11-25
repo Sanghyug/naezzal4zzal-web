@@ -6,3 +6,26 @@
 .nz-kakao-guide button { width:100%; border:0; border-radius:14px; padding:15px 10px; background:#7549ae; color:white; font-weight:700; font-size:15px; cursor:pointer; }
 .nz-kakao-guide .nz-kakao-continue { margin-top:10px; color:#795664; background:#f5e8f0; }
 .nz-kakao-guide textarea { box-sizing:border-box; width:100%; margin-top:12px; overflow-wrap:anywhere; }
+
+.nz-kakao-guide .nz-kakao-copy-hint { font-size:12px; color:#8b7586; margin:9px 0 0; }
+.nz-copy-page { box-sizing:border-box; min-height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:24px; background:#fff1f6; color:#63495d; font:14px/1.6 sans-serif; }
+.nz-copy-page button { width:min(100%,340px); padding:16px; border:0; border-radius:14px; background:#7549ae; color:#fff; font-size:16px; font-weight:800; }
+.nz-copy-page textarea { box-sizing:border-box; width:min(100%,340px); min-height:80px; overflow-wrap:anywhere; }
+.nz-copy-toast { position:fixed; bottom:calc(28px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); background:#63495d; color:white; padding:10px 18px; border-radius:30px; white-space:nowrap; font-size:13px; transition:opacity .2s ease; }
+.nz-copy-toast-hidden { opacity:0; pointer-events:none; }
+.nz-copy-back { color:#8b7586; font-size:13px; }
+.nz-install-guide { box-sizing:border-box; width:calc(100% - 32px); max-width:420px; max-height:90dvh; overflow:auto; border:1px solid #f5cddd; border-radius:26px; padding:24px; background:#fff; color:#705563; text-align:center; box-shadow:0 18px 70px #4c274433; }
+.nz-install-guide::backdrop { background:#3d233d66; }
+.nz-install-icon { display:grid; place-items:center; width:56px; height:56px; margin:auto; background:#f9e5ef; border-radius:18px; color:#df4784; font-size:30px; }
+.nz-install-guide h2 { margin:14px 0 8px; font-size:21px; color:#df4784; word-break:keep-all; }
+.nz-install-guide p { font-size:14px; line-height:1.65; word-break:keep-all; }
+.nz-install-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; margin:20px 0; }
+.nz-install-tabs button { padding:10px 3px; border:1px solid #efdae5; border-radius:12px; background:#fff7fa; color:#795664; font-size:12px; font-weight:700; }
+.nz-install-tabs button[aria-pressed="true"] { background:#df4784; color:white; border-color:#df4784; }
+.nz-install-steps { list-style:none; padding:0; text-align:left; display:grid; gap:12px; margin:14px 0; }
+.nz-install-steps li { display:flex; align-items:center; gap:12px; font-size:14px; line-height:1.5; }
+.nz-install-step-icon { flex:0 0 42px; height:42px; display:grid; place-items:center; border-radius:12px; background:#f9e5ef; color:#df4784; font-size:24px; font-weight:700; }
+.nz-install-steps small { display:block; color:#9d8794; font-size:11px; }
+.nz-install-tip { background:#f1e6fb; color:#7549ae; font-weight:700; border-radius:14px; padding:12px; }
+.nz-install-close { width:100%; padding:13px; border:0; border-radius:13px; background:#7549ae; color:white; font-weight:800; font-size:15px; }
+.nz-install-guide textarea { width:100%; box-sizing:border-box; min-height:70px; }
