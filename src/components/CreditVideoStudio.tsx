@@ -265,7 +265,7 @@ export default function CreditVideoStudio({
               {job.status === "unavailable" && <p role="status">저장할 수 있는 영상이 없어요.</p>}
               {job.error && <p>{job.error}</p>}
               {url && <>
-                <video src={url} controls playsInline preload="auto" onLoadedData={() => { setMediaReady(true); setMediaError(false); }} onError={() => { setMediaReady(false); setMediaError(true); }} aria-label="완성된 AI 영상" />
+                <video src={url} controls playsInline preload="auto" onLoadedData={() => { setMediaReady(true); setMediaError(false); }} onCanPlay={() => { setMediaReady(true); setMediaError(false); }} onError={() => { setMediaReady(false); setMediaError(true); }} aria-label="완성된 AI 영상" />
                 {mediaReady && <ShareControls url={url} video />}
               </>}
               {job.status === "completed" && job.downloadable && !mediaReady && (mediaError || message) && <button type="button" onClick={() => { if (fileUrl.current) URL.revokeObjectURL(fileUrl.current); fileUrl.current = ""; setUrl(""); setMediaError(false); setMessage(""); setRetryFile(n => n + 1); }}>영상 다시 불러오기 · 무료</button>}
