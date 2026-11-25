@@ -25,8 +25,10 @@ type AppMode = "splash" | "start" | "preview" | "gallery" | "privacy";
 
 function App() {
   const { account } = useLaunch();
-  const activeVideoId = account?.jobs.find(isVideoInProgress)?.id;
+  
   const [mode, setMode] = useState<AppMode>("splash");
+  const [workId, setWorkId] = useState("");
+  const activeVideoId = account?.jobs.find(j => isVideoInProgress(j) && (mode !== "preview" || j.id !== sessionStorage.getItem(`nz-credit-job:${account.user.id}:${workId}`)))?.id;
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [restoredDraft, setRestoredDraft] = useState<EditorDraft | null>(null);
   const [policies, setPolicies] = useState<"product" | "privacy" | "refund" | null>(null);
@@ -55,6 +57,7 @@ function App() {
           if (!active) return;
           if (draft) {
             setRestoredDraft(draft);
+            setWorkId(draft.workId || crypto.randomUUID());
             setImageUrl(URL.createObjectURL(draft.original));
             setMode("preview");
             return;
@@ -71,7 +74,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!launchEnabled || mode === "preview" || !activeVideoId) return;
+    if (!launchEnabled || !activeVideoId) return;
     let stopped = false;
     let timer: number;
     async function advance() {
@@ -86,7 +89,7 @@ function App() {
     }
     void advance();
     return () => { stopped = true; window.clearTimeout(timer); };
-  }, [mode, activeVideoId]);
+  }, [mode, activeVideoId, workId]);
 
   const handleCameraClick = () => {
     cameraInputRef.current?.click();
@@ -109,6 +112,8 @@ function App() {
     }
 
     const url = URL.createObjectURL(file);
+    setWorkId(crypto.randomUUID());
+    if (launchEnabled) void clearDraft().catch(() => {});
     setRestoredDraft(null);
     setImageUrl(url);
     setMode("preview");
@@ -205,7 +210,7 @@ function App() {
       />
 
       {mode === "preview" && imageUrl && (
-        <CutPreview imageUrl={imageUrl} onBack={handleReset} initialDraft={restoredDraft} />
+        <CutPreview key={workId} workId={workId} imageUrl={imageUrl} onBack={handleReset} initialDraft={restoredDraft} />
       )}
 
       {mode === "start" && (
