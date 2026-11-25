@@ -137,7 +137,7 @@ export default async function handler(req: Request, res: Response) {
         .json({
           ...(await r.service.config()),
           auth: r.authConfig,
-          aiRestricted: Boolean(process.env.LAUNCH_OFFICIAL_DOMAIN) && aiAccessRestricted(),
+          aiRestricted: aiAccessRestricted(),
           demo: r.demo,
           product: PRODUCT,
           contact: BUSINESS.supportEmail,
