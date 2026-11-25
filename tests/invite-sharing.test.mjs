@@ -17,6 +17,6 @@ test('Kakao external browser entry preserves invitation and ordinary parameters 
 });
 
 
-test('Kakao feed keeps the invitation in both start and dedicated copy-guide buttons',async()=>{
-  const {kakaoFeedData}=await import('../src/lib/kakaoShare.ts');const url='https://4zzal.com/?ref=personal-code';const feed=kakaoFeedData({title:'내짤4짤',text:'',url});assert.equal(feed.buttons.length,2);assert.equal(feed.buttons[1].title,'앱 주소 복사하기');assert.equal(feed.buttons[0].link.mobileWebUrl,url);const guide=new URL(feed.buttons[1].link.mobileWebUrl);assert.equal(guide.searchParams.get('ref'),'personal-code');assert.equal(guide.searchParams.get('copy'),'app');assert.equal(feed.content.imageUrl,'https://4zzal.com/share-card-v7.png');
+test('Kakao feed has only one start button and preserves the invitation',async()=>{
+  const {kakaoFeedData}=await import('../src/lib/kakaoShare.ts');const url='https://4zzal.com/?ref=personal-code';const feed=kakaoFeedData({title:'내짤4짤',text:'',url});assert.equal(feed.buttons.length,1);assert.equal(feed.buttons[0].title,'내짤4짤 시작하기');assert.equal(feed.buttons[0].link.mobileWebUrl,url);assert.equal(feed.content.link.mobileWebUrl,url);assert.equal(feed.content.imageUrl,'https://4zzal.com/share-card-v7.png');
 });
