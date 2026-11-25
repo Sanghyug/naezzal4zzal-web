@@ -15,6 +15,7 @@ import InviteCompletion from "./InviteCompletion";
 
 type CutPreviewProps = {
   imageUrl: string;
+  workId: string;
   onBack: () => void;
   initialDraft?: EditorDraft | null;
 };
@@ -51,7 +52,7 @@ type Adjust = {
   rotate: number;
 };
 
-function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
+function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps) {
   const [sourceUrl, setSourceUrl] = useState<string | null>(initialDraft?.sourceUrl || null);
   const [rectified, setRectified] = useState(initialDraft?.rectified ?? false);
   const [sourceSize, setSourceSize] = useState(initialDraft?.sourceSize || { width: 0, height: 0 });
@@ -81,8 +82,8 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [savedGif, setSavedGif] = useState<string | null>(null);
   useEffect(() => {
-    if (launchEnabled) void saveDraft(imageUrl, { sourceUrl, rectified, sourceSize, cells, adjusts, memo, selectedFrame, gif: gifUrl, styleName: currentGifStyleName, extractStatus: status, inviteRender }).catch(() => {});
-  }, [imageUrl, sourceUrl, rectified, sourceSize, cells, adjusts, memo, selectedFrame, gifUrl, currentGifStyleName, status, inviteRender]);
+    if (launchEnabled) void saveDraft(imageUrl, { workId, sourceUrl, rectified, sourceSize, cells, adjusts, memo, selectedFrame, gif: gifUrl, styleName: currentGifStyleName, extractStatus: status, inviteRender }).catch(() => {});
+  }, [imageUrl, workId, sourceUrl, rectified, sourceSize, cells, adjusts, memo, selectedFrame, gifUrl, currentGifStyleName, status, inviteRender]);
 
   useEffect(() => {
     if (initialDraft?.sourceUrl) return;
@@ -674,6 +675,7 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr",
+                alignItems: "stretch",
                 gap: "10px",
               }}
             >
@@ -701,7 +703,7 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
         )}
 
         {sourceUrl && cells.length > 0 && (status === "success" ? (
-          <details className="nz-manual-details"><summary>원본에서 세부 조정</summary>
+          <details className="nz-manual-details"><summary><strong>사진이 조금 잘못 맞춰졌나요?</strong><span>사진의 테두리나 잘린 부분을 직접 조정할 수 있어요.</span><b>사진 영역 직접 조정하기</b></summary><p className="nz-crop-hint">↘ 오른쪽 아래 색깔 동그라미를 끌어 사진 영역의 크기를 조절하세요.</p>
             {rectified && <button onClick={() => void useOriginal()} style={smallButtonStyle}>원본에서 직접 맞추기</button>}
             <CropSelector sourceUrl={sourceUrl} sourceSize={sourceSize} cells={cells}
               onChange={(next) => { setCells(next); resetAllAdjusts(); }}
@@ -884,7 +886,7 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
           </>
         )}
 
-        <section aria-label="움짤 제작">
+        <section className="nz-gif-section" aria-label="움짤 제작"><header className="nz-production-heading"><span aria-hidden="true">▧</span><div><h3>움직이는 네 컷</h3><p>네 장의 사진을 하나의 움짤로</p></div><small>무료</small></header>
           {status !== "error" && (
             <button
               onClick={() => setShowGifStyleModal(true)}
@@ -940,7 +942,7 @@ function CutPreview({ imageUrl, onBack, initialDraft }: CutPreviewProps) {
 
         </section>
 
-        {status !== "error" && <VideoStudio ready={cells.length === 4 && !!sourceUrl && !isCreatingGif} getImages={renderAdjustedImages} memo={memo} />}
+        {status !== "error" && <VideoStudio workId={workId} ready={cells.length === 4 && !!sourceUrl && !isCreatingGif} getImages={renderAdjustedImages} memo={memo} />}
 
         <div
           style={{
@@ -1066,7 +1068,7 @@ function AdjustableCut({
   };
 
   return (
-    <div>
+    <div className="nz-adjustable-cut">
       <div
         ref={frameRef}
         onPointerDown={handlePointerDown}
