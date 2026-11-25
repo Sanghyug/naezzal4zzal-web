@@ -67,6 +67,7 @@ export default function ShareControls({ url, video = false }: { url: string; vid
       <div>
         <button type="button" onClick={() => void shareIntro()}>소개 메시지 공유하기</button>
         <button type="button" onClick={() => void copyAddress()}>앱 주소 복사하기</button>
+        <button type="button" onClick={() => void navigator.clipboard.writeText(mediaShareText).then(() => setMessage("소개 메시지를 복사했어요.")).catch(() => setShowCopy(true))}>소개 문구와 주소 복사</button>
       </div>
       <p>카카오톡이 파일과 문구를 함께 받지 않는 경우 소개 메시지를 붙여넣어 주세요. 주소는 Safari, Chrome 또는 삼성 인터넷에서 열 수 있어요.</p>
       {showCopy && <textarea aria-label="복사할 앱 소개 메시지" readOnly value={mediaShareText} onFocus={(event) => event.currentTarget.select()} />}
