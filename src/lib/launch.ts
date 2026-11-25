@@ -268,6 +268,7 @@ export function appShareUrl() {
 // OAuth returns to a new page: persist the original Blob and all editor settings
 // in IndexedDB, never localStorage URLs which expire across navigation.
 export type EditorDraft = {
+  workId?: string;
   original: Blob;
   sourceUrl: string | null;
   rectified?: boolean;
