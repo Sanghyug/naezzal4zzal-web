@@ -50,6 +50,7 @@ function App() {
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
+    if (new URLSearchParams(location.search).get("copy") === "app") return;
     if (launchEnabled) void initializeLaunch();
     prepareKakaoShare();
     let active = true;
