@@ -8,7 +8,7 @@ let installedThisSession = false;
 const subscribers = new Set<() => void>();
 const notify = () => subscribers.forEach(fn => fn());
 function standalone() {
-  return installedThisSession || matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || Boolean((navigator as Navigator & {standalone?:boolean}).standalone);
+  return installedThisSession || matchMedia('(display-mode: standalone)').matches || Boolean((navigator as Navigator & {standalone?:boolean}).standalone);
 }
 // Registered when the eagerly imported module loads, before the splash screen ends.
 window.addEventListener('beforeinstallprompt', event => {
