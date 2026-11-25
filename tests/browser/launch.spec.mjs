@@ -697,5 +697,33 @@ test('completed memory and drawing MP4 save once locally, survive reload, filter
 test('fullscreen is offered near install only when supported and copy-guide preserves the referral',async({page,browser})=>{
   await page.goto('/');const full=page.getByRole('button',{name:'전체화면으로 보기'});await full.waitFor();expect(await full.evaluate(e=>!!e.parentElement.textContent.includes('홈화면에 설치하기'))).toBe(true);await full.click();await expect(page.getByRole('button',{name:'전체화면 닫기'})).toBeVisible();await page.getByRole('button',{name:'전체화면 닫기'}).click();
   const ctx=await browser.newContext();await ctx.addInitScript(()=>Object.defineProperty(document,'fullscreenEnabled',{configurable:true,value:false}));const tab=await ctx.newPage();await tab.goto('http://127.0.0.1:5173');await tab.getByRole('button',{name:'🖼️ 불러오기'}).waitFor();await expect(tab.getByRole('button',{name:'전체화면으로 보기'})).toHaveCount(0);await ctx.close();
-  await page.context().grantPermissions(['clipboard-read','clipboard-write']);await page.goto('/?copy=app&ref=phase7-code');await expect(page.getByText('쾌적한 사용 환경을 위해 복사한 주소를 Safari 또는 Chrome에 붙여넣어 주세요.',{exact:true})).toBeVisible();await page.getByRole('button',{name:'앱 주소 복사하기'}).click();expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe('http://127.0.0.1:5173/?ref=phase7-code');expect(await page.getByRole('link',{name:'내짤4짤 시작하기'}).getAttribute('href')).toBe('http://127.0.0.1:5173/?ref=phase7-code');
+  await page.context().grantPermissions(['clipboard-read','clipboard-write']);await page.goto('/?copy=app&ref=phase7-code');await expect(page.getByRole('link',{name:'내짤4짤 시작하기'})).toBeVisible();expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe('http://127.0.0.1:5173/?ref=phase7-code');expect(await page.getByRole('link',{name:'내짤4짤 시작하기'}).getAttribute('href')).toBe('http://127.0.0.1:5173/?ref=phase7-code');
+});
+
+test('copy-only route falls back to explicit copy without claiming success',async({page})=>{
+  await page.addInitScript(()=>{let attempts=0;Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{if(++attempts===1)throw new Error('denied');window.copiedAddress=text;}}});});
+  await page.goto('/?copy=app&ref=copy-fallback');
+  await expect(page.getByText('앱 주소를 복사했어요.',{exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'앱 주소 복사하기'}).click();
+  await expect(page.getByText('앱 주소를 복사했어요.',{exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>window.copiedAddress)).toBe('http://127.0.0.1:5173/?ref=copy-fallback');
+});
+test('installation guide provides Samsung, Chrome and Safari steps',async({page})=>{
+  await page.goto('/');
+  await page.getByRole('button',{name:'📱 홈화면에 설치하기'}).click();
+  const guide=page.getByRole('dialog',{name:'홈 화면에 내짤4짤 설치하기'});
+  await expect(guide).toBeVisible();
+  await guide.getByRole('button',{name:'삼성 인터넷',exact:true}).click();
+  await expect(guide.getByText('현재 페이지 추가',{exact:true})).toBeVisible();
+  await guide.getByRole('button',{name:'Safari',exact:true}).click();
+  await expect(guide.getByText('공유 버튼 누르기',{exact:true})).toBeVisible();
+  await guide.getByRole('button',{name:'닫기',exact:true}).click();
+  await expect(guide).toHaveCount(0);
+});
+test('install event during splash is retained and invokes native prompt',async({page})=>{
+  await page.addInitScript(()=>{window.installCalls=0;window.addEventListener('DOMContentLoaded',()=>{const e=new Event('beforeinstallprompt',{cancelable:true});Object.defineProperties(e,{prompt:{value:async()=>{window.installCalls++;}},userChoice:{value:Promise.resolve({outcome:'accepted'})}});window.dispatchEvent(e);});});
+  await page.goto('/');
+  await page.getByRole('button',{name:'📱 홈화면에 설치하기'}).click();
+  await expect.poll(()=>page.evaluate(()=>window.installCalls)).toBe(1);
+  await expect(page.getByRole('dialog',{name:'홈 화면에 내짤4짤 설치하기'})).toHaveCount(0);
 });
