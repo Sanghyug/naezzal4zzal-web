@@ -101,8 +101,19 @@ export function rectifyPhotoCells(
         if(after.sd<12 && before.sd>after.sd+8 && diff>15 && diff>best.score) best={row,score:diff};
       }
       if(best.score>0){
-        const tail=stats(Math.floor((best.row+height)/2));
-        if(tail.sd<15) trimmedHeight=best.row;
+        // A blank midpoint can hide photo content farther down or at an edge.
+        let paperOnly = true;
+        for (let y = best.row + 4; y < height && paperOnly; y++) {
+          for (let x = 0; x < width; x++) {
+            const k = (y * width + x) * 4;
+            const rgb = [panel.data[k], panel.data[k + 1], panel.data[k + 2]];
+            if (Math.min(...rgb) < 220 || Math.max(...rgb) - Math.min(...rgb) > 18) {
+              paperOnly = false;
+              break;
+            }
+          }
+        }
+        if (paperOnly) trimmedHeight = Math.min(height, best.row + 4);
       }
     }
     cells.push({ x, y, width, height: trimmedHeight });

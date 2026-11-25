@@ -32,12 +32,13 @@ test('AI network failure falls back to manual editing',async({page})=>{
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/api/extract-cells',r=>r.abort('failed'));
   await upload(page);await page.getByRole('button',{name:'사진 전송에 동의하고 AI로 찾기'}).click();
-  await expect(page.getByText('아래 칸은 AI 인식 결과가 아닌 임시 배치입니다.',{exact:false})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'직접 맞추기 · 임시 배치'})).toBeVisible();
   await expect(page.getByRole('button',{name:'움짤 만들기',exact:true})).toBeEnabled();expect(errors).toEqual([]);
 });
 test('AI rectangles are used independently',async({page})=>{
   await page.route('**/api/extract-cells',r=>r.fulfill({json:{layout:'1x4',cells:[0,1,2,3].map(i=>({x:350,y:10+i*250,width:300,height:230}))}}));
   await upload(page);await page.getByRole('button',{name:'사진 전송에 동의하고 AI로 찾기'}).click();
-  await expect(page.getByText('AI가 인화지 안의 네 사진을 찾았어요.',{exact:false})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'AI가 찾은 네 컷'})).toBeVisible();
+  await page.getByText('사진 영역 직접 조정하기',{exact:true}).click();
   await expect(page.locator('section[aria-label="원본에서 네 컷 테두리 맞추기"] span[data-resize]')).toHaveCount(4);
 });

@@ -6,7 +6,7 @@ export default defineConfig({
   workers: 1,
   use: {
     baseURL: "http://127.0.0.1:5173",
-    channel: process.env.PLAYWRIGHT_CHANNEL || "chromium",
+    channel: process.env.PLAYWRIGHT_CHANNEL || "chrome",
     viewport: { width: 390, height: 844 },
     trace: "retain-on-failure",
   },

@@ -90,8 +90,8 @@ test("redesigned account adapts to four widths, restores focus and supports tabs
   await page.getByRole('button',{name:'크레딧 닫기'}).click();
   await expect(page.getByRole('button',{name:'내 크레딧 5 · 내역'})).toBeFocused();
 });
-async function upload(page) {
-  await page.goto("/");
+async function upload(page, navigate = true) {
+  if (navigate) await page.goto("/");
   await page.getByRole("button", { name: "🖼️ 불러오기" }).waitFor();
   const data = await page.evaluate(() => {
     const c = document.createElement("canvas");
@@ -494,9 +494,9 @@ test("tilted two-by-two panels use original proportions and can return to manual
     })));
     expect(metrics.every(metric => !metric.overflow)).toBe(true);
     expect(metrics[0].height).toEqual(metrics[1].height);
-    if (width === 390) {
+    if ([360,390,430].includes(width)) {
       await page.getByRole("button", { name: /애니메이션.*3 크레딧/ }).scrollIntoViewIfNeeded();
-      await page.screenshot({ path: "artifacts/launch/phase3-editor-390.png" });
+      await page.screenshot({ path: "artifacts/launch/phase5-editor-" + width + ".png" });
     }
   }
   await page.getByText("사진 영역 직접 조정하기").click();
@@ -555,4 +555,78 @@ test("AI extraction and video failures retain manual editing and permit a fresh 
   await page.getByRole("button", { name: /애니메이션.*3 크레딧/ }).click();
   await expect(page.getByRole("button", { name: /영상 만들기.*3 크레딧/ })).toBeDisabled();
   expect(generationRequests).toBe(1);
+});
+
+
+test("automatic margin correction preserves photo content anywhere in the tail", async ({page}) => {
+  await page.goto('/');
+  const results = await page.evaluate(async () => {
+    const {rectifyPhotoCells}=await import('/src/lib/rectifyPhotoCells.ts');
+    const run=async (content) => {
+      const c=document.createElement('canvas'); c.width=120;c.height=560;const x=c.getContext('2d');
+      x.fillStyle='white';x.fillRect(0,0,120,560);
+      const ys=[0,130,260,390];
+      for(const y of ys)for(let i=0;i<100;i++){x.fillStyle=i%8<4?'#102030':'#dc7860';x.fillRect(i,y,1,100);}
+      if(content){x.fillStyle='#c02452';x.fillRect(0,520,100,10);}
+      const im=new Image();im.src=c.toDataURL();await im.decode();
+      const corners=ys.map((y,i)=>[{x:0,y},{x:100,y},{x:100,y:y+(i===3?140:100)},{x:0,y:y+(i===3?140:100)}]);
+      return rectifyPhotoCells(im,corners,p=>p,'1x4').cells[3].height;
+    };
+    return {paper:await run(false),content:await run(true)};
+  });
+  expect(results.paper).toBeGreaterThanOrEqual(100);expect(results.paper).toBeLessThanOrEqual(106);
+  expect(results.content).toBe(140);
+});
+
+
+test("photo A restores its job after reload; photo B excludes A while account history retains it", async ({page}) => {
+  await upload(page);await page.getByRole('button',{name:'AI 영상 만들기'}).click();await login(page,unique());
+  await page.getByRole('checkbox',{name:/사진 속 인물의 허락/}).check();
+  await page.getByRole('button',{name:/영상 만들기.*1 크레딧/}).click();
+  await expect(page.getByText('영상이 완성됐어요!',{exact:true})).toBeVisible({timeout:45000});
+  const keys=await page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.startsWith('nz-credit-job:')));
+  expect(keys).toHaveLength(1);const job=await page.evaluate(k=>sessionStorage.getItem(k),keys[0]);
+  await page.reload();await expect(page.getByText('영상이 완성됐어요!',{exact:true})).toBeVisible({timeout:45000});
+  await page.getByRole('button',{name:'돌아가기',exact:true}).click();await upload(page,false);
+  await page.getByRole('button',{name:'AI 영상 만들기'}).click();
+  await expect(page.getByLabel('완성된 AI 영상')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:/영상 만들기.*1 크레딧/})).toBeVisible();
+  expect(await page.evaluate(k=>sessionStorage.getItem(k),keys[0])).toBe(job);
+  await page.getByRole('button',{name:'내 크레딧 4 · 내역'}).click();await page.getByRole('tab',{name:'내 영상',exact:true}).click();
+  await expect(page.getByRole('button',{name:'완성본 다시 저장 · 무료'})).toBeVisible();
+});
+
+test("late generation response stays in photo A scope after photo B is selected", async ({page}) => {
+  let release;const gate=new Promise(resolve=>release=resolve);let requested;const seen=new Promise(resolve=>requested=resolve);
+  await page.route('**/api/launch',async route=>{
+    if(route.request().postDataJSON()?.action!=='generate')return route.continue();
+    requested();await gate;await route.fulfill({json:{id:'late-photo-a',status:'failed',style:'memory',cost:1,downloadable:false}});
+  });
+  await upload(page);await page.getByRole('button',{name:'AI 영상 만들기'}).click();await login(page,unique());
+  await page.getByRole('checkbox',{name:/사진 속 인물의 허락/}).check();await page.getByRole('button',{name:/영상 만들기.*1 크레딧/}).click();await seen;
+  await page.getByRole('button',{name:'돌아가기',exact:true}).click();await upload(page,false);
+  await page.getByRole('button',{name:'AI 영상 만들기'}).click();release();
+  await expect.poll(()=>page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.startsWith('nz-credit-job:')).length)).toBe(1);
+  await expect(page.getByText('제작 실패가 확인되어 예약 크레딧을 복구했어요.')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:/영상 만들기.*1 크레딧/})).toBeVisible();
+});
+
+test("completed job waits for playable media and retries failed download without another generation", async ({page}) => {
+  let generates=0, files=0;
+  await page.route('**/api/launch',route=>{if(route.request().postDataJSON()?.action==='generate')generates++;return route.continue();});
+  await page.route('**/api/launch?action=file&**',route=>{files++;return files===1?route.fulfill({status:503,json:{error:'fixture download failure'}}):route.continue();});
+  await upload(page);await page.getByRole('button',{name:'AI 영상 만들기'}).click();await login(page,unique());
+  await page.getByRole('button',{name:/애니메이션.*3 크레딧/}).click();
+  await page.getByRole('checkbox',{name:/사진 속 인물의 허락/}).check();await page.getByRole('button',{name:/영상 만들기.*3 크레딧/}).click();
+  await expect(page.getByRole('list',{name:'영상 제작 단계'}).getByRole('listitem')).toHaveCount(4);
+  await page.getByRole('button',{name:'영상 다시 불러오기 · 무료'}).waitFor({timeout:45000});
+  await expect(page.getByText('영상이 완성됐어요!',{exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'영상 다시 불러오기 · 무료'}).click();
+  await expect(page.getByText('영상이 완성됐어요!',{exact:true})).toBeVisible({timeout:45000});
+  expect(await page.getByLabel('완성된 AI 영상').evaluate(v=>v.readyState)).toBeGreaterThanOrEqual(2);
+  expect(generates).toBe(1);expect(files).toBeGreaterThanOrEqual(2);
+  await expect(page.getByRole('button',{name:'내 크레딧 2 · 내역'})).toBeVisible();
+  await page.context().grantPermissions(['clipboard-read','clipboard-write']);
+  await page.getByRole('button',{name:'소개 문구와 주소 복사',exact:true}).click();
+  expect((await page.evaluate(()=>navigator.clipboard.readText())).replace(/\r\n/g,'\n')).toBe('네 컷 사진을 짤과 영상으로!\n친구와의 추억을 공유하는 새로운 방법, 내짤4짤\n\nhttps://4zzal.com');
 });
