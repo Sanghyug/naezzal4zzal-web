@@ -96,6 +96,8 @@ export type Job = {
   requestKey: string;
   fingerprint: string;
   style: Style;
+  scene?: string;
+  personCount?: number;
   cost: number;
   allocations: { lot: string; count: number }[];
   status:
