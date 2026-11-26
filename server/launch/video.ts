@@ -11,8 +11,14 @@ import ffmpeg from "ffmpeg-static";
 import { requireRule } from "./domain.ts";
 import type { Job } from "./domain.ts";
 import { drawingPrompt } from "./prompts.ts";
+import { relationshipScene } from "../../src/lib/relationshipScenes.ts";
 export const ANALYSIS_VERSION = "gpt-5.4-motion-v1";
 export const motionInstruction = `Four ordered photos 01 to 04 from one session. Track people with fixed IDs by hair/clothes, even if positions change. Record observations for all four frames; separate observed poses from inferred transitions. Distinguish screen and anatomical left/right. Never guess hidden hands, fingers, contact points or uncertain identity matches. Distinguish individual finger/two-hand hearts from shared hearts, and describe V signs and their positions. Plan 2-3 major changes in FIVE seconds with final key pose held about one second. Keep the first image's lanes, explicitly omit position swaps. Do not invent waves or shared hearts. The video model receives ONLY the first image, never refer to unseen photos in motion_prompt_en. Write a self-contained English motion prompt with subjects described by first-image clothing and positions. Other fields may be Korean. Arrays contain descriptive strings, observed_frames has four entries 01 through 04. Record uncertainties and omitted poses. Do not infer sensitive attributes or identities, and do not give success probabilities.`;
+export function relationshipInstruction(sceneId: string, count: number, role: number) {
+  const scene = relationshipScene(sceneId);
+  requireRule(scene && count >= scene.min && count <= scene.max, "상황을 확인해주세요.");
+  return `Create a fictional, wholesome interpersonal scene, not a reconstruction of actual events. Four ordered photos 01 to 04 are provided only to observe appearance and composition. The FIRST image is the only frame the video model receives. Expected visible people: ${count}, based on user selection; verify visually, never add or remove people to match that count. Use screen-left to screen-right positional IDs and clothing, never infer gender, age, identity, romantic relationship or real emotions. Keep exact appearance, clothing, background, positions and count. The selected action is: ${scene.action} For three-person role assignment, choose the person at zero-based left-to-right index ${role % count} as the distinct third person when the scene requires one. For other scenes choose reachable actors based on visible space. Start from original pose (0–1s), enact one clear action and reciprocal reaction (1–4s), hold the resulting expression (4–5s). Mutual eye contact and interaction take priority over camera-facing poses. Never create sexual, coercive, violent, humiliating or dangerous interactions. Keep contact light, voluntary and age-appropriate; if framing or actual count makes the selected action impossible, adapt to a harmless shared glance and smile, without inventing people or limbs. No cuts, no camera movement, no audio, no text. Write one self-contained English motion_prompt_en without references to unseen frames, and describe any adaptations in summary_ko and uncertainties. observed_frames must contain four entries. Other fields follow the JSON schema; arrays contain strings.`;
+}
 export const sha = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
 export function validateImages(value: unknown): asserts value is string[] {
@@ -98,7 +104,7 @@ export type Analysis = {
 export interface VideoProvider {
   kind: "mock" | "heygen";
   analyze(
-    images: string[],
+    images: string[], sceneId?: string, personCount?: number,
   ): Promise<{ analysis: Analysis; model: string; usage: unknown }>;
   submit(job: Job, images: string[], motion?: string): Promise<string>;
   status(id: string): Promise<{ status: string; url?: string }>;
@@ -122,7 +128,7 @@ export function heygenProvider(openai: string, heygen: string, record?: Meter): 
   }
   return {
     kind: "heygen",
-    async analyze(images) {
+    async analyze(images, sceneId, personCount) {
       const fields = [
         "characters",
         "observed_frames",
@@ -155,7 +161,7 @@ export function heygenProvider(openai: string, heygen: string, record?: Meter): 
             {
               role: "user",
               content: [
-                { type: "input_text", text: motionInstruction },
+                { type: "input_text", text: sceneId ? relationshipInstruction(sceneId, personCount || 0, parseInt(sha(images[0]).slice(0, 8), 16)) : motionInstruction },
                 ...images.map((image_url) => ({
                   type: "input_image",
                   image_url,
