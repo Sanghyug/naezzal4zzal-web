@@ -5,6 +5,7 @@ import type { LaunchJob } from "../lib/launch";
 import { LoginPrompt } from "./LaunchAccount";
 import { loadImage } from "../lib/loadImage";
 import ShareControls from "./ShareControls";
+import { scenesForCount, relationshipScene } from "../lib/relationshipScenes";
 export default function CreditVideoStudio({
   ready,
   workId,
@@ -38,6 +39,12 @@ export default function CreditVideoStudio({
       () => sessionStorage.getItem(jobKey) || "",
     ),
     [url, setUrl] = useState("");
+  const sceneKey = `nz-video-scene:${workId}`;
+  const countKey = `nz-video-count:${workId}`;
+  const [personCount, setPersonCount] = useState(() => Number(sessionStorage.getItem(countKey)) || 2);
+  const [sceneId, setSceneId] = useState(() => sessionStorage.getItem(sceneKey) || "");
+  const chosenScene = relationshipScene(sceneId);
+  const activeScene = style === "memory" && chosenScene && personCount >= chosenScene.min && personCount <= chosenScene.max ? chosenScene : undefined;
   const [mediaReady, setMediaReady] = useState(false);
   const [mediaError, setMediaError] = useState(false);
   const [retryFile, setRetryFile] = useState(0);
@@ -145,7 +152,7 @@ export default function CreditVideoStudio({
       );
       const digest = await crypto.subtle.digest(
         "SHA-256",
-        new TextEncoder().encode(style + "|" + images.join("|")),
+        new TextEncoder().encode(style + "|" + (activeScene ? activeScene.id + "|" + personCount + "|" : "") + images.join("|")),
       );
       const fp = Array.from(new Uint8Array(digest), (b) =>
         b.toString(16).padStart(2, "0"),
@@ -165,6 +172,7 @@ export default function CreditVideoStudio({
       const j = await launchApi<LaunchJob>("generate", {
         requestKey: key,
         style,
+        ...(activeScene ? { scene: activeScene.id, personCount } : {}),
         images,
         consent: true,
       });
@@ -202,6 +210,19 @@ export default function CreditVideoStudio({
                   }}><span className="nz-style-art" aria-hidden="true" /><strong>{label}</strong><small>{description}</small><span className="nz-style-cost">{credits} 크레딧</span></button>
                 ))}
               </fieldset>
+              {style === "memory" && <fieldset style={{border:"1px solid #f3d4e3",borderRadius:16,padding:12,minWidth:0,margin:"12px 0"}} disabled={busy}>
+                <legend style={{fontWeight:800,color:"#b52d67"}}>우리들의 순간</legend>
+                <p style={{fontSize:13,margin:"4px 0 12px"}}>사진은 네 컷, 우리의 이야기는 무한대. 찍지 못했던 순간을 상상해 보세요.</p>
+                <label style={{display:"block",fontSize:13}}>첫 사진 속 인원수
+                  <select aria-label="첫 사진 속 인원수" value={personCount} onChange={e=>{const n=Number(e.target.value);setPersonCount(n);sessionStorage.setItem(countKey,String(n));setSceneId("");sessionStorage.removeItem(sceneKey);setConsent(false);}} style={{display:"block",width:"100%",padding:10,borderRadius:10,margin:"6px 0 12px"}}>
+                    <option value={1}>1명</option><option value={2}>2명</option><option value={3}>3명</option><option value={4}>4명 이상</option>
+                  </select>
+                </label>
+                <div style={{display:"grid",gap:8}}>
+                  {[{id:"",title:"기본 실사 영상",description:"네컷 사진의 포즈를 자연스럽게 연결"},...scenesForCount(personCount)].map(item=><button type="button" key={item.id} aria-pressed={(activeScene?.id || "") === item.id} onClick={()=>{setSceneId(item.id);sessionStorage.setItem(sceneKey,item.id);setConsent(false);}} style={{textAlign:"left",padding:"12px",borderRadius:12,border:(activeScene?.id || "")===item.id?"2px solid #ed4b89":"1px solid #eadbe3",background:(activeScene?.id || "")===item.id?"#fff0f6":"#fff",color:"#513443",width:"100%"}}><strong style={{display:"block"}}>{item.title}</strong><small style={{display:"block",marginTop:4}}>{item.description}</small></button>)}
+                </div>
+                {activeScene && <p style={{fontSize:12,color:"#8a5269"}}>AI가 상상한 가상의 장면이에요. 실제 있었던 일이 아니며 사진의 구도에 따라 동작이 달라질 수 있어요. · 1크레딧</p>}
+              </fieldset>}
               <div className="nz-video-guidance">
                 <p>사진 속 인물의 동의를 받고 제작해 주세요.</p>
                 <p>완성 영상은 {config?.retentionDays || 7}일간 보관돼요.</p>
@@ -268,7 +289,7 @@ export default function CreditVideoStudio({
               {job.error && <p>{job.error}</p>}
               {url && <>
                 <video src={url} controls playsInline preload="auto" onLoadedData={() => { setMediaReady(true); setMediaError(false); }} onCanPlay={() => { setMediaReady(true); setMediaError(false); }} onError={() => { setMediaReady(false); setMediaError(true); }} aria-label="완성된 AI 영상" />
-                {mediaReady && <><VideoGallerySave key={job.id} url={url} memo={memo} styleName={job.style === "drawing" ? "애니메이션 영상" : "실사 영상"} /><ShareControls url={url} video /></>}
+                {mediaReady && <><VideoGallerySave key={job.id} url={url} memo={memo} styleName={job.style === "drawing" ? "애니메이션 영상" : relationshipScene(job.scene)?.title || "실사 영상"} /><ShareControls url={url} video /></>}
               </>}
               {job.status === "completed" && job.downloadable && !mediaReady && (mediaError || message) && <button type="button" onClick={() => { if (fileUrl.current) URL.revokeObjectURL(fileUrl.current); fileUrl.current = ""; setUrl(""); setMediaError(false); setMessage(""); setRetryFile(n => n + 1); }}>영상 다시 불러오기 · 무료</button>}
               {((job.status === "completed" && (mediaReady || !job.downloadable)) || ["failed", "unavailable"].includes(job.status)) && (
