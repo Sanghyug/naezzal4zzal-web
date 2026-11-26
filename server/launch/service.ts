@@ -1,4 +1,5 @@
 import { reconcileUsage, costReport } from "./costs.ts";
+import { relationshipScene } from "../../src/lib/relationshipScenes.ts";
 import { randomUUID } from "node:crypto";
 import type { Store } from "./store.ts";
 import type { Storage } from "./storage.ts";
@@ -131,6 +132,7 @@ export class LaunchService {
     return {
       id: j.id,
       style: j.style,
+      scene: j.scene,
       status: hiddenMock && j.status === "completed" ? "unavailable" : j.status,
       cost: j.cost,
       created: j.created,
@@ -234,15 +236,22 @@ export class LaunchService {
     style: Style,
     images: unknown,
     consent: unknown,
+    sceneId?: unknown,
+    personCount?: unknown,
   ) {
     requireRule(this.aiAccountAllowed(user), "AI 기능은 현재 출시 준비 중이에요.", 403);
     requireRule(this.video.kind === "heygen" || this.allowMockVideo, "AI 영상 제작을 준비하고 있어요.", 503);
     requireRule(consent === true, "사진 전송과 영상 제작 안내에 동의해주세요.");
     validateImages(images);
-    const fingerprint = sha(ANALYSIS_VERSION + "|" + images.join("|"));
-    const job = await this.store.tx((s) =>
-      structuredClone(reserveJob(s, user, key, fingerprint, style, Date.now())),
-    );
+    const scene = relationshipScene(sceneId);
+    const count = typeof personCount === "number" ? personCount : 0;
+    requireRule(sceneId === undefined || sceneId === "" || (style === "memory" && scene && Number.isInteger(count) && count >= scene.min && count <= scene.max), "사진 인원수와 상황을 확인해주세요.");
+    const fingerprint = sha(ANALYSIS_VERSION + "|" + (scene ? "relationship-v1|" + scene.id + "|" + count + "|" : "") + images.join("|"));
+    const job = await this.store.tx((s) => {
+      const j = reserveJob(s, user, key, fingerprint, style, Date.now());
+      if (scene) { j.scene = scene.id; j.personCount = count; }
+      return structuredClone(j);
+    });
     if (job.status === "reserved")
       await this.storage.put(
         "launch-inputs",
@@ -349,7 +358,7 @@ export class LaunchService {
             return;
           } else {
             await patch({ status: "analyzing" });
-            const analysis = await this.video.analyze(images);
+            const analysis = await this.video.analyze(images, job.scene, job.personCount);
             const analysisKey =
               job.user + "/analysis-" + job.fingerprint + ".json";
             await this.storage.put(
