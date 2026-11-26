@@ -8,6 +8,7 @@ const base = import.meta.env.VITE_API_BASE_URL || "";
 export type LaunchJob = {
   id: string;
   style: "memory" | "drawing";
+  scene?: string;
   status: string;
   cost: number;
   created: number;
