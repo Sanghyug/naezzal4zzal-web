@@ -361,6 +361,8 @@ export default async function handler(req: Request, res: Response) {
             body.style as Style,
             body.images,
             body.consent,
+            body.scene,
+            body.personCount,
           ),
         );
     }
