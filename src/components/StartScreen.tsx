@@ -295,7 +295,7 @@ function StartScreen({
             <div style={{marginTop:10,padding:"9px 12px",borderRadius:10,background:"#7653a1",color:"#fff",fontWeight:700,fontSize:13}}>나의 달 보러가기</div>
           </a>
           <a
-            href="https://mom-is-flower.vercel.app"
+            href="https://momisflower.com"
             target="_blank"
             rel="noopener noreferrer"
             style={{
