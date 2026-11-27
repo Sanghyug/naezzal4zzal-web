@@ -12,12 +12,12 @@ import { requireRule } from "./domain.ts";
 import type { Job } from "./domain.ts";
 import { drawingPrompt } from "./prompts.ts";
 import { relationshipScene } from "../../src/lib/relationshipScenes.ts";
-export const ANALYSIS_VERSION = "gpt-5.4-motion-v1";
-export const motionInstruction = `Four ordered photos 01 to 04 from one session. Track people with fixed IDs by hair/clothes, even if positions change. Record observations for all four frames; separate observed poses from inferred transitions. Distinguish screen and anatomical left/right. Never guess hidden hands, fingers, contact points or uncertain identity matches. Distinguish individual finger/two-hand hearts from shared hearts, and describe V signs and their positions. Plan 2-3 major changes in FIVE seconds with final key pose held about one second. Keep the first image's lanes, explicitly omit position swaps. Do not invent waves or shared hearts. The video model receives ONLY the first image, never refer to unseen photos in motion_prompt_en. Write a self-contained English motion prompt with subjects described by first-image clothing and positions. Other fields may be Korean. Arrays contain descriptive strings, observed_frames has four entries 01 through 04. Record uncertainties and omitted poses. Do not infer sensitive attributes or identities, and do not give success probabilities.`;
+export const ANALYSIS_VERSION = "gpt-5.4-motion-v2";
+export const motionInstruction = `Four ordered photos 01 to 04 from one session. Track people with fixed IDs by hair/clothes, even if positions change. Record observations for all four frames; separate observed poses from inferred transitions. Distinguish screen and anatomical left/right. Never guess hidden hands, fingers, contact points or uncertain identity matches. Distinguish individual finger/two-hand hearts from shared hearts, and describe V signs and their positions. Plan 2-3 major changes in FIVE seconds with final key pose held about one second. Keep the selected anchor image's lanes, explicitly omit position swaps. Do not invent waves or shared hearts. Compare all four images for facial sharpness, focus, motion blur, complete visible people, eyes, lighting and stable composition. Select the best frame using anchor_index (zero-based 0 to 3). The video model receives ONLY that selected image, never refer to unseen photos in motion_prompt_en. Write a self-contained English motion prompt with subjects described by selected-anchor clothing and positions. Other fields may be Korean. Arrays contain descriptive strings, observed_frames has four entries 01 through 04. Record uncertainties and omitted poses. Do not infer sensitive attributes or identities, and do not give success probabilities.`;
 export function relationshipInstruction(sceneId: string, count: number, role: number) {
   const scene = relationshipScene(sceneId);
   requireRule(scene && count >= scene.min && count <= scene.max, "상황을 확인해주세요.");
-  return `Create a fictional, wholesome interpersonal scene, not a reconstruction of actual events. Four ordered photos 01 to 04 are provided only to observe appearance and composition. The FIRST image is the only frame the video model receives. Expected visible people: ${count === 4 ? 'four or more' : count}, based on user selection; verify visually, never add or remove people to match that count. Use screen-left to screen-right positional IDs and clothing, never infer gender, age, identity, romantic relationship or real emotions. Keep exact appearance, clothing, background, positions and count. The selected action is: ${scene.action} For three-person role assignment, choose the person at zero-based left-to-right index ${role % count} as the distinct third person when the scene requires one. For other scenes choose reachable actors based on visible space. Start from original pose (0–1s), enact one clear action and reciprocal reaction (1–4s), hold the resulting expression (4–5s). Mutual eye contact and interaction take priority over camera-facing poses. Never create sexual, coercive, violent, humiliating or dangerous interactions. Keep contact light, voluntary and age-appropriate; if framing or actual count makes the selected action impossible, adapt to a harmless shared glance and smile, without inventing people or limbs. No cuts, no camera movement, no audio, no text. Write one self-contained English motion_prompt_en without references to unseen frames, and describe any adaptations in summary_ko and uncertainties. observed_frames must contain four entries. Other fields follow the JSON schema; arrays contain strings.`;
+  return `Create a fictional, wholesome interpersonal scene, not a reconstruction of actual events. Four ordered photos 01 to 04 are provided only to observe appearance and composition. Compare all four images for facial sharpness, focus, blur, lighting, complete visible people and usable composition. Select the best frame using anchor_index (zero-based 0 to 3). The selected image is the only frame the video model receives. Expected visible people: ${count === 4 ? 'four or more' : count}, based on user selection; verify visually, never add or remove people to match that count. Use screen-left to screen-right positional IDs and clothing, never infer gender, age, identity, romantic relationship or real emotions. Keep exact appearance, clothing, background, positions and count. The selected action is: ${scene.action} For three-person role assignment, choose the person at zero-based left-to-right index ${role % count} as the distinct third person when the scene requires one. For other scenes choose reachable actors based on visible space. Start from original pose (0–1s), enact one clear action and reciprocal reaction (1–4s), hold the resulting expression (4–5s). Follow the selected action faithfully. Mutual eye contact is preferred unless the selected scene explicitly calls for looking forward. Do not default to V signs or generic laughter when another action is specified. Never create sexual, coercive, violent, humiliating or dangerous interactions. Keep contact light, voluntary and age-appropriate; if framing or actual count makes the selected action impossible, adapt to a harmless shared glance and smile, without inventing people or limbs. No cuts, no camera movement, no audio, no text. Write one self-contained English motion_prompt_en without references to unseen frames, and describe any adaptations in summary_ko and uncertainties. observed_frames must contain four entries. Other fields follow the JSON schema; arrays contain strings.`;
 }
 export const sha = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
@@ -93,6 +93,7 @@ export function videoPayload(
   };
 }
 export type Analysis = {
+  anchor_index?: number;
   motion_prompt_en: string;
   characters: string[];
   observed_frames: string[];
@@ -130,6 +131,7 @@ export function heygenProvider(openai: string, heygen: string, record?: Meter): 
     kind: "heygen",
     async analyze(images, sceneId, personCount) {
       const fields = [
+        "anchor_index",
         "characters",
         "observed_frames",
         "uncertainties",
@@ -141,7 +143,7 @@ export function heygenProvider(openai: string, heygen: string, record?: Meter): 
       const properties = Object.fromEntries(
         fields.map((k) => [
           k,
-          ["motion_prompt_en", "summary_ko"].includes(k)
+          k === "anchor_index" ? {type:"integer",enum:[0,1,2,3]} : ["motion_prompt_en", "summary_ko"].includes(k)
             ? { type: "string" }
             : { type: "array", items: { type: "string" } },
         ]),
@@ -204,6 +206,7 @@ export function heygenProvider(openai: string, heygen: string, record?: Meter): 
       const analysis = JSON.parse(text) as Analysis;
       requireRule(
         analysis.observed_frames?.length === 4 &&
+          Number.isInteger(analysis.anchor_index) && analysis.anchor_index! >= 0 && analysis.anchor_index! <= 3 &&
           typeof analysis.motion_prompt_en === "string",
         "동작 분석 형식을 확인해야 해요.",
         502,
@@ -239,6 +242,7 @@ export function mockVideoProvider(): VideoProvider {
     async analyze() {
       return {
         analysis: {
+          anchor_index: 0,
           characters: ["모의 인물"],
           observed_frames: ["01", "02", "03", "04"],
           uncertainties: ["모의 분석"],

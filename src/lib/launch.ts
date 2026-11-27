@@ -269,6 +269,7 @@ export async function verifyInviteGif(gif: string, renderId: string) {
 // OAuth returns to a new page: persist the original Blob and all editor settings
 // in IndexedDB, never localStorage URLs which expire across navigation.
 export type EditorDraft = {
+  personCount?: number;
   workId?: string;
   original: Blob;
   sourceUrl: string | null;

@@ -4,7 +4,7 @@ import { launchAccessToken } from "./launch";
 import { loadImage } from "./loadImage";
 import { validateCells, type CellRect } from "./photoGeometry.js";
 
-export async function extractCells(image: string, width: number, height: number, signal: AbortSignal): Promise<{ cells: CellRect[]; sourceUrl?: string }> {
+export async function extractCells(image: string, width: number, height: number, signal: AbortSignal): Promise<{ cells: CellRect[]; sourceUrl?: string; personCount?: number }> {
   // A square coordinate plane avoids mixed x/y scales on very tall screenshots.
   const source = await loadImage(image);
   if (signal.aborted) throw new DOMException("Aborted", "AbortError");
@@ -39,18 +39,19 @@ export async function extractCells(image: string, width: number, height: number,
   if (!response.ok) throw new Error("AI 서버에 연결하지 못했어요. 아래 칸은 AI 인식 결과가 아닌 임시 배치입니다.");
   if (!response.headers.get("content-type")?.includes("application/json")) throw new Error("AI 분석 서버가 연결되지 않았어요. 아래 칸은 직접 맞추기용 임시 배치입니다.");
   const result = await response.json();
+  const personCount = [1,2,3,4].includes(result.personCount) ? Number(result.personCount) : 0;
   const normalized = validateCells(result.cells, 1000, 1000);
   const mapped = validateCells(normalized.map(cell => ({ x: (cell.x - offsetX) / scale, y: (cell.y - offsetY) / scale, width: cell.width / scale, height: cell.height / scale })), width, height);
   if (mapped.length === 4 && (result.layout === "1x4" || result.layout === "2x2")) {
     const corrected = rectifyPhotoCells(source, result.corners, (point) => ({
       x: (point.x - offsetX) / scale, y: (point.y - offsetY) / scale,
     }), result.layout);
-    if (corrected) return corrected;
+    if (corrected) return {...corrected,personCount};
   }
-  if (mapped.length !== 4 || result.layout !== "1x4") return { cells: mapped };
+  if (mapped.length !== 4 || result.layout !== "1x4") return { cells: mapped, personCount };
   const pixels = document.createElement("canvas"); pixels.width=width; pixels.height=height;
   const pc = pixels.getContext("2d", { willReadFrequently: true });
-  if (!pc) return { cells: mapped };
+  if (!pc) return { cells: mapped, personCount };
   pc.drawImage(source,0,0,width,height);
-  return { cells: refineVerticalCells(pc.getImageData(0,0,width,height).data,width,height,mapped) };
+  return { personCount, cells: refineVerticalCells(pc.getImageData(0,0,width,height).data,width,height,mapped) };
 }

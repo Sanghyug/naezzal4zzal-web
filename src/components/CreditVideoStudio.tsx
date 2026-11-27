@@ -8,6 +8,7 @@ import ShareControls from "./ShareControls";
 import { scenesForCount, relationshipScene } from "../lib/relationshipScenes";
 export default function CreditVideoStudio({
   ready,
+  personCount: detectedCount = 0,
   workId,
   memo,
   getImages,
@@ -15,6 +16,7 @@ export default function CreditVideoStudio({
   onToggle,
 }: {
   ready: boolean;
+  personCount?: number;
   workId: string;
   getImages: () => Promise<string[]>;
   memo: string;
@@ -40,11 +42,10 @@ export default function CreditVideoStudio({
     ),
     [url, setUrl] = useState("");
   const sceneKey = `nz-video-scene:${workId}`;
-  const countKey = `nz-video-count:${workId}`;
-  const [personCount, setPersonCount] = useState(() => Number(sessionStorage.getItem(countKey)) || 2);
+  const personCount = detectedCount;
   const [sceneId, setSceneId] = useState(() => sessionStorage.getItem(sceneKey) || "");
   const chosenScene = relationshipScene(sceneId);
-  const activeScene = style === "memory" && chosenScene && personCount >= chosenScene.min && personCount <= chosenScene.max ? chosenScene : undefined;
+  const activeScene = style === "memory" && chosenScene && scenesForCount(personCount).some(item=>item.id===chosenScene.id) ? chosenScene : undefined;
   const [mediaReady, setMediaReady] = useState(false);
   const [mediaError, setMediaError] = useState(false);
   const [retryFile, setRetryFile] = useState(0);
@@ -56,6 +57,22 @@ export default function CreditVideoStudio({
   const job = localJob?.id === trackedId ? localJob : account?.jobs.find((j) => j.id === trackedId);
   const inProgress = Boolean(job && isVideoInProgress(job));
   const shouldWork = Boolean(inProgress || (job?.status === "completed" && job.downloadable && !url));
+  const keepAwake = busy || inProgress || Boolean(job?.status === "completed" && job.downloadable && !mediaReady);
+  useEffect(() => {
+    if (!keepAwake) return;
+    let stopped = false;
+    let sentinel: { release: () => Promise<void>; released: boolean } | undefined;
+    let requesting = false;
+    const acquire = async () => {
+      if(stopped || requesting || document.visibilityState !== "visible" || (sentinel && !sentinel.released)) return;
+      const wake = (navigator as Navigator & {wakeLock?: {request:(kind:"screen")=>Promise<{release:()=>Promise<void>;released:boolean}>}}).wakeLock;
+      if(!wake) return;
+      requesting = true;
+      try {const next=await wake.request("screen"); if(stopped) await next.release(); else sentinel=next;} catch { /* unsupported, denied or low battery */ } finally {requesting=false;}
+    };
+    void acquire(); document.addEventListener("visibilitychange",acquire);
+    return ()=>{stopped=true;document.removeEventListener("visibilitychange",acquire);void sentinel?.release().catch(()=>{});};
+  },[keepAwake]);
   const jobId = job?.id,
     userId = account?.user.id;
   useEffect(
@@ -76,6 +93,7 @@ export default function CreditVideoStudio({
       try {
         const next = await launchApi<LaunchJob>("work", { jobId: id });
         if (stopped) return;
+        setMessage("");
         setSelectedId(next.id);
         setJob(next);
         if (next.status === "completed") {
@@ -94,21 +112,18 @@ export default function CreditVideoStudio({
           await refreshAccount();
           return;
         }
-      } catch (e) {
-        if (!stopped)
-          setMessage(
-            e instanceof Error
-              ? e.message
-              : "같은 제작 상태를 확인하고 있어요.",
-          );
+      } catch {
+        if (!stopped) setMessage("연결 상태를 다시 확인하고 있어요. 새 제작 없이 같은 영상을 확인합니다.");
       } finally {
         running = false;
       }
       if (!stopped) timer = setTimeout(() => void check(), 6000);
     };
-    void check();
+    const resume = () => {if(document.visibilityState === "visible"){clearTimeout(timer);void check();}};
+    void check(); document.addEventListener("visibilitychange",resume); window.addEventListener("online",resume); window.addEventListener("pageshow",resume);
     return () => {
       stopped = true;
+      document.removeEventListener("visibilitychange",resume);window.removeEventListener("online",resume);window.removeEventListener("pageshow",resume);
       clearTimeout(timer);
     };
   }, [jobId, userId, shouldWork, retryFile]);
@@ -213,11 +228,7 @@ export default function CreditVideoStudio({
               {style === "memory" && <fieldset style={{border:"1px solid #f3d4e3",borderRadius:16,padding:12,minWidth:0,margin:"12px 0"}} disabled={busy}>
                 <legend style={{fontWeight:800,color:"#b52d67"}}>우리들의 순간</legend>
                 <p style={{fontSize:13,margin:"4px 0 12px"}}>사진은 네 컷, 우리의 이야기는 무한대. 찍지 못했던 순간을 상상해 보세요.</p>
-                <label style={{display:"block",fontSize:13}}>첫 사진 속 인원수
-                  <select aria-label="첫 사진 속 인원수" value={personCount} onChange={e=>{const n=Number(e.target.value);setPersonCount(n);sessionStorage.setItem(countKey,String(n));setSceneId("");sessionStorage.removeItem(sceneKey);setConsent(false);}} style={{display:"block",width:"100%",padding:10,borderRadius:10,margin:"6px 0 12px"}}>
-                    <option value={1}>1명</option><option value={2}>2명</option><option value={3}>3명</option><option value={4}>4명 이상</option>
-                  </select>
-                </label>
+                {personCount === 0 && <p style={{fontSize:12}}>인원수를 확실히 파악하지 못했어요. 기본 실사 영상은 이용할 수 있어요. 새로운 사진에서 AI 자동 분석을 이용하면 상황 옵션을 추천해 드려요.</p>}
                 <div style={{display:"grid",gap:8}}>
                   {[{id:"",title:"기본 실사 영상",description:"네컷 사진의 포즈를 자연스럽게 연결"},...scenesForCount(personCount)].map(item=><button type="button" key={item.id} aria-pressed={(activeScene?.id || "") === item.id} onClick={()=>{setSceneId(item.id);sessionStorage.setItem(sceneKey,item.id);setConsent(false);}} style={{textAlign:"left",padding:"12px",borderRadius:12,border:(activeScene?.id || "")===item.id?"2px solid #ed4b89":"1px solid #eadbe3",background:(activeScene?.id || "")===item.id?"#fff0f6":"#fff",color:"#513443",width:"100%"}}><strong style={{display:"block"}}>{item.title}</strong><small style={{display:"block",marginTop:4}}>{item.description}</small></button>)}
                 </div>
@@ -328,15 +339,15 @@ function VideoProgress({ status, mediaReady }: { status?: string; mediaReady: bo
   const complete = mediaReady;
   return <div className="nz-video-progress" role="status">
     {!complete && <>
-      <div className="nz-video-orbit" aria-hidden="true"><span /><span /><span /></div>
+      <div className="nz-video-orbit" aria-hidden="true"><span /><span /><span /></div><div className="nz-scene-motion" aria-hidden="true"><span>♡</span><span>✦</span><span>♡</span><span>✦</span></div>
       <h3>사진 속 인물들이 움직이고 있어요!</h3>
-      <p>{active === 2 ? "완성된 영상을 불러오고 있어요." : "AI 영상을 만드는 중이에요."}</p>
+      <p>{active === 2 ? "완성된 영상을 불러오고 있어요." : active === 0 ? "사진을 살펴보고 가장 잘 나온 장면을 고르고 있어요." : "사진 속 인물들이 움직이고 있어요. 보통 약 2분 정도 걸려요."}</p>
     </>}
     <ol aria-label="영상 제작 단계">
       {phases.map((label, index) => <li key={label} data-phase={complete || index < active ? "done" : index === active ? "active" : "waiting"} aria-current={index === active ? "step" : undefined}>
         <span aria-hidden="true" />{label}
       </li>)}
     </ol>
-    {!complete && <p>화면을 닫아도 내 크레딧의 제작 내역에서 확인할 수 있어요.</p>}
+    {!complete && <p>화면이 꺼지거나 앱을 나가더라도 돌아오면 같은 제작의 상태를 확인해요. 다시 제작하지 않아도 돼요.</p>}
   </div>;
 }

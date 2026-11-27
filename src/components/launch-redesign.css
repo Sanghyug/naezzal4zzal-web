@@ -147,3 +147,5 @@
 /* Keep the welcome examples within the ticket even on 360px screens. */
 .nz-gift-ticket .nz-welcome-examples{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:5px}
 .nz-gift-ticket .nz-welcome-examples>span{display:block;min-width:0;white-space:normal;font-size:10px;line-height:1.5;padding:6px 3px;overflow-wrap:normal}
+
+.nz-scene-motion{display:flex;justify-content:center;gap:16px;margin:12px 0;color:#d94b86;font-size:24px}.nz-scene-motion span{display:inline-block;animation:nz-scene-bounce 1.4s ease-in-out infinite}.nz-scene-motion span:nth-child(2){animation-delay:.18s}.nz-scene-motion span:nth-child(3){animation-delay:.36s}.nz-scene-motion span:nth-child(4){animation-delay:.54s}@keyframes nz-scene-bounce{0%,100%{transform:translateY(0) scale(.8);opacity:.55}50%{transform:translateY(-12px) scale(1.2);opacity:1}}@media(prefers-reduced-motion:reduce){.nz-scene-motion span{animation:none}}

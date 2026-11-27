@@ -1,5 +1,5 @@
 import { reconcileUsage, costReport } from "./costs.ts";
-import { relationshipScene } from "../../src/lib/relationshipScenes.ts";
+import { relationshipScene, scenesForCount } from "../../src/lib/relationshipScenes.ts";
 import { randomUUID } from "node:crypto";
 import type { Store } from "./store.ts";
 import type { Storage } from "./storage.ts";
@@ -245,8 +245,8 @@ export class LaunchService {
     validateImages(images);
     const scene = relationshipScene(sceneId);
     const count = typeof personCount === "number" ? personCount : 0;
-    requireRule(sceneId === undefined || sceneId === "" || (style === "memory" && scene && Number.isInteger(count) && count >= scene.min && count <= scene.max), "사진 인원수와 상황을 확인해주세요.");
-    const fingerprint = sha(ANALYSIS_VERSION + "|" + (scene ? "relationship-v1|" + scene.id + "|" + count + "|" : "") + images.join("|"));
+    requireRule(sceneId === undefined || sceneId === "" || (style === "memory" && scene && Number.isInteger(count) && scenesForCount(count).some(item=>item.id===scene.id)), "사진 인원수와 상황을 확인해주세요.");
+    const fingerprint = sha(ANALYSIS_VERSION + "|" + (scene ? "relationship-v2|" + scene.id + "|" + count + "|" : "") + images.join("|"));
     const job = await this.store.tx((s) => {
       const j = reserveJob(s, user, key, fingerprint, style, Date.now());
       if (scene) { j.scene = scene.id; j.personCount = count; }
@@ -317,6 +317,7 @@ export class LaunchService {
           (await this.storage.get("launch-inputs", inputKey)).toString(),
         ) as string[];
         let motion: string | undefined;
+        let anchorIndex = 0;
         if (job.style === "memory") {
           const cacheId =
             job.user + ":" + job.fingerprint + ":" + ANALYSIS_VERSION;
@@ -333,6 +334,7 @@ export class LaunchService {
               (await this.storage.get("launch-inputs", cache.key)).toString(),
             );
             motion = a.analysis.motion_prompt_en;
+            anchorIndex = a.analysis.anchor_index ?? 0;
           } else if (!cache.createdNow) {
             const ownerActive = await this.store.tx((s) => {
               const owner = s.jobs[cache.owner || ""];
@@ -371,13 +373,16 @@ export class LaunchService {
               s.cache[cacheId] = { key: analysisKey, at: Date.now() };
             });
             motion = analysis.analysis.motion_prompt_en;
+            anchorIndex = analysis.analysis.anchor_index ?? 0;
           }
         }
         await patch({
           status: "submitting",
           submittedAt: job.submittedAt || Date.now(),
         });
-        providerId = await this.video.submit(job, images, motion);
+        requireRule(Number.isInteger(anchorIndex) && anchorIndex >= 0 && anchorIndex < images.length,"대표 사진을 확인해주세요.");
+        const providerImages = job.style === "memory" ? [images[anchorIndex], ...images.filter((_,index)=>index!==anchorIndex)] : images;
+        providerId = await this.video.submit(job, providerImages, motion);
         await patch({ providerId, status: "processing" });
       }
       const result = await this.video.status(providerId);

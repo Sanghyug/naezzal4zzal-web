@@ -56,6 +56,7 @@ type Adjust = {
 
 function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps) {
   const [sourceUrl, setSourceUrl] = useState<string | null>(initialDraft?.sourceUrl || null);
+  const [personCount, setPersonCount] = useState(initialDraft?.personCount || 0);
   const [rectified, setRectified] = useState(initialDraft?.rectified ?? false);
   const [sourceSize, setSourceSize] = useState(initialDraft?.sourceSize || { width: 0, height: 0 });
   const [cells, setCells] = useState<CellRect[]>(initialDraft?.cells || []);
@@ -84,8 +85,8 @@ function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps)
   const [isSaving, setIsSaving] = useState(false);
   const [savedGif, setSavedGif] = useState<string | null>(null);
   useEffect(() => {
-    if (launchEnabled) void saveDraft(imageUrl, { workId, sourceUrl, rectified, sourceSize, cells, adjusts, memo, selectedFrame, gif: gifUrl, styleName: currentGifStyleName, extractStatus: status, inviteRender }).catch(() => {});
-  }, [imageUrl, workId, sourceUrl, rectified, sourceSize, cells, adjusts, memo, selectedFrame, gifUrl, currentGifStyleName, status, inviteRender]);
+    if (launchEnabled) void saveDraft(imageUrl, { workId, sourceUrl, rectified, sourceSize, cells, adjusts, memo, selectedFrame, gif: gifUrl, styleName: currentGifStyleName, extractStatus: status, inviteRender, personCount }).catch(() => {});
+  }, [imageUrl, workId, sourceUrl, rectified, sourceSize, cells, adjusts, memo, selectedFrame, gifUrl, currentGifStyleName, status, inviteRender, personCount]);
 
   useEffect(() => {
     if (initialDraft?.sourceUrl) return;
@@ -103,6 +104,7 @@ function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps)
         let { width, height } = image;
         let prepared = enhanced;
         let detected: CellRect[] = [];
+        let detectedPeople = 0;
         let analysisError = "";
         if (useAI) {
           setMessage("AI가 사진 네 장의 테두리를 각각 찾고 있어요.");
@@ -110,6 +112,7 @@ function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps)
           try {
             const result = await extractCells(enhanced, width, height, controller.signal);
             detected = result.cells;
+            detectedPeople = result.personCount || 0;
             track("photo_extraction",{outcome:detected.length===4 ? "success":"failure"});
             if (result.sourceUrl) {
               const corrected = await loadImage(result.sourceUrl);
@@ -122,6 +125,7 @@ function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps)
         }
         if (cancelled) return;
         const found = detected.length === 4;
+        setPersonCount(found ? detectedPeople : 0);
         setSourceUrl(prepared);
         setRectified(prepared !== enhanced);
         setSourceSize({ width, height });
@@ -148,6 +152,7 @@ function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps)
       const { width, height } = await loadImage(original);
       setSourceUrl(original);
       setRectified(false);
+      setPersonCount(0);
       setSourceSize({ width, height });
       setCells(createLayoutCells(height / width > 1.8 ? "1x4" : "2x2", width, height));
       resetAllAdjusts();
@@ -958,7 +963,7 @@ function CutPreview({ imageUrl, workId, onBack, initialDraft }: CutPreviewProps)
 
         </section>
 
-        {status !== "error" && <VideoStudio workId={workId} ready={cells.length === 4 && !!sourceUrl && !isCreatingGif} getImages={() => renderAdjustedImages(1, 0, false)} memo={memo} />}
+        {status !== "error" && <VideoStudio personCount={personCount} workId={workId} ready={cells.length === 4 && !!sourceUrl && !isCreatingGif} getImages={() => renderAdjustedImages(1, 0, false)} memo={memo} />}
 
         <div
           style={{

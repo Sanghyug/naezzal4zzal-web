@@ -1,10 +1,10 @@
-// Shared, fixed catalog: never accept arbitrary user prompts.
+// Historical IDs retained; only approved scenes offered for new jobs.
 export const relationshipScenes = [
   {
     "id": "a01",
     "min": 2,
     "max": 2,
-    "title": "눈만 봐도 웃겨",
+    "title": "얼굴만 봐도 웃겨",
     "description": "서로 마주보고 웃기",
     "action": "Both turn toward each other, make eye contact, then laugh together."
   },
@@ -20,7 +20,7 @@ export const relationshipScenes = [
     "id": "a03",
     "min": 2,
     "max": 2,
-    "title": "내가 안아줄게",
+    "title": "토닥토닥",
     "description": "서로 안아주고 등 두드리기",
     "action": "Both willingly lean toward each other for a brief friendly side hug and gently pat each other's upper back if space allows."
   },
@@ -44,7 +44,7 @@ export const relationshipScenes = [
     "id": "b01",
     "min": 3,
     "max": 3,
-    "title": "우리 셋이라서 좋아",
+    "title": "셋이라 좋아",
     "description": "세 사람이 번갈아 바라보고 웃기",
     "action": "Three people exchange glances in turn, one starts laughing and all join in."
   },
@@ -54,7 +54,7 @@ export const relationshipScenes = [
     "max": 3,
     "title": "나도 끼워줘!",
     "description": "두 친구가 나머지 친구도 끌어안기",
-    "action": "Two designated people briefly clasp hands and smile; the third playfully pouts. The pair reach toward the third and all lean into a friendly group hug, without crossing arms unnaturally."
+    "action": "First two adjacent friends gently hug and pat each other's upper backs while the third watches. They turn toward the third and beckon with open arms. The third leans into their invitation; all three finish in one friendly group hug. No V signs or generic laughter replacing the hug. Gentle voluntary contact only."
   },
   {
     "id": "b03",
@@ -68,7 +68,7 @@ export const relationshipScenes = [
     "id": "b04",
     "min": 3,
     "max": 3,
-    "title": "삼총사 포즈",
+    "title": "삼총사",
     "description": "세 사람이 차례로 포즈 따라 하기",
     "action": "One makes a simple V-sign, the other two copy it in turn, then exchange smiles."
   },
@@ -108,7 +108,7 @@ export const relationshipScenes = [
     "id": "d01",
     "min": 4,
     "max": 20,
-    "title": "웃음이 멈추질 않아",
+    "title": "웃음이 멈추지 않아",
     "description": "서로 이야기하는 듯하다 함께 크게 웃기",
     "action": "Neighbors turn toward one another as if chatting silently; laughter spreads naturally through the group."
   },
@@ -132,11 +132,20 @@ export const relationshipScenes = [
     "id": "d04",
     "min": 4,
     "max": 20,
-    "title": "따라 해 봐!",
+    "title": "같이 해봐",
     "description": "한 사람의 포즈를 다 같이 따라 하기",
     "action": "One person makes a simple V-sign; the others copy in turn and laugh at one another."
+  },
+  {
+    "id": "d05",
+    "min": 4,
+    "max": 20,
+    "title": "골! 다 같이 환호",
+    "description": "긴장하다가 골이 들어간 듯 일제히 환호하기",
+    "action": "All look forward with tense expectant expressions for the first two seconds, as if watching a football match beyond the camera. Then everyone simultaneously cheers with joy, raising their own hands naturally within the frame. No ball, new objects, people, camera motion or collisions."
   }
 ] as const;
 export type RelationshipScene = typeof relationshipScenes[number];
 export function relationshipScene(id: unknown) { return relationshipScenes.find(s => s.id === id); }
-export function scenesForCount(count: number) { return relationshipScenes.filter(s => count >= s.min && count <= s.max); }
+export const activeSceneIds = ["a03","a01","c04","b01","b04","b02","d01","d04","d05"] as const;
+export function scenesForCount(count: number) { return activeSceneIds.map(id => relationshipScene(id)!).filter(s => count >= s.min && count <= s.max); }
