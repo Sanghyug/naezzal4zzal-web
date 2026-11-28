@@ -36,6 +36,7 @@ export default async function handler(req: Request, res: Response) {
     const requestedAction = String(
       req.query?.action || req.body?.action || "config",
     );
+    requireRule(requestedAction !== "webhook", "결제 알림은 전용 주소로 보내주세요.", 410);
     if (["previewMediaCheck", "previewIntegrationCheck"].includes(requestedAction)) {
       const expected = process.env.LAUNCH_PREVIEW_CHECK,
         auth = req.headers.authorization;
@@ -191,17 +192,6 @@ export default async function handler(req: Request, res: Response) {
       );
       for (const id of pending) await r.deleteIdentity(id).catch(() => {});
       return res.status(200).json({ ok: true });
-    }
-    if (action === "webhook") {
-      // Never trust webhook paymentKey, amount or status. Query stored order against PG.
-      const data = body.data as { orderId?: string } | undefined;
-      const id = String(data?.orderId || "");
-      const o = await r.service.store.tx((s) => {
-        rate(s, "webhook", 60, 60000, Date.now());
-        return s.orders[id] ? structuredClone(s.orders[id]) : null;
-      });
-      if (o?.paymentKey) await r.service.recoverOrder(o.user, o.id);
-      return res.status(200).json({ received: true });
     }
     if (action === "visit") {
       await r.service.store.tx((s) => {

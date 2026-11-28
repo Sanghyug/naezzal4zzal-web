@@ -42,6 +42,7 @@ const names: Record<string, string> = {
   generation_use: "영상 제작 사용 확정",
   generation_release: "제작 예약 복구",
   purchase_cancel: "구매 취소",
+  payment_review: "결제 내역 확인 요청",
   admin_adjustment: "운영자 보상",
 };
 const statusNames: Record<string, string> = {
@@ -136,11 +137,15 @@ export default function LaunchAccount({ entryTarget }: { entryTarget?: HTMLEleme
                       const o = await launchApi<LaunchOrder>("order", {
                         requestKey: key,
                       });
-                      if (["paid", "cancelled", "failed"].includes(o.status)) {
-                        sessionStorage.removeItem(cache);
+                      if (o.status !== "pending") {
+                        if (["paid", "cancelled", "failed"].includes(o.status)) sessionStorage.removeItem(cache);
                         setMessage(
-                          "기존 구매 상태를 확인했어요. 새 충전은 다시 선택해주세요.",
+                          ["confirming", "cancelling", "review"].includes(o.status)
+                            ? "확인 중인 구매가 있어요. 구매 내역에서 상태를 확인해주세요."
+                            : "기존 구매 상태를 확인했어요. 새 충전은 다시 선택해주세요.",
                         );
+                        setTab("orders");
+                        await refreshAccount();
                         return;
                       }
                       setPurchase(o);

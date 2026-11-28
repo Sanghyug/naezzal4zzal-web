@@ -266,7 +266,7 @@ export default function CreditVideoStudio({
                     <span>
                       사진 속 인물의 허락을 받았어요.{" "}
                       {style === "memory"
-                        ? "네 사진을 OpenAI에 보내 동작을 분석하고, 첫 사진과 설명을 HeyGen에 보내"
+                        ? "네 사진을 OpenAI에 보내 동작을 분석하고, 네 사진 중 선택한 기준 사진과 설명을 HeyGen에 보내"
                         : "네 사진을 HeyGen에 보내"}{" "}
                       영상을 만드는 데 동의해요. 서비스 서버의 입력은 최대
                       24시간, 결과는 {config?.retentionDays || 7}일 보관해요.

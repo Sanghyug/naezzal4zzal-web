@@ -85,6 +85,7 @@ export type Order = {
     | "paid"
     | "cancelling"
     | "cancelled"
+    | "review"
     | "failed";
   paymentKey?: string;
   created: number;
@@ -519,7 +520,7 @@ export function beginPayment(
     "이미 연결된 결제예요.",
   );
   requireRule(
-    !["cancelled", "cancelling", "failed"].includes(o.status),
+    !["cancelled", "cancelling", "review", "failed"].includes(o.status),
     "진행할 수 없는 결제예요.",
   );
   o.paymentKey = paymentKey;
@@ -552,9 +553,34 @@ export function paid(
     return;
   }
   requireRule(payment.status === "DONE", "승인된 결제가 아니에요.");
-  if (o.status === "cancelling" || o.status === "cancelled") return;
+  if (["cancelling", "cancelled", "review", "failed"].includes(o.status)) return;
   grant(s, o.user, "paid", 10, o.id, at, "purchase");
   o.status = "paid";
+}
+// Only call with a fresh, server-to-provider lookup. Pending and terminal
+// failures are valid reconciliation results, not successful credit purchases.
+export function reconcilePayment(s: State, id: string, payment: PaymentRecord, at: number) {
+  const o = s.orders[id];
+  requireRule(o && o.paymentKey && payment.orderId === o.id &&
+    payment.paymentKey === o.paymentKey && payment.totalAmount === o.amount &&
+    payment.currency === o.currency, "결제 검증에 실패했어요.", 502);
+  if (o.status === "cancelled") return;
+  if (["READY", "IN_PROGRESS", "WAITING_FOR_DEPOSIT"].includes(payment.status)) return;
+  if (["ABORTED", "EXPIRED"].includes(payment.status)) {
+    if (["pending", "confirming"].includes(o.status)) o.status = "failed";
+    return;
+  }
+  const lot = s.lots["paid:" + id];
+  if (payment.status === "PARTIAL_CANCELED" ||
+    (payment.status === "CANCELED" && lot && (lot.remaining !== o.credits || lot.reserved !== 0))) {
+    // A dashboard refund may race with spending. Freeze the remaining lot for
+    // operator reconciliation; never invent a refund amount or erase usage.
+    if (lot) lot.frozen = true;
+    if (o.status !== "review") entry(s, o.user, "payment_review", 0, id, at);
+    o.status = "review";
+    return;
+  }
+  paid(s, id, payment, at);
 }
 export function beginCancel(
   s: State,

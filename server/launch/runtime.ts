@@ -11,6 +11,7 @@ import { mockVideoProvider, heygenProvider } from "./video.ts";
 import { requireRule } from "./domain.ts";
 import { aiAccountAllowed } from "./preview.ts";
 import { verifiedIdentity } from "./identity.ts";
+import { paymentTestNamespace } from "./paymentEnvironment.ts";
 export type Identity = { id: string; hash: string; created: number };
 export type Runtime = {
   service: LaunchService;
@@ -57,7 +58,8 @@ async function createRuntime(): Promise<Runtime> {
     process.env.ENABLE_LIVE_EXTRACTION === "1" || process.env.ENABLE_PREVIEW_LIVE_GENERATION === "1"
   );
   const previewIntegration = !official && process.env.VERCEL_ENV === "preview" && Boolean(process.env.PREVIEW_AI_DB_NAMESPACE);
-  const namespace = previewLive || previewIntegration ? required("PREVIEW_AI_DB_NAMESPACE") : env;
+  const testPayments = demo ? undefined : paymentTestNamespace(process.env);
+  const namespace = testPayments || (previewLive || previewIntegration ? required("PREVIEW_AI_DB_NAMESPACE") : env);
   if (previewLive || previewIntegration) {
     requireRule(/^test-[a-z0-9-]{3,40}$/.test(namespace) && process.env.PAYMENT_MODE === "disabled",
       "AI 검증에는 분리된 테스트 장부와 결제 비활성 설정이 필요해요.", 503);

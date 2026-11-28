@@ -52,7 +52,7 @@ export default function LaunchPolicies({ onBack, sectionPrefix = "nz-policy" }: 
         카드정보는 직접 저장하지 않고 결제대행사 토스페이먼츠가 처리해요.
       </p>
       <p>
-        실사 영상은 편집한 네 사진을 OpenAI에 보내 동작을 설명받고 첫 사진과
+        실사 영상은 편집한 네 사진을 OpenAI에 보내 동작을 설명받고 네 사진 중 선택한 기준 사진과
         설명을 HeyGen으로 보내요. 펜화 영상은 네 사진을 HeyGen으로 보내요.
         OpenAI 응답 저장은 끄고 요청하지만 제공업체의 모든 보관이 없다는 뜻은
         아니에요. 해외 제공업체 처리·보관·삭제 요청의 구체적인 안내와 동의

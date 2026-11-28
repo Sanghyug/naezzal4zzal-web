@@ -18,7 +18,7 @@ import {
   jobFor,
   newOrder,
   ownOrder,
-  paid,
+  reconcilePayment,
   requireRule,
   reserveJob,
   settle,
@@ -176,17 +176,19 @@ export class LaunchService {
   }
   async order(user: string, key: string) {
     requireRule(this.payments.kind !== "disabled", "크레딧 충전을 준비하고 있어요.", 503);
+    requireRule(this.payments.kind !== "live" || this.aiAccountAllowed(user),
+      "AI 영상 제작을 이용할 수 있는 계정에서 충전해주세요.", 403);
     return this.store.tx((s) => newOrder(s, user, key, Date.now()));
   }
   async confirm(user: string, id: string, key: string, amount: number) {
     const o = await this.store.tx((s) =>
-      beginPayment(s, user, id, key, amount),
+      structuredClone(beginPayment(s, user, id, key, amount)),
     );
     // Lookup first recovers a provider approval whose local commit was lost.
     let p = await this.payments.lookup(o);
     if (!p || ["READY", "IN_PROGRESS"].includes(p.status))
       p = await this.payments.confirm(o);
-    await this.store.tx((s) => paid(s, id, p!, Date.now()));
+    await this.store.tx((s) => reconcilePayment(s, id, p!, Date.now()));
     return this.account(user);
   }
   async recoverOrder(user: string, id: string) {
@@ -195,18 +197,19 @@ export class LaunchService {
     );
     const p = await this.payments.lookup(o);
     if (p) {
+      await this.store.tx((s) => reconcilePayment(s, id, p, Date.now()));
       if (o.status === "cancelling" && p.status === "DONE") {
         const c = await this.payments.cancel(o);
         requireRule(
           c.orderId === o.id &&
             c.paymentKey === o.paymentKey &&
-            c.totalAmount === o.amount &&
+            c.totalAmount === o.amount && c.currency === o.currency &&
             c.status === "CANCELED",
           "취소 확인이 필요해요.",
           502,
         );
         await this.store.tx((s) => cancelled(s, id, Date.now()));
-      } else await this.store.tx((s) => paid(s, id, p, Date.now()));
+      }
     }
     return this.account(user);
   }
@@ -485,7 +488,7 @@ export class LaunchService {
           !Object.values(s.orders).some(
             (o) =>
               o.user === user &&
-              ["confirming", "cancelling"].includes(o.status),
+              ["confirming", "cancelling", "review"].includes(o.status),
           ),
         "진행 중인 제작·결제 확인 후 탈퇴할 수 있어요.",
         409,
