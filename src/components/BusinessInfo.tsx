@@ -8,6 +8,7 @@ export default function BusinessInfo({ compact = false }: { compact?: boolean })
       <p>사업자등록번호 {BUSINESS.registrationNumber}</p>
       <p>{BUSINESS.address}</p>
       <p>문의 <a href={supportMailto()}>{BUSINESS.supportEmail}</a></p>
+      <p>고객문의 <a href={`tel:${BUSINESS.supportPhone.replaceAll("-", "")}`}>{BUSINESS.supportPhone}</a></p>
     </address>
   );
 }

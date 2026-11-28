@@ -26,6 +26,7 @@ export function mockPayments(store: Store): Payments {
           totalAmount: 3900,
           currency: "KRW",
           status: "DONE",
+          approvedAt: new Date().toISOString(),
         };
         s.mockPayments[o.id] = p;
         return p;

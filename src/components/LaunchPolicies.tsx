@@ -1,20 +1,23 @@
 import { useLaunch } from "../lib/launch";
 import { BUSINESS, supportMailto } from "../lib/business";
 import BusinessInfo from "./BusinessInfo";
+import { PAID_CREDIT_TERM } from "../lib/creditPolicy";
 export default function LaunchPolicies({ onBack, sectionPrefix = "nz-policy" }: { onBack: () => void; sectionPrefix?: string }) {
   const { config } = useLaunch();
   return (
     <article className="nz-account" aria-label="이용과 개인정보 안내">
       <h2>내짤4짤 이용 안내</h2>
-      <p>적용일 · 2026년 11월 26일</p>
+      <p>적용일 · 2026년 11월 28일</p>
       <h3 id={sectionPrefix + "-product"}>상품과 제공 방식</h3>
       <p>{BUSINESS.name}(대표 {BUSINESS.representative})이 내짤4짤을 운영합니다. 이 안내는 서비스 이용, 크레딧, 환불 및 개인정보 처리에 관한 내용을 담고 있어요.</p>
       {config && config.paymentMode !== "live" && <p>현재 테스트 운영 중이며 실제 결제금액은 청구되지 않아요. 아래 가격은 유료 판매를 시작할 때 적용할 예정인 상품 안내예요.</p>}
       <p>
         이 서비스 안에서만 사용하는 AI 영상 제작 10크레딧의 최종 결제금액은
         3,900원이에요. 실사 영상 1편은 1, 펜화 영상 1편은 3크레딧이에요.
-        양도·판매·현금 교환·정기 구독·자동 충전은 제공하지 않아요. 구매 크레딧에
-        임의의 만료일을 적용하지 않아요.
+        양도·판매·현금 교환·정기 구독·자동 충전은 제공하지 않아요.
+        이 사용기간을 안내받고 새로 구매하는 유료 크레딧은 {PAID_CREDIT_TERM} 동안 사용할 수 있어요.
+        구매별 종료 시각은 구매 내역에 한국시간으로 표시하며, 기존 구매·지급분의 조건은 변경하지 않아요.
+        추가 구매해도 앞서 구매한 크레딧의 사용기한은 바뀌지 않아요.
       </p>
       <p>
         사진 편집과 기본 GIF는 로그인 없이 이용할 수 있어요. AI 영상은 카카오
@@ -42,6 +45,10 @@ export default function LaunchPolicies({ onBack, sectionPrefix = "nz-policy" }: 
         전액 미사용이고 제작 예약 중이 아닌 구매는 구매 내역에서 취소를 요청할
         수 있어요. 일부 사용·예약된 구매의 환불은 사용량과 실제 결제액을 확인해
         개별 안내해요. 이 안내로 법에 따른 소비자의 권리를 제한하지 않아요.
+        사용기간이 끝난 유료 크레딧은 새 영상 제작에 사용할 수 없지만,
+        남은 구매 잔액을 삭제하지 않으며 환불을 요청할 수 있어요.
+        기한 전에 접수된 제작은 완료될 수 있고, 실패하여 복구된 크레딧의 사용기한이
+        이미 지난 경우에도 환불 문의로 확인해드려요.
         환불 문의는 <a href={supportMailto("내짤4짤 환불 요청")}>{BUSINESS.supportEmail}</a>로 보내주세요.
         결제대행 계약에 따른 세부 환불 조건은 유료 판매 시작 전에 안내해요.
       </p>
@@ -52,7 +59,7 @@ export default function LaunchPolicies({ onBack, sectionPrefix = "nz-policy" }: 
         카드정보는 직접 저장하지 않고 결제대행사 토스페이먼츠가 처리해요.
       </p>
       <p>
-        실사 영상은 편집한 네 사진을 OpenAI에 보내 동작을 설명받고 첫 사진과
+        실사 영상은 편집한 네 사진을 OpenAI에 보내 동작을 설명받고 네 사진 중 선택한 기준 사진과
         설명을 HeyGen으로 보내요. 펜화 영상은 네 사진을 HeyGen으로 보내요.
         OpenAI 응답 저장은 끄고 요청하지만 제공업체의 모든 보관이 없다는 뜻은
         아니에요. 해외 제공업체 처리·보관·삭제 요청의 구체적인 안내와 동의

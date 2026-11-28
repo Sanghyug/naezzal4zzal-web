@@ -7,6 +7,7 @@ import LaunchPolicies from "./LaunchPolicies";
 import { LaunchIcon, FilmDecoration } from "./LaunchArtwork";
 import { shareAppInvite } from "../lib/appInvite";
 import { BUSINESS, supportMailto } from "../lib/business";
+import { PAID_CREDIT_POLICY_VERSION, PAID_CREDIT_TERM } from "../lib/creditPolicy";
 import "./launch.css";
 import "./launch-redesign.css";
 export function LoginPrompt({ onDismiss }: { onDismiss?: () => void }) {
@@ -42,6 +43,7 @@ const names: Record<string, string> = {
   generation_use: "영상 제작 사용 확정",
   generation_release: "제작 예약 복구",
   purchase_cancel: "구매 취소",
+  payment_review: "결제 내역 확인 요청",
   admin_adjustment: "운영자 보상",
 };
 const statusNames: Record<string, string> = {
@@ -124,7 +126,8 @@ export default function LaunchAccount({ entryTarget }: { entryTarget?: HTMLEleme
       {!ready ? <p role="status">로그인을 확인하고 있어요.</p> : !account && authenticated ? <button onClick={() => void act(refreshAccount)}>계정 정보 다시 불러오기</button> : !account ? <><LoginPrompt onDismiss={()=>setOpen(false)}/><button onClick={async()=>setMessage(await shareAppInvite(null))}>친구 초대하기</button><p>로그인 후 친구 초대 보상을 받을 수 있어요.</p></> : <>
         <div className="nz-page-title"><h1>내 크레딧</h1><p>추억을 더 만들 준비, 됐나요?</p></div>
         <div className="nz-credit-ticket nz-ticket"><div className="nz-ticket-top"><div><span className="nz-pill">사용 가능한 크레딧</span><strong><b>{account.balance.available}</b><span>크레딧</span></strong><p>제작 예약 {account.balance.reserved}크레딧 · 총 보유 {account.balance.total}</p></div><FilmDecoration/></div><div className="nz-cost-chips"><span><LaunchIcon name="video"/>실사 영상 <b>1크레딧</b></span><span><LaunchIcon name="pen"/>애니메이션 영상 <b>3크레딧</b></span></div></div>
-        <section className="nz-topup-card"><h2>추억을 더 만들고 싶다면</h2><div className="nz-price"><b>10크레딧</b><strong>3,900원</strong></div><p>필요할 때 한 번씩 충전해요</p>
+        {!!account.balance.expired && <p role="status">사용기간이 끝난 {account.balance.expired}크레딧은 총 보유량에 포함되지만 새 제작에는 사용할 수 없어요. 구매 내역에서 환불을 요청할 수 있어요.</p>}
+        <section className="nz-topup-card"><h2>추억을 더 만들고 싶다면</h2><div className="nz-price"><b>10크레딧</b><strong>3,900원</strong></div><p>필요할 때 한 번씩 충전해요 · 사용기간 {PAID_CREDIT_TERM}</p>
                 <button
                   disabled={busy || !config?.payments}
                   onClick={() =>
@@ -136,11 +139,15 @@ export default function LaunchAccount({ entryTarget }: { entryTarget?: HTMLEleme
                       const o = await launchApi<LaunchOrder>("order", {
                         requestKey: key,
                       });
-                      if (["paid", "cancelled", "failed"].includes(o.status)) {
-                        sessionStorage.removeItem(cache);
+                      if (o.status !== "pending") {
+                        if (["paid", "cancelled", "failed"].includes(o.status)) sessionStorage.removeItem(cache);
                         setMessage(
-                          "기존 구매 상태를 확인했어요. 새 충전은 다시 선택해주세요.",
+                          ["confirming", "cancelling", "review"].includes(o.status)
+                            ? "확인 중인 구매가 있어요. 구매 내역에서 상태를 확인해주세요."
+                            : "기존 구매 상태를 확인했어요. 새 충전은 다시 선택해주세요.",
                         );
+                        setTab("orders");
+                        await refreshAccount();
                         return;
                       }
                       setPurchase(o);
@@ -222,6 +229,9 @@ export default function LaunchAccount({ entryTarget }: { entryTarget?: HTMLEleme
                   <b>{o.credits}크레딧 · {o.amount.toLocaleString("ko-KR")}원</b>
                   <time dateTime={new Date(o.created).toISOString()}>{new Date(o.created).toLocaleString("ko-KR")}</time>
                   <span>{statusNames[o.status]}</span>
+                  {o.creditExpiresAt && <p>사용기한: {new Date(o.creditExpiresAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", hour12: false })}에 종료 (한국시간)</p>}
+                  {!o.creditPolicyVersion && o.status === "paid" && <p>기존 구매 · 사용기한 없음</p>}
+                  {!!o.expiredCredits && <p>사용기간 종료 {o.expiredCredits}크레딧 · 남은 구매 잔액은 환불 요청 가능</p>}
                   <small>주문 {o.id}</small>
                   {["pending", "confirming", "cancelling"].includes(
                     o.status,
@@ -255,7 +265,9 @@ export default function LaunchAccount({ entryTarget }: { entryTarget?: HTMLEleme
                   <p>
                     전액 미사용이며 제작 예약 중이 아닌 구매는 취소할 수 있어요.
                     일부 사용한 구매는 문의로 확인해드려요.
+                    사용기간이 지나도 남은 구매 잔액의 환불을 요청할 수 있어요.
                   </p>
+                  <p><a href={supportMailto("내짤4짤 환불 요청 · 주문 " + refund)}>부분 사용·기간 종료·결제 취소 오류 문의</a></p>
                   <label>
                     취소 사유
                     <input
@@ -415,6 +427,10 @@ function Checkout({
         이 서비스에서만 사용하는 영상 제작 크레딧이에요. 양도·현금 교환·자동
         충전은 지원하지 않아요.
       </p>
+      <p>{order.creditPolicyVersion === PAID_CREDIT_POLICY_VERSION
+        ? `사용기간은 ${PAID_CREDIT_TERM}이며, 구매 내역에서 종료 시각을 확인할 수 있어요.`
+        : "이 주문은 기존 구매 조건을 적용하여 사용기한이 없어요."}</p>
+      <p>사용기간이 끝나면 새 영상 제작에 사용할 수 없지만, 남은 구매 잔액의 환불을 요청할 수 있어요.</p>
       <div id="nz-payment-methods" />
       <div id="nz-payment-agreement" />
       {config?.paymentMode === "mock" && (

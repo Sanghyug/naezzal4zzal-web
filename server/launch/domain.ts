@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { PAID_CREDIT_POLICY_VERSION, paidCreditExpiry } from "../../src/lib/creditPolicy.ts";
 export const PRODUCT = {
   id: "credits10",
   credits: 10,
@@ -62,6 +63,8 @@ export type Lot = {
   reserved: number;
   frozen: boolean;
   created: number;
+  // Missing on legacy and free grants. Expiry never erases the refund balance.
+  expiresAt?: number;
 };
 export type Entry = {
   id: string;
@@ -85,9 +88,13 @@ export type Order = {
     | "paid"
     | "cancelling"
     | "cancelled"
+    | "review"
     | "failed";
   paymentKey?: string;
   created: number;
+  creditPolicyVersion?: string;
+  paidAt?: number;
+  creditExpiresAt?: number;
   reason?: string;
 };
 export type Job = {
@@ -143,6 +150,7 @@ export type PaymentRecord = {
   totalAmount: number;
   currency: string;
   status: string;
+  approvedAt?: string;
 };
 export type State = {
   config: Config;
@@ -236,6 +244,7 @@ export function grant(
   cause: string,
   at: number,
   type: string,
+  expiresAt?: number,
 ) {
   requireRule(
     Number.isSafeInteger(amount) && amount > 0,
@@ -266,18 +275,23 @@ export function grant(
     reserved: 0,
     frozen: false,
     created: at,
+    ...(expiresAt !== undefined ? { expiresAt } : {}),
   };
   entry(s, user, type, amount, cause, at);
 }
-export function balance(s: State, user: string) {
+export function creditExpired(lot: Lot, at: number): boolean {
+  return lot.kind === "paid" && lot.expiresAt !== undefined && lot.expiresAt <= at;
+}
+export function balance(s: State, user: string, at = Date.now()) {
   const lots = Object.values(s.lots).filter((l) => l.user === user);
   return {
     total: lots.reduce((n, l) => n + l.remaining, 0),
     available: lots.reduce(
-      (n, l) => n + (l.frozen ? 0 : l.remaining - l.reserved),
+      (n, l) => n + (l.frozen || creditExpired(l, at) ? 0 : l.remaining - l.reserved),
       0,
     ),
     reserved: lots.reduce((n, l) => n + l.reserved, 0),
+    expired: lots.reduce((n, l) => n + (creditExpired(l, at) ? l.remaining - l.reserved : 0), 0),
     paid: lots
       .filter((l) => l.kind === "paid")
       .reduce((n, l) => n + l.remaining, 0),
@@ -484,6 +498,7 @@ export function newOrder(s: State, user: string, key: string, at: number) {
     currency: PRODUCT.currency,
     status: "pending",
     created: at,
+    creditPolicyVersion: PAID_CREDIT_POLICY_VERSION,
   };
   s.orders[o.id] = o;
   return o;
@@ -519,7 +534,7 @@ export function beginPayment(
     "이미 연결된 결제예요.",
   );
   requireRule(
-    !["cancelled", "cancelling", "failed"].includes(o.status),
+    !["cancelled", "cancelling", "review", "failed"].includes(o.status),
     "진행할 수 없는 결제예요.",
   );
   o.paymentKey = paymentKey;
@@ -529,13 +544,7 @@ export function beginPayment(
 export function paid(
   s: State,
   id: string,
-  payment: {
-    orderId: string;
-    paymentKey: string;
-    totalAmount: number;
-    currency: string;
-    status: string;
-  },
+  payment: PaymentRecord,
   at: number,
 ) {
   const o = s.orders[id];
@@ -552,9 +561,45 @@ export function paid(
     return;
   }
   requireRule(payment.status === "DONE", "승인된 결제가 아니에요.");
-  if (o.status === "cancelling" || o.status === "cancelled") return;
-  grant(s, o.user, "paid", 10, o.id, at, "purchase");
+  if (["cancelling", "cancelled", "review", "failed"].includes(o.status)) return;
+  if (!s.lots["paid:" + o.id] && o.creditPolicyVersion) {
+    requireRule(o.creditPolicyVersion === PAID_CREDIT_POLICY_VERSION,
+      "구매 당시 사용기간을 확인하고 있어요.", 502);
+    const approvedAt = typeof payment.approvedAt === "string" &&
+      /(?:Z|[+-]\d{2}:\d{2})$/.test(payment.approvedAt)
+      ? Date.parse(payment.approvedAt) : NaN;
+    requireRule(Number.isFinite(approvedAt) && approvedAt >= o.created - 300000 && approvedAt <= at + 300000,
+      "결제 승인 시각을 확인하고 있어요. 구매 상태를 다시 확인해주세요.", 502);
+    o.paidAt = approvedAt;
+    o.creditExpiresAt = paidCreditExpiry(approvedAt);
+  }
+  grant(s, o.user, "paid", 10, o.id, at, "purchase", o.creditExpiresAt);
   o.status = "paid";
+}
+// Only call with a fresh, server-to-provider lookup. Pending and terminal
+// failures are valid reconciliation results, not successful credit purchases.
+export function reconcilePayment(s: State, id: string, payment: PaymentRecord, at: number) {
+  const o = s.orders[id];
+  requireRule(o && o.paymentKey && payment.orderId === o.id &&
+    payment.paymentKey === o.paymentKey && payment.totalAmount === o.amount &&
+    payment.currency === o.currency, "결제 검증에 실패했어요.", 502);
+  if (o.status === "cancelled") return;
+  if (["READY", "IN_PROGRESS", "WAITING_FOR_DEPOSIT"].includes(payment.status)) return;
+  if (["ABORTED", "EXPIRED"].includes(payment.status)) {
+    if (["pending", "confirming"].includes(o.status)) o.status = "failed";
+    return;
+  }
+  const lot = s.lots["paid:" + id];
+  if (payment.status === "PARTIAL_CANCELED" ||
+    (payment.status === "CANCELED" && lot && (lot.remaining !== o.credits || lot.reserved !== 0))) {
+    // A dashboard refund may race with spending. Freeze the remaining lot for
+    // operator reconciliation; never invent a refund amount or erase usage.
+    if (lot) lot.frozen = true;
+    if (o.status !== "review") entry(s, o.user, "payment_review", 0, id, at);
+    o.status = "review";
+    return;
+  }
+  paid(s, id, payment, at);
 }
 export function beginCancel(
   s: State,
@@ -633,7 +678,7 @@ export function reserveJob(
     429,
   );
   requireRule(
-    balance(s, user).available >= rule.credits,
+    balance(s, user, at).available >= rule.credits,
     "크레딧이 부족해요. 충전 후 다시 만들어주세요.",
     409,
   );
@@ -641,10 +686,11 @@ export function reserveJob(
   let left: number = rule.credits;
   const allocations: Job["allocations"] = [];
   const lots = Object.values(s.lots)
-    .filter((l) => l.user === user && !l.frozen)
+    .filter((l) => l.user === user && !l.frozen && !creditExpired(l, at))
     .sort(
       (a, b) =>
         Number(a.kind === "paid") - Number(b.kind === "paid") ||
+        (a.expiresAt ?? Infinity) - (b.expiresAt ?? Infinity) ||
         a.created - b.created,
     );
   for (const l of lots) {

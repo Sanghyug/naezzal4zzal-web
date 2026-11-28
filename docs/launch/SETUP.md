@@ -1,5 +1,11 @@
 # 외부 연결 준비 — 상혁님이 필요한 순서
 
+> **2026-11-28 현재 상태와 결제 준비:** [PAYMENTS_READINESS_20261128.md](PAYMENTS_READINESS_20261128.md)를 먼저 읽는다.
+> 신규 유료 크레딧 사용기간은 결제일부터 1년으로 승인했다. 기존 지급분 보존과 배포 전 확인사항은 [CREDIT_VALIDITY_20261128.md](CREDIT_VALIDITY_20261128.md)를 따른다.
+> 아래에는 이전 도메인 후보·가입 선물 5·100명·테스트 장부 폐기 등 과거 계획이 섞여 있다.
+> 현재 공식 주소는 4zzal.com, 신규 선물은 4크레딧·1,000명이고 기존 `test` 장부에는 실제 회원과 제작 내역이 있다.
+> 그 장부를 지우거나 이름만 바꿔 새 빈 장부로 전환하지 않는다. 실제 토스 시험은 `PAYMENT_TEST_DB_NAMESPACE`로 분리한다.
+
 ## 고정 테스트 주소와 로그인 복귀 (현행)
 
 - 앞으로 이 브랜치 테스트는 **https://naezzal4zzal-test.vercel.app**만 사용한다.
@@ -103,6 +109,9 @@ OAuth 응답을 모의한 Chrome 검사이며 실제 카카오 계정·카카오
 
 1. [토스페이먼츠 개발자센터](https://developers.tosspayments.com/)에 로그인한다.
 2. API 키 메뉴에서 **주문서형 결제/결제위젯**에 맞는 테스트 클라이언트 키와 테스트 시크릿 키를 확인한다.
+   현재 결제 작업 브랜치에는 별도 `test-payments-...` 장부와 AI 호출 비활성 설정이 필요하다.
+   웹훅 주소는 `/api/payments-webhook`이며 보안 키 `TOSS_WEBHOOK_SECURITY_KEY`와 `PAYMENT_STATUS_CHANGED` 이벤트를 사용한다.
+   이전 `/api/launch?action=webhook` 주소는 서명 없는 호출을 막기 위해 폐쇄했다.
 3. [Vercel 프로젝트 환경변수](https://vercel.com/sanghyug-park-s-projects/naezzal4zzal-web/settings/environment-variables)의
    **Preview**에 `TOSS_CLIENT_KEY`, `TOSS_SECRET_KEY`를 안전하게 입력한다.
    `PAYMENT_MODE=toss-test`로 전환한다. 키를 채팅으로 보내지 않는다.
