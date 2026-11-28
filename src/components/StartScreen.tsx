@@ -286,12 +286,14 @@ function StartScreen({
             href="https://mea-luna.com"
             target="_blank"
             rel="noopener noreferrer"
-            style={{display:"block",textDecoration:"none",padding:"12px",borderRadius:"12px",background:"#fff",border:"1px solid #e4d9ef",color:"inherit",marginBottom:"12px"}}
+            style={{display:"block",textDecoration:"none",padding:"10px",borderRadius:"12px",background:"#fff",border:"1px solid #e4d9ef",color:"inherit",marginBottom:"12px"}}
           >
-            <img src="https://mymoon-two.vercel.app/assets/images/moon_prophet.png" alt="나의 달 대표 일러스트" loading="lazy" style={{display:"block",width:"100%",maxHeight:220,objectFit:"contain",borderRadius:10,marginBottom:10}} />
-            <div style={{color:"#7653a1",fontWeight:700,fontSize:20}}>나의 달</div>
-            <div style={{fontSize:12,color:"#7653a1",marginBottom:8}}>Mea-Luna</div>
-            <div style={{fontSize:12,color:"#777",lineHeight:1.7}}>내가 태어난 순간의 달은 어떤 모습이었을까요?<br />수호 달, 성격 이야기, MBTI 비교, 오늘의 운세를<br />무료로 재미있게 볼 수 있어요.</div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,color:"#7653a1",fontWeight:700,fontSize:20,lineHeight:"28px",marginBottom:6}}>
+              <img src="/mea-luna-icon.webp" alt="" width={28} height={28} loading="lazy" style={{display:"block",flexShrink:0,objectFit:"contain",borderRadius:7}} />
+              <span>나의 달</span>
+            </div>
+            <div style={{fontSize:12,color:"#7653a1",marginBottom:8}}>Mea Luna</div>
+            <div style={{fontSize:12,color:"#777",lineHeight:1.6}}>내가 태어난 순간의 달은 어떤 모습이었을까요?<br />수호 달, 성격 이야기, MBTI 비교, 오늘의 운세를<br />무료로 재미있게 볼 수 있어요.</div>
             <div style={{marginTop:10,padding:"9px 12px",borderRadius:10,background:"#7653a1",color:"#fff",fontWeight:700,fontSize:13}}>나의 달 보러가기</div>
           </a>
           <a
@@ -313,6 +315,7 @@ function StartScreen({
                 color: "#ff4f87",
                 fontWeight: 700,
                 fontSize: "20px",
+                lineHeight: "28px",
                 marginBottom: "6px",
               }}
             >
