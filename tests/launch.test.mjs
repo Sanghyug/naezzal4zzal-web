@@ -118,6 +118,7 @@ test("one available credit cannot reserve two concurrent jobs; retry never adds 
   );
   assert.deepEqual(await a.tx((s) => balance(s, "a")), {
     total: 1,
+    expired: 0,
     available: 0,
     reserved: 1,
     paid: 0,
@@ -176,6 +177,7 @@ test("payment validates account, amount, order and provider status; duplicates g
     totalAmount: 3900,
     currency: "KRW",
     status: "DONE",
+    approvedAt: new Date(now).toISOString(),
   };
   assert.throws(() => paid(s, o.id, { ...p, status: "ABORTED" }, now));
   assert.throws(() => paid(s, o.id, { ...p, totalAmount: 1 }, now));

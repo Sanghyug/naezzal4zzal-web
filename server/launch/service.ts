@@ -8,6 +8,7 @@ import type { VideoProvider } from "./video.ts";
 import { ANALYSIS_VERSION, sha, validateImages } from "./video.ts";
 import {
   balance,
+  creditExpired,
   beginCancel,
   beginPayment,
   cancelled,
@@ -93,7 +94,7 @@ export class LaunchService {
     ).length;
     return {
       user: { id: u.id },
-      balance: balance(s, user),
+      balance: balance(s, user, now),
       entries: s.entries
         .filter((e) => e.user === user)
         .slice(-100)
@@ -102,7 +103,10 @@ export class LaunchService {
         .filter((o) => o.user === user)
         .map(({ paymentKey: _, ...o }) => {
           void _;
-          return o;
+          const lot = s.lots["paid:" + o.id];
+          return { ...o, remainingCredits: lot?.remaining,
+            reservedCredits: lot?.reserved,
+            expiredCredits: lot && creditExpired(lot, now) ? lot.remaining - lot.reserved : 0 };
         })
         .reverse(),
       jobs: Object.values(s.jobs)

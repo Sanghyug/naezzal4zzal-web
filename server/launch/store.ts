@@ -102,7 +102,8 @@ export function assertState(s: State) {
       !Number.isSafeInteger(l.reserved) ||
       l.remaining < 0 ||
       l.reserved < 0 ||
-      l.reserved > l.remaining
+      l.reserved > l.remaining ||
+      (l.expiresAt !== undefined && (l.kind !== "paid" || !Number.isSafeInteger(l.expiresAt)))
     )
       throw new Error("Invalid credit ledger");
 }

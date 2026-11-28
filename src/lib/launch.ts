@@ -26,11 +26,17 @@ export type LaunchOrder = {
   amount: number;
   credits: number;
   created: number;
+  creditPolicyVersion?: string;
+  paidAt?: number;
+  creditExpiresAt?: number;
+  remainingCredits?: number;
+  reservedCredits?: number;
+  expiredCredits?: number;
 };
 export type Account = {
   aiAllowed?: boolean;
   user: { id: string };
-  balance: { total: number; available: number; reserved: number; paid: number };
+  balance: { total: number; available: number; reserved: number; paid: number; expired?: number };
   entries: {
     id: string;
     kind: string;

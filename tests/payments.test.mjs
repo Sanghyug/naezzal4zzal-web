@@ -16,7 +16,7 @@ function fixture() {
   signup(s, "owner", "identity-owner", Date.now(), undefined, Date.now());
   const order = newOrder(s, "owner", "request", Date.now());
   beginPayment(s, "owner", order.id, "test-payment", 3900);
-  const record = { orderId: order.id, paymentKey: "test-payment", totalAmount: 3900, currency: "KRW", status: "DONE" };
+  const record = { orderId: order.id, paymentKey: "test-payment", totalAmount: 3900, currency: "KRW", status: "DONE", approvedAt: new Date().toISOString() };
   const store = { async tx(fn) { const copy = structuredClone(s); const out = fn(copy); Object.assign(s, copy); return structuredClone(out); } };
   const pg = { kind: "toss-test", async lookup() { return structuredClone(record); }, async confirm() { return structuredClone(record); }, async cancel() { record.status = "CANCELED"; return structuredClone(record); } };
   return { s, order, record, pg, service: new LaunchService(store, {}, pg, {}) };
